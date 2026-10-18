@@ -141,6 +141,8 @@ void main() {
       await tester.pump();
       expect(find.text('Earn 6 socks to unlock. One loud toot right where you stand.'), findsOneWidget);
       expect(tester.widget<ChunkyButton>(button('Sneak in')).onPressed, isNull);
+      final dim = find.ancestor(of: button('Sneak in'), matching: find.byType(Opacity));
+      expect(tester.widget<Opacity>(dim.first).opacity, 0.6);
     });
 
     testWidgets('Retry after a catch keeps it', (tester) async {

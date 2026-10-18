@@ -188,18 +188,21 @@ class _BriefingScreenState extends State<BriefingScreen> {
         at(
           648,
           314,
-          ChunkyButton.primary(
-            // A locked tool can be read about, not taken.
-            onPressed: selected.locked
-                ? null
-                : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: selected.tool),
-            label: 'Sneak in',
-            trailingIcon: GameIcon.arrow,
-            iconSize: 18,
-            width: 172,
-            height: 56,
-            fontSize: 22,
-            padding: EdgeInsets.zero,
+          // A locked tool can be read about, not taken.
+          Opacity(
+            opacity: selected.locked ? 0.6 : 1,
+            child: ChunkyButton.primary(
+              onPressed: selected.locked
+                  ? null
+                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: selected.tool),
+              label: 'Sneak in',
+              trailingIcon: GameIcon.arrow,
+              iconSize: 18,
+              width: 172,
+              height: 56,
+              fontSize: 22,
+              padding: EdgeInsets.zero,
+            ),
           ),
         ),
 
