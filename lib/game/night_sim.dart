@@ -357,7 +357,8 @@ class NightSim {
     _noteGoose();
 
     final spill = _spillX;
-    if (spill != null && goose.state == GooseState.chase && (goose.x - spill).abs() <= tuning.slipRadius) {
+    final running = goose.state == GooseState.chase || goose.state == GooseState.distracted;
+    if (spill != null && running && (goose.x - spill).abs() <= tuning.slipRadius) {
       goose.slip();
       _spillX = null;
       _events.add(GooseSlipped(goose.x));

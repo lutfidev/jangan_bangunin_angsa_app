@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
@@ -454,6 +456,27 @@ void main() {
       expect(s.spillX, isNull);
       expect(s.outcome, isNull);
     });
+  });
+
+  test('a distracted goose slips on the marbles too', () {
+    // She wakes at 400 with Milo at 500; a two-link chain at 700–760 pulls
+    // her right across the marbles he spilled behind him at 476.
+    final level = Level.fromJson({
+      ...jsonDecode(minimalLevel(
+        spots: [{'id': 'a', 'x': 700}, {'id': 'b', 'x': 760}],
+        objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'o2', 'type': 'tipper', 'spot': 'b'}],
+        links: [{'from': 'a', 'to': 'b'}],
+      )) as Map<String, Object?>,
+      'playerStart': 500,
+    });
+    final s = NightSim(level, tool: Tool.marbles);
+    s.goose.wake(WakeCause.noise);
+    expect(s.useTool(), isTrue);
+    expect(s.spillX, 476);
+    s.poke('a');
+    tickUntil(s, () => s.goose.state == GooseState.distracted, limit: 1);
+    tickUntil(s, () => s.goose.slipping, limit: 2);
+    expect(s.spillX, isNull);
   });
 
   group('kazoo', () {
