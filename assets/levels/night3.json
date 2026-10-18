@@ -4,7 +4,8 @@
   "playerStart": 236,
   "exitX": 770,
   "bedX": 502,
-  "hideSpots": [180, 720],
+  "hideSpots": [148, 703],
+  "crawlway": {"from": 250, "to": 420},
   "spots": [
     {"id": "counterLeft", "x": 62},
     {"id": "counterPot", "x": 113, "snap": true},
@@ -32,7 +33,7 @@
   ],
   "loot": [
     {"id": "toaster", "x": 218},
-    {"id": "chicken", "x": 353, "squeaks": true},
+    {"id": "chicken", "x": 353, "squeaks": true, "high": true},
     {"id": "egg", "x": 561, "guarded": true}
   ]
 }

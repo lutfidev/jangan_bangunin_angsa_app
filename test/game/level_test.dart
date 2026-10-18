@@ -19,7 +19,7 @@ void main() {
     expect(l.links.first.delay, 0.4);
     expect(l.loot.singleWhere((x) => x.guarded).id, 'egg');
     expect(l.loot.firstWhere((x) => x.id == 'chicken').squeaks, isTrue);
-    expect(l.hideSpots, [180, 720]);
+    expect(l.hideSpots, [148, 703]);
   });
 
   test('rejects a link to an unknown spot', () {
@@ -65,5 +65,33 @@ void main() {
       () => Level.parse(minimalLevel(objects: [{'id': 'o', 'type': 'trebuchet', 'spot': 'a'}])),
       _formatError('unknown object type: trebuchet'),
     );
+  });
+
+  test('night 3 has the crawlway and the chicken up on it', () {
+    final l = night3();
+    expect(l.crawlway!.from, 250);
+    expect(l.crawlway!.to, 420);
+    expect(l.loot.firstWhere((x) => x.id == 'chicken').high, isTrue);
+    expect(l.loot.firstWhere((x) => x.id == 'toaster').high, isFalse);
+  });
+
+  test('a level without a crawlway has none', () {
+    expect(Level.parse(minimalLevel()).crawlway, isNull);
+  });
+
+  test('rejects a crawlway that runs backwards', () {
+    expect(
+      () => Level.parse(minimalLevel(crawlway: {'from': 420, 'to': 250})),
+      _formatError('crawlway runs backwards: test'),
+    );
+  });
+
+  test('rejects high loot off the crawlway', () {
+    final cup = {'id': 'cup', 'x': 500, 'high': true};
+    expect(
+      () => Level.parse(minimalLevel(crawlway: {'from': 0, 'to': 100}, loot: [cup])),
+      _formatError('high loot off the crawlway: cup'),
+    );
+    expect(() => Level.parse(minimalLevel(loot: [cup])), _formatError('high loot off the crawlway: cup'));
   });
 }
