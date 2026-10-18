@@ -169,4 +169,53 @@ void main() {
     await play(tester, 0.05);
     await snap(tester, 'gameplay_slip');
   });
+
+  testWidgets('gameplay_carry', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 113);
+    sim.interact();
+    walkTo(sim, 300);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_carry');
+  });
+
+  testWidgets('gameplay_hidden', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 703);
+    sim
+      ..toggleHide()
+      ..poke('sideTable');
+    tickUntil(sim, () => sim.goose.state == GooseState.chase);
+    sim.takeEvents();
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_hidden');
+  });
+
+  testWidgets('gameplay_crawl', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 260);
+    sim.toggleClimb();
+    walkTo(sim, 353);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_crawl');
+  });
+
+  testWidgets('gameplay_cabinet', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 148);
+    sim.toggleHide();
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_cabinet');
+  });
+
+  testWidgets('gameplay_place', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 113);
+    sim.interact();
+    walkTo(sim, 596);
+    sim.place('underSideTable');
+    walkTo(sim, 372);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_place');
+  });
 }

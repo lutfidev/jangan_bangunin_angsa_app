@@ -7,7 +7,7 @@ part 'prop_svgs.dart';
 
 enum GooseMood { sleep, suspicious, investigate, awake, chase }
 
-enum BurglarPose { sneak, carry, panic, caught }
+enum BurglarPose { sneak, carry, panic, caught, crawl }
 
 enum PropKind {
   glass,

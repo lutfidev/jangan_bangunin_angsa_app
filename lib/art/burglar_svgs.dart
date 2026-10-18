@@ -1,4 +1,5 @@
-// Generated from the design canvas; edit the art there, not here.
+// Generated from the design canvas; edit the art there, not here. The crawl
+// pose is the exception: the canvas has none (docs/DESIGN_NOTES.md, langkah 4).
 part of 'art.dart';
 
 const Map<BurglarPose, ({String label, String svg})> _burglarSvgs = {
@@ -108,6 +109,34 @@ const Map<BurglarPose, ({String label, String svg})> _burglarSvgs = {
 <path d="M15 119 L21 125 M21 119 L15 125 M27 117 L33 123 M33 117 L27 123" fill="none" stroke-width="2.5"/>
 <path d="M20 136 Q24 133 28 136" fill="none" stroke-width="2.5"/>
 <path d="M14 92 L16 98 L22 100 L16 102 L14 108 L12 102 L6 100 L12 98 Z M38 86 L39.5 90 L44 91.5 L39.5 93 L38 97 L36.5 93 L32 91.5 L36.5 90 Z" fill="#FFC14D" stroke-width="2.5"/>
+</g>
+</svg>''',
+  ),
+  BurglarPose.crawl: (
+    label: 'Milo Muffle crawling on all fours',
+    svg: r'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150">
+<g stroke="#1C1A2B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+<ellipse cx="62" cy="144" rx="46" ry="5" fill="#000000" opacity="0.22" stroke="none"/>
+<path d="M86 116 L98 138 M72 118 L78 138" fill="none" stroke-width="13"/>
+<path d="M86 116 L98 138 M72 118 L78 138" fill="none" stroke="#2A2840" stroke-width="6"/>
+<ellipse cx="104" cy="139" rx="11" ry="6" fill="#FFC14D" stroke-width="3"/>
+<ellipse cx="82" cy="140" rx="10" ry="5.5" fill="#5CC9A7" stroke-width="3"/>
+<path d="M30 112 C30 92 48 84 70 84 C94 84 108 94 106 112 C104 124 90 128 70 128 C48 128 30 124 30 112 Z" fill="#2F6F73"/>
+<path d="M60 118 Q74 124 88 118" fill="none" stroke-width="2.5"/>
+<path d="M40 112 L30 136" fill="none" stroke-width="14"/>
+<path d="M40 112 L30 136" fill="none" stroke="#2F6F73" stroke-width="7"/>
+<path d="M56 116 L52 136" fill="none" stroke-width="14"/>
+<path d="M56 116 L52 136" fill="none" stroke="#2F6F73" stroke-width="7"/>
+<circle cx="29" cy="138" r="6" fill="#F2B48A" stroke-width="3"/>
+<circle cx="52" cy="138" r="6" fill="#F2B48A" stroke-width="3"/>
+<circle cx="32" cy="94" r="24" fill="#2F6F73"/>
+<circle cx="28" cy="98" r="16" fill="#F2B48A" stroke-width="3"/>
+<path d="M12 92 Q28 85 44 92 L44 101 Q28 95 12 101 Z" fill="#F0533B" stroke-width="3"/>
+<circle cx="22" cy="96" r="4.5" fill="#FFFFFF" stroke-width="2.5"/>
+<circle cx="35" cy="96" r="4.5" fill="#FFFFFF" stroke-width="2.5"/>
+<circle cx="21" cy="95" r="2.2" fill="#1C1A2B" stroke="none"/>
+<circle cx="34" cy="95" r="2.2" fill="#1C1A2B" stroke="none"/>
+<path d="M22 108 Q26 106 30 108" fill="none" stroke-width="2.5"/>
 </g>
 </svg>''',
   ),

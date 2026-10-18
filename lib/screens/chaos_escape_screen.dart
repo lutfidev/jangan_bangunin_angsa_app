@@ -9,6 +9,7 @@ import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
 import 'gameplay_screen.dart';
+import 'night3_set.dart';
 import 'scene.dart';
 
 /// Mid-chase: a deliberate 4-link chain distracts Gertrude while Milo runs
@@ -105,33 +106,8 @@ class ChaosEscapeScreen extends StatelessWidget {
         at(622, 196, const Burglar(pose: BurglarPose.panic, width: 60)),
 
         // Coat rack hide spot.
-        box(700, 172, 10, 102, Palette.floor, border: 2),
-        at(
-          686,
-          176,
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF4C5BA8),
-              border: inkBorder(),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-                bottom: Radius.circular(4),
-              ),
-            ),
-          ),
-          width: 34,
-          height: 54,
-        ),
-        at(
-          684,
-          146,
-          Pill(
-            'HIDE',
-            radius: 6,
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            textStyle: ui(10, weight: FontWeight.w800),
-          ),
-        ),
+        ...coatRack(),
+        hideTag(const Offset(684, 146)),
         ...exitDoor(),
         at(
           756,

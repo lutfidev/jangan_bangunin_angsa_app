@@ -14,6 +14,10 @@ import 'scene.dart';
 
 /// Where a sock leaves Milo's hand, and the highest its arc may climb.
 const _handY = 212.0;
+
+/// His hand while he crawls the cabinet tops: as far above the plank as
+/// [_handY] is above the floor.
+const crawlHandY = _handY - (270 - crawlwayTop);
 const _handOut = 26.0;
 const _topY = 20.0;
 
@@ -36,12 +40,13 @@ class ThrowArc {
 }
 
 /// The arc from Milo at [fromX] to [end]: out of the hand on the throwing
-/// side, apex over the middle, higher the further it goes.
-ThrowArc throwArc({required double fromX, required Offset end}) {
-  final start = Offset(fromX + _handOut * (end.dx < fromX ? -1 : 1), _handY);
+/// side, apex over the middle, higher the further it goes. [handY] is
+/// where his hand is when he is not on the floor.
+ThrowArc throwArc({required double fromX, required Offset end, double handY = _handY}) {
+  final start = Offset(fromX + _handOut * (end.dx < fromX ? -1 : 1), handY);
   final control = Offset(
     (start.dx + end.dx) / 2,
-    math.max(_topY, _handY - 0.6 * (end.dx - start.dx).abs()),
+    math.max(_topY, handY - 0.6 * (end.dx - start.dx).abs()),
   );
   return ThrowArc(start, control, end);
 }

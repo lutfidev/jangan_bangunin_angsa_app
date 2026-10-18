@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
@@ -168,12 +169,12 @@ void main() {
 
   test('hiding needs a hide spot in reach, and holds the burglar still', () {
     final s = NightSim(night3());
-    expect(s.toggleHide(), isFalse); // 236, hide spots at 180 and 720
-    walkTo(s, 185);
+    expect(s.toggleHide(), isFalse); // 236, hide spots at 148 and 703
+    walkTo(s, 170);
     expect(s.toggleHide(), isTrue);
     s.setMove(1);
     s.tick(1);
-    expect(s.playerX, closeTo(185, 2));
+    expect(s.playerX, closeTo(170, 2));
     expect(s.toggleHide(), isTrue); // step out
     expect(s.hidden, isFalse);
   });
@@ -218,8 +219,12 @@ void main() {
 
   test('carrying the squeaky chicken at a walk squeaks', () {
     final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 260);
+    s.toggleClimb();
     walkTo(s, 353);
     expect(s.grab('chicken'), isTrue);
+    walkTo(s, 420);
+    s.toggleClimb();
     s.takeEvents();
     s
       ..setSneak(false)
@@ -271,12 +276,13 @@ void main() {
       expect(s.interaction, isNull);
     });
 
-    test('nothing while hidden', () {
+    test('only coming out while hidden', () {
       final s = NightSim(night3());
-      walkTo(s, 180);
+      walkTo(s, 170);
       expect(s.toggleHide(), isTrue);
-      expect(s.interaction, isNull);
-      expect(s.interact(), isNull);
+      expect(s.interaction, isA<Unhide>());
+      expect(s.interact(), isA<Unhide>());
+      expect(s.hidden, isFalse);
     });
 
     test('interact grabs and returns what it did', () {
@@ -350,7 +356,7 @@ void main() {
 
     test('no throwing while hidden', () {
       final s = NightSim(night3());
-      walkTo(s, 180);
+      walkTo(s, 170);
       s.toggleHide();
       expect(s.throwSock(62), isFalse);
       expect(s.toolLeft, 3);
@@ -560,6 +566,209 @@ void main() {
       final t = s.elapsed;
       s.tick(5);
       expect(s.elapsed, t);
+    });
+  });
+
+  group('rearrange', () {
+    NightSim holdingPot() {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 113);
+      s.interact();
+      return s;
+    }
+
+    test('Interact lifts the pot', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 113);
+      final i = s.interaction;
+      expect(i, isA<MoveObject>());
+      expect((i as MoveObject).spotId, 'counterPot');
+      expect(i.objectId, 'pot');
+      s.interact();
+      expect(s.held, 'pot');
+      expect(s.chain.objectAt('counterPot'), isNull);
+    });
+
+    test('holding the pot, Interact puts it on a free snap spot in reach', () {
+      final s = holdingPot();
+      walkTo(s, 250);
+      expect(s.interaction, isNull);
+      walkTo(s, 372);
+      final i = s.interaction;
+      expect(i, isA<PlaceObject>());
+      expect((i as PlaceObject).spotId, 'underShelf');
+      s.interact();
+      expect(s.held, isNull);
+      expect(s.chain.spotOf('pot'), 'underShelf');
+    });
+
+    test('the pot back on the counter is a snap spot too', () {
+      final s = holdingPot();
+      expect((s.interaction as PlaceObject).spotId, 'counterPot');
+      expect(s.place('counterPot'), isTrue);
+      expect(s.chain.spotOf('pot'), 'counterPot');
+    });
+
+    test('the pot under the shelf makes a new chain', () {
+      final s = holdingPot();
+      walkTo(s, 372);
+      s.interact();
+      s.takeEvents();
+      expect(s.throwSock(340), isTrue);
+      s.tick(2);
+      final links = s.takeEvents().whereType<NoiseMade>().map((n) => n.link?.objectId).nonNulls;
+      expect(links, ['books', 'pot']);
+    });
+
+    test('hands full: no grab, no tool, no hiding', () {
+      final s = holdingPot();
+      walkTo(s, 218);
+      expect(s.interaction, isNull);
+      expect(s.grab('toaster'), isFalse);
+      expect(s.toolReady, isFalse);
+      expect(s.throwSock(62), isFalse);
+      walkTo(s, 148);
+      expect(s.toggleHide(), isFalse);
+      expect(s.hidden, isFalse);
+    });
+
+    test('escaping while holding', () {
+      final s = holdingPot();
+      walkTo(s, 770);
+      expect(s.outcome, Outcome.escaped);
+      expect(s.result, isNotNull);
+    });
+
+    test('caught while holding', () {
+      final s = holdingPot();
+      s.goose.wake(WakeCause.noise);
+      tickUntil(s, () => s.outcome != null, limit: 20);
+      expect(s.outcome, Outcome.caught);
+      expect(s.result, isNotNull);
+    });
+  });
+
+  group('hide through Interact', () {
+    test('Interact hides and comes out', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 148);
+      expect(s.interaction, isA<Hide>());
+      s.interact();
+      expect(s.hidden, isTrue);
+      expect(s.interaction, isA<Unhide>());
+      s.interact();
+      expect(s.hidden, isFalse);
+    });
+
+    test('moving beats hiding', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 135); // pot 22 away, the cabinet only 13
+      expect(s.interaction, isA<MoveObject>());
+    });
+  });
+
+  group('crawlway', () {
+    NightSim upAt(double x, {Tool tool = Tool.socks}) {
+      final s = NightSim(night3(), tool: tool)..setSneak(true);
+      walkTo(s, 260);
+      expect(s.toggleClimb(), isTrue);
+      walkTo(s, x);
+      return s;
+    }
+
+    test('climb at an end, crawl, come down at the other', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 260);
+      expect(s.interaction, isA<Climb>());
+      s.interact();
+      expect(s.up, isTrue);
+      final from = s.playerX;
+      s.setMove(1);
+      s.tick(1);
+      expect(s.playerX, closeTo(from + const Tuning().crawlSpeed, 2));
+      walkTo(s, 420);
+      expect(s.interaction, isA<ClimbDown>());
+      s.interact();
+      expect(s.up, isFalse);
+    });
+
+    test('no climbing away from the ends', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 340);
+      expect(s.toggleClimb(), isFalse);
+      final up = upAt(340);
+      expect(up.toggleClimb(), isFalse);
+      expect(up.up, isTrue);
+    });
+
+    test('the crawlway clamps movement', () {
+      final s = upAt(300);
+      s.setMove(1);
+      s.tick(10);
+      expect(s.playerX, 420);
+      s.setMove(-1);
+      s.tick(10);
+      expect(s.playerX, 250);
+    });
+
+    test('crawling is silent', () {
+      final s = upAt(300)
+        ..setSneak(false)
+        ..takeEvents()
+        ..setMove(1);
+      s.tick(1);
+      expect(s.takeEvents().whereType<NoiseMade>(), isEmpty);
+    });
+
+    test('the chicken is only reachable from the crawlway', () {
+      final floor = NightSim(night3())..setSneak(true);
+      walkTo(floor, 353);
+      expect(floor.interaction, isNot(isA<GrabLoot>()));
+      expect(floor.grab('chicken'), isFalse);
+      final s = upAt(353);
+      expect((s.interaction as GrabLoot).loot.id, 'chicken');
+      expect(s.grab('chicken'), isTrue);
+    });
+
+    test('floor loot is out of reach from up there', () {
+      final s = NightSim(Level.parse(minimalLevel(
+        crawlway: {'from': 0, 'to': 100},
+        loot: [{'id': 'cup', 'x': 20}],
+      )));
+      expect(s.toggleClimb(), isTrue);
+      expect(s.interaction, isA<ClimbDown>());
+      expect(s.grab('cup'), isFalse);
+    });
+
+    test('she cannot catch him up there', () {
+      final s = upAt(380);
+      s.goose.wake(WakeCause.noise);
+      s.tick(6);
+      expect(s.outcome, isNull);
+      expect(s.goose.state, GooseState.lostYou);
+    });
+
+    test('climbing down next to her gets you caught', () {
+      final s = upAt(420);
+      s.goose.hear(const Noise(x: 420, loudness: 3));
+      tickUntil(s, () => (s.goose.x - s.playerX).abs() <= 30, limit: 10);
+      expect(s.toggleClimb(), isTrue);
+      tickUntil(s, () => s.outcome != null, limit: 5);
+      expect(s.outcome, Outcome.caught);
+    });
+
+    test('tools up there: no mouse, socks fly', () {
+      expect(upAt(300, tool: Tool.mouse).toolReady, isFalse);
+      expect(upAt(300).throwSock(62), isTrue);
+    });
+
+    test('no climbing with the pot', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 113);
+      s.interact();
+      walkTo(s, 260);
+      expect(s.toggleClimb(), isFalse);
+      expect(s.interaction, isNull);
     });
   });
 }

@@ -13,6 +13,7 @@ class Tuning {
     this.sleepwalkSpeed = 50,
     this.chaseSpeed = 110,
     this.patrolSpeed = 60,
+    this.crawlSpeed = 90,
     this.footstepEvery = 0.4,
     this.squeakCarryEvery = 0.8,
     this.meterStep = 4,
@@ -63,6 +64,9 @@ class Tuning {
   final double sleepwalkSpeed;
   final double chaseSpeed;
   final double patrolSpeed;
+
+  /// Crawling along the cabinet tops; always silent.
+  final double crawlSpeed;
 
   /// One footstep ring per this many seconds of walking.
   final double footstepEvery;

@@ -33,8 +33,19 @@ class Link {
   final double delay;
 }
 
+/// A plank above the floor line, from [from] to [to]. The burglar gets on
+/// and off at either end.
+class Crawlway {
+  const Crawlway({required this.from, required this.to});
+
+  final double from;
+  final double to;
+
+  bool covers(double x) => from <= x && x <= to;
+}
+
 class Loot {
-  const Loot({required this.id, required this.x, this.guarded = false, this.squeaks = false});
+  const Loot({required this.id, required this.x, this.guarded = false, this.squeaks = false, this.high = false});
 
   final String id;
   final double x;
@@ -44,6 +55,9 @@ class Loot {
 
   /// Squeaks when carried at a walk.
   final bool squeaks;
+
+  /// Sits up on the crawlway: only reachable from there.
+  final bool high;
 }
 
 /// One night's house: spots, objects, the chain graph and the loot.
@@ -55,6 +69,7 @@ class Level {
     required this.exitX,
     required this.bedX,
     required this.hideSpots,
+    required this.crawlway,
     required this.spots,
     required this.objects,
     required this.links,
@@ -100,6 +115,11 @@ class Level {
       checkSpot(link.to, 'link');
     }
 
+    final id = _str(json, 'id');
+    final crawl = json['crawlway'] as Map<String, Object?>?;
+    final crawlway = crawl == null ? null : Crawlway(from: _num(crawl, 'from'), to: _num(crawl, 'to'));
+    if (crawlway != null && crawlway.from >= crawlway.to) throw FormatException('crawlway runs backwards: $id');
+
     final loot = <Loot>[];
     for (final l in _list(json, 'loot')) {
       final item = Loot(
@@ -107,7 +127,11 @@ class Level {
         x: _num(l, 'x'),
         guarded: l['guarded'] as bool? ?? false,
         squeaks: l['squeaks'] as bool? ?? false,
+        high: l['high'] as bool? ?? false,
       );
+      if (item.high && !(crawlway?.covers(item.x) ?? false)) {
+        throw FormatException('high loot off the crawlway: ${item.id}');
+      }
       if (loot.any((x) => x.id == item.id)) throw FormatException('duplicate loot: ${item.id}');
       if (item.guarded && loot.any((x) => x.guarded)) {
         throw FormatException('more than one guarded loot: ${item.id}');
@@ -116,12 +140,13 @@ class Level {
     }
 
     return Level._(
-      id: _str(json, 'id'),
+      id: id,
       name: _str(json, 'name'),
       playerStart: _num(json, 'playerStart'),
       exitX: _num(json, 'exitX'),
       bedX: _num(json, 'bedX'),
       hideSpots: [for (final x in json['hideSpots'] as List? ?? const []) (x as num).toDouble()],
+      crawlway: crawlway,
       spots: spots,
       objects: objects,
       links: links,
@@ -137,6 +162,7 @@ class Level {
   final double exitX;
   final double bedX;
   final List<double> hideSpots;
+  final Crawlway? crawlway;
   final Map<String, Spot> spots;
   final List<LevelObject> objects;
   final List<Link> links;

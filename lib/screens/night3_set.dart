@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../theme/palette.dart';
+import '../theme/type.dart';
+import '../widgets/hud.dart';
 import 'night_art.dart';
 import 'scene.dart';
 
 /// Night 3's room, The Midnight Kitchen: everything that never moves.
 
-/// Walls, window, lamp, counter, bookshelf, side tables and the exit door.
+/// Walls, window, lamp, counter, bookshelf, crawlway, side tables, coat
+/// rack and the exit door.
 List<Widget> night3Backdrop() => [
   // Rooms: lit kitchen, living room, hall.
   box(0, 0, 300, 270, Palette.lampRoom),
@@ -53,11 +56,13 @@ List<Widget> night3Backdrop() => [
     (Color(0xFF4C5BA8), 30.0, 0.0),
     (Palette.alarmTomato, 26.0, 0.0),
   ])),
+  ...crawlway(),
 
   // Side tables, and the gnome in the hall.
   box(594, 236, 40, 34, Palette.wood, border: 3),
   box(708, 236, 44, 34, Palette.wood, border: 3),
   at(708, 196, const Prop(PropKind.gnome, size: 44)),
+  ...coatRack(),
 
   // The way out.
   ...exitDoor(knob: true),
@@ -84,3 +89,70 @@ Widget chickenSparkle() => at(
 /// floor band. The HUD board doesn't show it; the chain board says "the
 /// loose plank is a lighter colour".
 Widget loosePlank() => box(622, 271, 36, 9, const Color(0xFFA8735A), border: 2);
+
+/// The cabinet-top crawlway: a plank from the counter's end to the top of
+/// the bookshelf, with a bracket under its free left end.
+List<Widget> crawlway() => [
+  at(
+    252,
+    112,
+    const InlineSvg(
+      '<path d="M2 2 L14 2 L2 18 Z" fill="#5A3B2E" stroke="#1C1A2B" stroke-width="2.5" stroke-linejoin="round"/>',
+      width: 16,
+      height: 20,
+    ),
+  ),
+  box(244, crawlwayTop, 182, 10, Palette.wood, border: 3, radius: 3),
+];
+
+/// The coat rack in the hall (Chaos escape board), a hide spot.
+List<Widget> coatRack() => [
+  box(700, 172, 10, 102, Palette.floor, border: 2),
+  at(
+    686,
+    176,
+    Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF4C5BA8),
+        border: inkBorder(),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(10), bottom: Radius.circular(4)),
+      ),
+    ),
+    width: 34,
+    height: 54,
+  ),
+];
+
+/// The white HIDE tag over a hide spot.
+Widget hideTag(Offset at_) => at(
+  at_.dx,
+  at_.dy,
+  Pill(
+    'HIDE',
+    radius: 6,
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    textStyle: ui(10, weight: FontWeight.w800),
+  ),
+);
+
+/// Milo tucked into the hide spot at [x]: only his masked eyes show. The
+/// kitchen cabinet door stands open a crack around them.
+List<Widget> hidingMilo(double x) {
+  final peek = hideArt[x]!.peek;
+  return [
+    if (x == 148) box(146, 215, 43, 48, Palette.ink),
+    at(
+      peek.dx,
+      peek.dy,
+      const InlineSvg(
+        '<rect x="1.5" y="2" width="27" height="10" rx="4" fill="#F0533B" stroke="#1C1A2B" stroke-width="2.5"/>'
+        '<circle cx="10" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+        '<circle cx="20" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+        '<circle cx="10.5" cy="7" r="1.6" fill="#1C1A2B"/>'
+        '<circle cx="20.5" cy="7" r="1.6" fill="#1C1A2B"/>',
+        width: 30,
+        height: 14,
+      ),
+    ),
+  ];
+}

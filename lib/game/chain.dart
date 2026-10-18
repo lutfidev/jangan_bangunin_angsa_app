@@ -39,6 +39,7 @@ class ChainRunner {
   final Map<String, String> _objectAt;
   final Map<String, LevelObject> _objects;
   final Set<String> _spent = {};
+  final Set<String> _held = {};
   final Map<int, Set<String>> _visited = {};
   final List<_Pending> _pending = [];
   final List<LinkFired> _fired = [];
@@ -51,6 +52,13 @@ class ChainRunner {
 
   bool isSpent(String objectId) => _spent.contains(objectId);
 
+  /// Whether the burglar is carrying [objectId]: it stands on no spot.
+  bool isHeld(String objectId) => _held.contains(objectId);
+
+  /// Where [objectId] stands now, or null while it is carried.
+  String? spotOf(String objectId) =>
+      _objectAt.entries.where((e) => e.value == objectId).firstOrNull?.key;
+
   /// Something outside the chain (a bump, a throw, a step) sets off [spotId].
   void poke(String spotId) {
     final chainId = ++_chains;
@@ -58,18 +66,30 @@ class ChainRunner {
     _schedule(_now, spotId, inLoudness: 1, chainId: chainId, link: 1);
   }
 
-  /// Rearrange: carry a portable object to a free snap spot.
+  /// Rearrange: pick a portable object up off its spot. Hits already on
+  /// their way to that spot find it empty. A chimer waiting to ring can't
+  /// be picked up.
+  bool lift(String objectId) {
+    final object = _objects[objectId];
+    if (object == null || !object.portable || _spent.contains(objectId) || _held.contains(objectId)) return false;
+    if (_pending.any((p) => p.ringing == objectId)) return false;
+    _objectAt.remove(spotOf(objectId));
+    _held.add(objectId);
+    return true;
+  }
+
+  /// Rearrange: put a portable object, carried or not, on a free snap spot.
   void move(String objectId, String toSpot) {
     final object = _objects[objectId];
     final spot = level.spots[toSpot];
     if (object == null || !object.portable) throw StateError('$objectId is not portable');
     if (spot == null || !spot.snap) throw StateError('$toSpot is not a snap spot');
-    final from = _spotOf(objectId);
+    final from = spotOf(objectId);
     if (from == toSpot) return;
     if (_objectAt.containsKey(toSpot)) throw StateError('$toSpot is taken');
-    _objectAt
-      ..remove(from)
-      ..[toSpot] = objectId;
+    _objectAt.remove(from);
+    _held.remove(objectId);
+    _objectAt[toSpot] = objectId;
   }
 
   void tick(double dt) {
@@ -87,8 +107,8 @@ class ChainRunner {
       if (ringing == null) {
         _hit(next);
       } else {
-        // The chimer may have been carried off while it waited.
-        final spotId = _spotOf(ringing);
+        // The chimer may have been moved while it waited (it can't be held).
+        final spotId = spotOf(ringing)!;
         _visited[next.chainId]!.add(spotId);
         _sound(next, ringing, spotId);
       }
@@ -142,8 +162,6 @@ class ChainRunner {
       {required int inLoudness, required int chainId, required int link, String? ringing}) {
     _pending.add(_Pending(at, _seq++, spotId, inLoudness, chainId, link, ringing));
   }
-
-  String _spotOf(String objectId) => _objectAt.entries.firstWhere((e) => e.value == objectId).key;
 
   static bool _isOneShot(ObjectType type) =>
       type == ObjectType.tipper || type == ObjectType.walker || type == ObjectType.roller;
