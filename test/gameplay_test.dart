@@ -45,14 +45,14 @@ void main() {
     expect(slot.state, LootState.stolen);
   });
 
-  testWidgets('NUDGE sets off the glass', (tester) async {
-    final sim = NightSim(Levels.night3);
-    walkTo(sim, 62);
+  testWidgets('WIND sets off the robot', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 614);
     await pumpGameplay(tester, sim);
-    expect(find.text('NUDGE'), findsOneWidget);
-    await tester.tap(find.text('NUDGE'));
+    expect(find.text('WIND'), findsOneWidget);
+    await tester.tap(find.text('WIND'));
     await play(tester, 0.1);
-    expect(sim.chain.isSpent('glass'), isTrue);
+    expect(sim.chain.isSpent('robot'), isTrue);
   });
 
   testWidgets('nothing in reach disables Interact', (tester) async {
@@ -146,8 +146,8 @@ void main() {
     testWidgets('a chain counts up its badges 0.4s apart', (tester) async {
       final sim = NightSim(Levels.night3);
       walkTo(sim, 62);
+      sim.poke('counterLeft');
       await pumpGameplay(tester, sim);
-      await tester.tap(find.text('NUDGE'));
       await play(tester, 0.05);
       expect(badge(1), findsOneWidget);
       expect(badge(2), findsNothing);

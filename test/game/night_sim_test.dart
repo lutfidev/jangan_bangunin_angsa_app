@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
@@ -11,8 +12,8 @@ bool _wokeUp(List<SimEvent> events) =>
 void main() {
   test('Trickster: lure her with the glass, take the egg, walk out', () {
     final s = NightSim(night3())..setSneak(true);
-    s.poke('counterLeft'); // stands in for the Phase 3 sock throw
-    s.tick(0.5);
+    expect(s.throwSock(62), isTrue);
+    s.tick(1);
     expect(s.goose.state, GooseState.sleepwalk);
     walkTo(s, 561);
     expect(s.grab('egg'), isTrue);
@@ -243,36 +244,28 @@ void main() {
       expect(i, isA<GrabLoot>().having((g) => g.loot.id, 'loot', 'toaster'));
     });
 
-    test('nudges the glass when no loot is in reach', () {
-      final s = NightSim(night3());
-      walkTo(s, 62);
+    test('winds the robot in reach', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 614);
       expect(
         s.interaction,
-        isA<Nudge>().having((n) => n.spotId, 'spot', 'counterLeft').having((n) => n.objectId, 'object', 'glass'),
+        isA<Wind>().having((w) => w.spotId, 'spot', 'sideTable').having((w) => w.objectId, 'object', 'robot'),
       );
     });
 
-    test('loot wins over an object in reach', () {
-      final s = NightSim(night3())..setSneak(true);
-      walkTo(s, 345);
-      expect(s.interaction, isA<GrabLoot>().having((g) => g.loot.id, 'loot', 'chicken'));
-      s.interact();
-      expect(s.interaction, isA<Nudge>().having((n) => n.objectId, 'object', 'books'));
-    });
-
-    test('a spent object is no longer offered', () {
+    test('a glass in reach offers nothing: throw at it instead', () {
       final s = NightSim(night3());
       walkTo(s, 62);
-      expect(s.interact(), isA<Nudge>());
-      s.tick(1);
-      expect(s.chain.isSpent('glass'), isTrue);
       expect(s.interaction, isNull);
     });
 
-    test('the plank is never offered', () {
+    test('a spent robot is no longer offered', () {
       final s = NightSim(night3())..setSneak(true);
-      walkTo(s, 640);
-      expect(s.interaction, isA<Nudge>().having((n) => n.objectId, 'object', isNot('plank')));
+      walkTo(s, 614);
+      expect(s.interact(), isA<Wind>());
+      s.tick(0.1);
+      expect(s.chain.isSpent('robot'), isTrue);
+      expect(s.interaction, isNull);
     });
 
     test('nothing while hidden', () {
@@ -288,6 +281,99 @@ void main() {
       expect(s.interact(), isA<GrabLoot>());
       expect(s.carried, ['toaster']);
     });
+  });
+
+  group('throw', () {
+    List<NoiseMade> flops(List<SimEvent> events) =>
+        events.whereType<NoiseMade>().where((n) => n.tool == Tool.socks).toList();
+
+    test('a sock at the glass starts a chain when it lands', () {
+      final s = NightSim(night3());
+      expect(s.throwSock(62), isTrue);
+      expect(s.toolLeft, 2);
+      expect(s.flights, hasLength(1));
+      s.tick(0.49);
+      expect(s.chain.isSpent('glass'), isFalse);
+      s.tick(0.02);
+      expect(s.chain.isSpent('glass'), isTrue);
+      expect(s.flights, isEmpty);
+      expect(flops(s.takeEvents()), isEmpty);
+    });
+
+    test('the landing is clamped to the throw range and the room', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 600);
+      expect(s.throwLanding(0), 240);
+      expect(s.throwLanding(2000), 844);
+      expect(NightSim(night3()).throwLanding(-500), 0);
+    });
+
+    test('targets the nearest live object within 24px', () {
+      final s = NightSim(night3());
+      expect(s.throwTarget(70), 'counterLeft');
+      expect(s.throwTarget(100), 'counterPot');
+      expect(s.throwTarget(250), isNull);
+      expect(s.throwTarget(640), isNull); // the plank is stepped on, not hit
+    });
+
+    test('a miss flops softly where it lands', () {
+      final s = NightSim(night3());
+      s.throwSock(250);
+      s.tick(0.6);
+      final flop = flops(s.takeEvents()).single;
+      expect(flop.noise.x, 250);
+      expect(flop.noise.loudness, 0);
+      expect(flop.link, isNull);
+    });
+
+    test('a target knocked down mid-flight makes the sock flop', () {
+      final s = NightSim(night3());
+      s.throwSock(62);
+      s.poke('counterLeft');
+      s.tick(0.6);
+      final events = s.takeEvents();
+      expect(events.whereType<NoiseMade>().where((n) => n.link?.objectId == 'glass'), hasLength(1));
+      expect(flops(events).single.noise.x, 62);
+    });
+
+    test('three socks, then none', () {
+      final s = NightSim(night3());
+      for (var i = 0; i < 3; i++) {
+        expect(s.throwSock(62), isTrue);
+      }
+      expect(s.throwSock(62), isFalse);
+      expect(s.toolLeft, 0);
+    });
+
+    test('no throwing while hidden', () {
+      final s = NightSim(night3());
+      walkTo(s, 180);
+      s.toggleHide();
+      expect(s.throwSock(62), isFalse);
+      expect(s.toolLeft, 3);
+    });
+
+    test('no throwing once caught', () {
+      final s = NightSim(night3());
+      s.poke('sideTable');
+      tickUntil(s, () => s.takeEvents().any((e) => e is CaughtStarted));
+      expect(s.throwSock(62), isFalse);
+    });
+
+    test('only with socks', () {
+      final s = NightSim(night3(), tool: Tool.mouse);
+      expect(s.toolLeft, 1);
+      expect(s.throwSock(62), isFalse);
+    });
+  });
+
+  test('facing follows the last move', () {
+    final s = NightSim(night3());
+    expect(s.facing, 1);
+    s.setMove(-0.5);
+    expect(s.facing, -1);
+    s.setMove(0);
+    expect(s.facing, -1);
   });
 
   group('result', () {
@@ -307,6 +393,13 @@ void main() {
       expect(r.time, s.elapsed);
       expect(r.time, greaterThan(0));
       expect(r.level.id, 'night3');
+      expect(r.tool, Tool.socks);
+    });
+
+    test('carries the tool', () {
+      final s = NightSim(night3(), tool: Tool.mouse)..setSneak(true);
+      walkTo(s, 770);
+      expect(s.result!.tool, Tool.mouse);
     });
 
     test('caught carries the wake chain and cause', () {

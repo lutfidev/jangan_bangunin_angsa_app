@@ -64,8 +64,8 @@ void main() {
   testWidgets('gameplay_chain', (tester) async {
     final sim = NightSim(Levels.night3);
     walkTo(sim, 62);
+    sim.poke('counterLeft');
     await pumpGameplay(tester, sim);
-    await tester.tap(find.text('NUDGE'));
     await play(tester, 0.5);
     await snap(tester, 'gameplay_chain');
   });

@@ -307,10 +307,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       lootArt[loot.id]!.box.top - 46,
                       const PromptBubble('Grab'),
                     ),
-                    Nudge(:final spotId) => at(
+                    Wind(:final spotId) => at(
                       spotAnchors[spotId]!.dx - 32,
                       spotAnchors[spotId]!.dy - 64,
-                      const PromptBubble('Nudge'),
+                      const PromptBubble('Wind'),
                     ),
                     null => const SizedBox.shrink(),
                   },
@@ -487,9 +487,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
         icon: hand,
         onPressed: interact,
       ),
-      Nudge(:final objectId) => ActionButton(
-        label: 'NUDGE',
-        semanticLabel: 'Nudge $objectId',
+      Wind(:final objectId) => ActionButton(
+        label: 'WIND',
+        semanticLabel: 'Wind up the $objectId',
         icon: hand,
         onPressed: interact,
       ),
