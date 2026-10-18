@@ -35,6 +35,14 @@ class Tuning {
     this.reach = 30,
     this.caughtAnim = 1.2,
     this.chimerDelay = 1,
+    this.sockCount = 3,
+    this.throwRange = 360,
+    this.throwHitRadius = 24,
+    this.throwFlightTime = 0.5,
+    this.mouseSpeed = 70,
+    this.spillBehind = 24,
+    this.slipRadius = 16,
+    this.slipTime = 2,
     this.maxStep = 1 / 60,
   });
 
@@ -109,6 +117,30 @@ class Tuning {
 
   /// Chimer: "1s delay, then 3 loud rings".
   final double chimerDelay;
+
+  /// "Spare Socks ×3". Every other tool has one use.
+  final int sockCount;
+
+  /// How far either side of the burglar a sock can land.
+  final double throwRange;
+
+  /// A sock hits an object whose spot is this close to where it lands.
+  final double throwHitRadius;
+
+  /// Seconds a sock spends in the air.
+  final double throwFlightTime;
+
+  /// Wind-up mouse walking speed.
+  final double mouseSpeed;
+
+  /// Marbles land this far behind the burglar.
+  final double spillBehind;
+
+  /// She slips when she runs this close to spilled marbles.
+  final double slipRadius;
+
+  /// Bag of Marbles: "Gertrude slips and loses 2 seconds."
+  final double slipTime;
 
   /// Longest simulation step; bigger ticks are split.
   final double maxStep;

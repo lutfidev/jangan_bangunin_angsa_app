@@ -3,6 +3,7 @@ import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/night_art.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/theme/palette.dart';
@@ -24,7 +25,7 @@ void main() {
   late NoiseFx fx;
   setUp(() => fx = NoiseFx(level: Levels.night3, anchors: spotAnchors));
 
-  void take(SimEvent e) => fx.take(e, playerX: 300, gooseX: 502);
+  void take(SimEvent e) => fx.take(e, gooseX: 502);
 
   test('a chain link draws rings, a badge and a word', () {
     take(_link(1, 2, 'pot', 'counterPot', 2));
@@ -75,5 +76,25 @@ void main() {
     expect(fx.honk?.at, const Offset(502, 210));
     fx.advance(1.1);
     expect(fx.honk, isNull);
+  });
+
+  test('a sock that missed rings where it landed and flops', () {
+    take(const NoiseMade(Noise(x: 250, loudness: 0), touchedEar: false, tool: Tool.socks));
+    expect(fx.rings.single.center, const Offset(250, 262));
+    expect(fx.words.single.text, 'flop!');
+    expect(fx.words.single.color, Palette.calmMint);
+  });
+
+  test('the kazoo toots where Milo stands', () {
+    take(const NoiseMade(Noise(x: 300, loudness: 3), touchedEar: true, tool: Tool.kazoo));
+    expect(fx.rings.single.center, const Offset(300, 220));
+    expect(fx.words.single.text, 'TOOT!');
+    expect(fx.words.single.color, Palette.alarmTomato);
+  });
+
+  test('a slip says so', () {
+    take(const GooseSlipped(480));
+    expect(fx.words.single.text, 'SLIP!');
+    expect(fx.words.single.at, const Offset(480, 200));
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
@@ -12,6 +13,7 @@ import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/joystick.dart';
+import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
 
 import 'game/fixtures.dart';
 import 'helpers.dart';
@@ -45,14 +47,14 @@ void main() {
     expect(slot.state, LootState.stolen);
   });
 
-  testWidgets('NUDGE sets off the glass', (tester) async {
-    final sim = NightSim(Levels.night3);
-    walkTo(sim, 62);
+  testWidgets('WIND sets off the robot', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 614);
     await pumpGameplay(tester, sim);
-    expect(find.text('NUDGE'), findsOneWidget);
-    await tester.tap(find.text('NUDGE'));
+    expect(find.text('WIND'), findsOneWidget);
+    await tester.tap(find.text('WIND'));
     await play(tester, 0.1);
-    expect(sim.chain.isSpent('glass'), isTrue);
+    expect(sim.chain.isSpent('robot'), isTrue);
   });
 
   testWidgets('nothing in reach disables Interact', (tester) async {
@@ -146,8 +148,8 @@ void main() {
     testWidgets('a chain counts up its badges 0.4s apart', (tester) async {
       final sim = NightSim(Levels.night3);
       walkTo(sim, 62);
+      sim.poke('counterLeft');
       await pumpGameplay(tester, sim);
-      await tester.tap(find.text('NUDGE'));
       await play(tester, 0.05);
       expect(badge(1), findsOneWidget);
       expect(badge(2), findsNothing);
@@ -222,6 +224,127 @@ void main() {
       await play(tester, 1.5);
       expect(find.byType(CaughtScreen), findsOneWidget);
       expect(find.byWidgetPredicate((w) => w is Prop && w.kind == PropKind.egg), findsOneWidget);
+    });
+  });
+
+  group('tool button', () {
+    Offset toolCenter(WidgetTester tester) => tester.getCenter(find.byType(ToolButton));
+    ToolButton toolButton(WidgetTester tester) => tester.widget<ToolButton>(find.byType(ToolButton));
+
+    testWidgets('hold, drag and release throws a sock', (tester) async {
+      final sim = await pumpGameplay(tester);
+      expect(find.text('×3'), findsOneWidget);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      await play(tester, 0.05);
+      expect(toolButton(tester).aiming, isTrue);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.flights, hasLength(1));
+      expect(sim.flights.single.toX, closeTo(sim.playerX - 160, 1));
+      expect(sim.toolLeft, 2);
+      expect(find.text('×2'), findsOneWidget);
+      expect(toolButton(tester).aiming, isFalse);
+      await play(tester, 0.6);
+      expect(sim.flights, isEmpty);
+    });
+
+    testWidgets('a tap without a drag throws nothing', (tester) async {
+      final sim = await pumpGameplay(tester);
+      await tester.tap(find.byType(ToolButton));
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
+    testWidgets('letting go far off the button still throws', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-200, -150));
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 2);
+    });
+
+    testWidgets('the joystick keeps working while aiming', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final x = sim.playerX;
+      final aim = await tester.startGesture(toolCenter(tester), pointer: 7);
+      await aim.moveBy(const Offset(-30, 0));
+      final walk = await tester.startGesture(tester.getCenter(find.byType(Joystick)), pointer: 8);
+      await walk.moveBy(const Offset(30, 0));
+      await play(tester, 0.5);
+      expect(sim.playerX, greaterThan(x + 20));
+      await walk.up();
+      await aim.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 2);
+    });
+
+    testWidgets('a release during the HONK freeze throws nothing', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 561);
+      tickUntil(sim, () => !sim.goose.rollingOver);
+      sim.grab('egg');
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.05);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
+    testWidgets('an aim begun before HONK and let go in the freeze throws nothing', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 561);
+      tickUntil(sim, () => !sim.goose.rollingOver);
+      await pumpGameplay(tester, sim);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      sim.grab('egg');
+      await play(tester, 0.05);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
+    testWidgets('a cancelled touch throws nothing', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      await g.cancel();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+      expect(toolButton(tester).aiming, isFalse);
+    });
+
+    testWidgets('pausing mid-aim drops the aim', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final g = await tester.startGesture(toolCenter(tester), pointer: 7);
+      await g.moveBy(const Offset(-40, 0));
+      await _tapPause(tester);
+      await play(tester, 0.3);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
+    testWidgets('marbles stay dim while she sleeps', (tester) async {
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.marbles));
+      expect(toolButton(tester).ready, isFalse);
+      await tester.tap(find.byType(ToolButton), warnIfMissed: false);
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 1);
+    });
+
+    testWidgets('a tap sets the mouse down', (tester) async {
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.mouse));
+      expect(toolButton(tester).ready, isTrue);
+      await tester.tap(find.byType(ToolButton));
+      await play(tester, 0.05);
+      expect(sim.mouse, isNotNull);
+      expect(find.text('×0'), findsOneWidget);
+      expect(toolButton(tester).ready, isFalse);
     });
   });
 }

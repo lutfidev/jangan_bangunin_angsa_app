@@ -134,7 +134,7 @@ class CaughtScreen extends StatelessWidget {
             spacing: 12,
             children: [
               ChunkyButton.primary(
-                onPressed: () => Routes.restartNight(context),
+                onPressed: () => Routes.restartNight(context, result.tool),
                 label: 'Retry',
                 icon: GameIcon.retry,
                 height: 62,

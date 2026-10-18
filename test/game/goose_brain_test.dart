@@ -159,4 +159,27 @@ void main() {
     expect(g.state, GooseState.distracted);
     expect(g.distractLeft, closeTo(3, 0.02));
   });
+
+  group('slip', () {
+    test('only while she runs after someone', () {
+      final g = _goose()..slip();
+      expect(g.slipping, isFalse);
+    });
+
+    test('holds her still for 2s while the chase clock runs', () {
+      final g = _goose()..wake(WakeCause.noise);
+      run(g, 0.35, playerX: 236);
+      expect(g.state, GooseState.chase);
+      g.slip();
+      final x = g.x;
+      final left = g.chaseLeft;
+      run(g, 1.9, playerX: 236);
+      expect(g.x, x);
+      expect(g.chaseLeft, closeTo(left - 1.9, 0.06));
+      expect(g.slipping, isTrue);
+      run(g, 0.2, playerX: 236);
+      expect(g.slipping, isFalse);
+      expect(g.x, lessThan(x));
+    });
+  });
 }

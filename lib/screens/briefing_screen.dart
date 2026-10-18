@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/tools.dart';
 import '../routes.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
@@ -13,7 +14,7 @@ import '../widgets/stage.dart';
 import 'scene.dart';
 
 typedef _Goal = ({String style, Color color, Color textColor, String text, bool earned});
-typedef _Tool = ({PropKind kind, String name, String style, Color color, String desc, bool locked});
+typedef _Tool = ({Tool tool, PropKind kind, String name, String style, Color color, String desc, bool locked});
 
 const List<_Goal> _goals = [
   (style: 'GHOST', color: Palette.calmMint, textColor: Palette.ink, text: 'Never let her turn suspicious', earned: false),
@@ -22,10 +23,10 @@ const List<_Goal> _goals = [
 ];
 
 const List<_Tool> _tools = [
-  (kind: PropKind.sock, name: 'Spare Socks ×3', style: 'TRICKSTER', color: Palette.lamp, desc: 'Hold Tool, drag to aim, release to throw. Hits whatever it lands on.', locked: false),
-  (kind: PropKind.mouse, name: 'Wind-up Mouse', style: 'TRICKSTER', color: Palette.lamp, desc: 'Set it down facing a direction. It walks until it bumps something.', locked: false),
-  (kind: PropKind.marbles, name: 'Bag of Marbles', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Spill behind you mid-chase. Gertrude slips and loses 2 seconds.', locked: false),
-  (kind: PropKind.kazoo, name: 'Kazoo (locked)', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Earn 6 socks to unlock. One loud toot right where you stand.', locked: true),
+  (tool: Tool.socks, kind: PropKind.sock, name: 'Spare Socks ×3', style: 'TRICKSTER', color: Palette.lamp, desc: 'Hold Tool, drag to aim, release to throw. Hits whatever it lands on.', locked: false),
+  (tool: Tool.mouse, kind: PropKind.mouse, name: 'Wind-up Mouse', style: 'TRICKSTER', color: Palette.lamp, desc: 'Set it down facing a direction. It walks until it bumps something.', locked: false),
+  (tool: Tool.marbles, kind: PropKind.marbles, name: 'Bag of Marbles', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Spill behind you mid-chase. Gertrude slips and loses 2 seconds.', locked: false),
+  (tool: Tool.kazoo, kind: PropKind.kazoo, name: 'Kazoo (locked)', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Earn 6 socks to unlock. One loud toot right where you stand.', locked: true),
 ];
 
 /// Night briefing: heist goals, pick one tool, toggle modifiers.
@@ -187,15 +188,21 @@ class _BriefingScreenState extends State<BriefingScreen> {
         at(
           648,
           314,
-          ChunkyButton.primary(
-            onPressed: () => Navigator.pushReplacementNamed(context, Routes.gameplay),
-            label: 'Sneak in',
-            trailingIcon: GameIcon.arrow,
-            iconSize: 18,
-            width: 172,
-            height: 56,
-            fontSize: 22,
-            padding: EdgeInsets.zero,
+          // A locked tool can be read about, not taken.
+          Opacity(
+            opacity: selected.locked ? 0.6 : 1,
+            child: ChunkyButton.primary(
+              onPressed: selected.locked
+                  ? null
+                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: selected.tool),
+              label: 'Sneak in',
+              trailingIcon: GameIcon.arrow,
+              iconSize: 18,
+              width: 172,
+              height: 56,
+              fontSize: 22,
+              padding: EdgeInsets.zero,
+            ),
           ),
         ),
 

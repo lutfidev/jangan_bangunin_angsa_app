@@ -31,6 +31,7 @@ class GooseBrain {
   double _chaseLeft = 0;
   double _hiddenFor = 0;
   double _patrolFor = 0;
+  double _slipLeft = 0;
 
   double get x => _x;
   GooseState get state => _state;
@@ -59,6 +60,14 @@ class GooseBrain {
 
   /// Seconds left of a distraction; 0 when she isn't distracted.
   double get distractLeft => _state == GooseState.distracted ? _timer : 0;
+
+  /// Down on spilled marbles: she stands still while the chase clock runs.
+  bool get slipping => _slipLeft > 0 && (_state == GooseState.chase || _state == GooseState.distracted);
+
+  /// She runs onto spilled marbles. Ignored unless she is after someone.
+  void slip() {
+    if (_state == GooseState.chase || _state == GooseState.distracted) _slipLeft = tuning.slipTime;
+  }
 
   /// A noise went off. [chainLinks] is its link number when a chain made it.
   void hear(Noise n, {int chainLinks = 0}) {
@@ -127,11 +136,11 @@ class GooseBrain {
         }
       case GooseState.chase:
         _chaseLeft -= dt;
-        _moveTo(playerHidden ? (_lastNoiseX ?? _x) : playerX, tuning.chaseSpeed, dt);
+        if (!_slipped(dt)) _moveTo(playerHidden ? (_lastNoiseX ?? _x) : playerX, tuning.chaseSpeed, dt);
         _trackHiding(dt, playerHidden);
         if (_chaseLeft <= 0) _loseThem();
       case GooseState.distracted:
-        _moveTo(_target, tuning.chaseSpeed, dt);
+        if (!_slipped(dt)) _moveTo(_target, tuning.chaseSpeed, dt);
         _timer -= dt;
         _trackHiding(dt, playerHidden);
         if (_state == GooseState.distracted && _timer <= 0) _state = GooseState.chase;
@@ -182,7 +191,15 @@ class GooseBrain {
 
   void _loseThem() {
     _state = GooseState.lostYou;
+    _slipLeft = 0;
     _patrolFor = 0;
+  }
+
+  /// Runs down a slip; true while she is still on the floor.
+  bool _slipped(double dt) {
+    if (_slipLeft <= 0) return false;
+    _slipLeft -= dt;
+    return true;
   }
 
   /// Steps toward [target]; true once she is standing on it.

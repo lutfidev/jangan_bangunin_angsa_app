@@ -2,6 +2,7 @@ import 'chain.dart';
 import 'goose_brain.dart';
 import 'level.dart';
 import 'noise.dart';
+import 'tools.dart';
 import 'tuning.dart';
 
 /// What happened during a tick, for the scene to draw.
@@ -9,13 +10,15 @@ sealed class SimEvent {
   const SimEvent();
 }
 
-/// A noise went off. [link] is set when a chain made it.
+/// A noise went off. [link] is set when a chain made it, [tool] when a
+/// tool made it directly (a sock that missed, the kazoo).
 class NoiseMade extends SimEvent {
-  const NoiseMade(this.noise, {required this.touchedEar, this.link});
+  const NoiseMade(this.noise, {required this.touchedEar, this.link, this.tool});
 
   final Noise noise;
   final bool touchedEar;
   final LinkFired? link;
+  final Tool? tool;
 }
 
 class GooseChanged extends SimEvent {
@@ -23,6 +26,13 @@ class GooseChanged extends SimEvent {
 
   final GooseState from;
   final GooseState to;
+}
+
+/// She ran onto the spilled marbles at [x] and went down.
+class GooseSlipped extends SimEvent {
+  const GooseSlipped(this.x);
+
+  final double x;
 }
 
 class LootGrabbed extends SimEvent {
@@ -55,9 +65,9 @@ class GrabLoot extends Interaction {
   final Loot loot;
 }
 
-/// Bump the object at [spotId]: the stand-in for Throw until tools exist.
-class Nudge extends Interaction {
-  const Nudge(this.spotId, this.objectId);
+/// Wind up the walker at [spotId] and let it go.
+class Wind extends Interaction {
+  const Wind(this.spotId, this.objectId);
 
   final String spotId;
   final String objectId;
@@ -72,10 +82,14 @@ class NightResult {
     this.wakeChain = const [],
     this.wakeCause,
     required this.time,
+    this.tool = Tool.socks,
   });
 
   final Level level;
   final Outcome outcome;
+
+  /// The tool picked at the briefing, so a restart keeps it.
+  final Tool tool;
 
   /// Loot ids carried out (or held when caught), in the order grabbed.
   final List<String> loot;
@@ -89,18 +103,25 @@ class NightResult {
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
 /// only by [tick].
 class NightSim {
-  NightSim(this.level, {this.tuning = const Tuning()})
+  NightSim(this.level, {this.tool = Tool.socks, this.tuning = const Tuning()})
     : chain = ChainRunner(level, tuning),
       goose = GooseBrain(bedX: level.bedX, tuning: tuning),
-      _x = level.playerStart;
+      _x = level.playerStart,
+      _toolLeft = tool == Tool.socks ? tuning.sockCount : 1;
 
   final Level level;
+  final Tool tool;
   final Tuning tuning;
   final ChainRunner chain;
   final GooseBrain goose;
 
   double _x;
   double _dir = 0;
+  double _facing = 1;
+  int _toolLeft;
+  final List<Flight> _flights = [];
+  ToyMouse? _mouse;
+  double? _spillX;
   bool _sneak = false;
   bool _hidden = false;
   final List<String> _carried = [];
@@ -117,6 +138,43 @@ class NightSim {
 
   double get playerX => _x;
   bool get sneaking => _sneak;
+
+  /// +1 facing right, -1 facing left: the way the burglar last moved.
+  double get facing => _facing;
+
+  /// Uses of [tool] left tonight.
+  int get toolLeft => _toolLeft;
+
+  /// Socks in the air.
+  List<Flight> get flights => List.unmodifiable(_flights);
+
+  /// The wind-up mouse, once it is set down.
+  ToyMouse? get mouse => _mouse;
+
+  /// Where the marbles lie, until she slips on them.
+  double? get spillX => _spillX;
+
+  /// Whether the Tool button does anything right now. Marbles only work
+  /// once she is up and after someone.
+  bool get toolReady =>
+      _toolLeft > 0 && !_frozen && !_hidden && (tool != Tool.marbles || goose.isAwake);
+
+  /// Uses a tap tool: sets the mouse down, spills the marbles behind the
+  /// burglar, or toots the kazoo. Socks are thrown with [throwSock].
+  bool useTool() {
+    if (tool == Tool.socks || !toolReady) return false;
+    _toolLeft--;
+    switch (tool) {
+      case Tool.mouse:
+        _mouse = ToyMouse(x: _x, dir: _facing);
+      case Tool.marbles:
+        _spillX = (_x - _facing * tuning.spillBehind).clamp(0, tuning.worldWidth).toDouble();
+      case Tool.kazoo:
+        _hear(Noise(x: _x, loudness: 3), tool: Tool.kazoo);
+      case Tool.socks:
+    }
+    return true;
+  }
   bool get hidden => _hidden;
   List<String> get carried => List.unmodifiable(_carried);
   Outcome? get outcome => _outcome;
@@ -133,6 +191,7 @@ class NightSim {
           wakeChain: _wakeChain,
           wakeCause: goose.wakeCause,
           time: _elapsed,
+          tool: tool,
         );
 
   /// The links of the chain that woke her, for the Caught recap.
@@ -141,7 +200,10 @@ class NightSim {
   bool get _frozen => _outcome != null || _caughtLeft != null;
 
   /// Joystick direction, -1 (left) to 1 (right).
-  void setMove(double dir) => _dir = dir.clamp(-1, 1);
+  void setMove(double dir) {
+    _dir = dir.clamp(-1, 1);
+    if (_dir != 0) _facing = _dir.sign;
+  }
 
   void setSneak(bool on) => _sneak = on;
 
@@ -150,8 +212,46 @@ class NightSim {
     if (!_frozen) chain.poke(spotId);
   }
 
-  /// The nearest loot in reach, else the nearest object in reach that can
-  /// still go off. Squeakers are stepped on, not nudged.
+  /// Where a sock aimed at [aimX] comes down: within [Tuning.throwRange]
+  /// of the burglar, inside the room.
+  double throwLanding(double aimX) => aimX
+      .clamp(_x - tuning.throwRange, _x + tuning.throwRange)
+      .clamp(0, tuning.worldWidth)
+      .toDouble();
+
+  /// The spot a sock landing at [landingX] would hit: the nearest one in
+  /// [Tuning.throwHitRadius] holding something that can still go off.
+  /// Squeakers are stepped on, not hit.
+  String? throwTarget(double landingX) {
+    String? best;
+    var bestD = double.infinity;
+    for (final spot in level.spots.values) {
+      final d = (spot.x - landingX).abs();
+      if (d > tuning.throwHitRadius || d >= bestD || !_live(spot.id, squeakers: false)) continue;
+      best = spot.id;
+      bestD = d;
+    }
+    return best;
+  }
+
+  /// Lobs a sock at [aimX]. False if there is none to throw.
+  bool throwSock(double aimX) {
+    if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden) return false;
+    _toolLeft--;
+    _flights.add(Flight(fromX: _x, toX: throwLanding(aimX), duration: tuning.throwFlightTime));
+    return true;
+  }
+
+  /// Whether [spotId] holds an object that can still go off.
+  bool _live(String spotId, {required bool squeakers}) {
+    final id = chain.objectAt(spotId);
+    if (id == null || chain.isSpent(id)) return false;
+    return squeakers || _typeOf(id) != ObjectType.squeaker;
+  }
+
+  ObjectType _typeOf(String objectId) => level.objects.firstWhere((o) => o.id == objectId).type;
+
+  /// The nearest loot in reach, else a walker in reach to wind up.
   Interaction? get interaction {
     if (_frozen || _hidden) return null;
     Loot? loot;
@@ -161,17 +261,17 @@ class NightSim {
     }
     if (loot != null) return GrabLoot(loot);
 
-    Nudge? nudge;
+    Wind? wind;
     double best = double.infinity;
     for (final spot in level.spots.values) {
       final d = (spot.x - _x).abs();
       final id = chain.objectAt(spot.id);
       if (d > tuning.reach || d >= best || id == null || chain.isSpent(id)) continue;
-      if (level.objects.any((o) => o.id == id && o.type == ObjectType.squeaker)) continue;
-      nudge = Nudge(spot.id, id);
+      if (_typeOf(id) != ObjectType.walker) continue;
+      wind = Wind(spot.id, id);
       best = d;
     }
-    return nudge;
+    return wind;
   }
 
   /// Does what [interaction] offers and returns it, or null if nothing was
@@ -181,7 +281,7 @@ class NightSim {
     switch (i) {
       case GrabLoot(:final loot):
         grab(loot.id);
-      case Nudge(:final spotId):
+      case Wind(:final spotId):
         poke(spotId);
       case null:
     }
@@ -245,6 +345,8 @@ class NightSim {
       return;
     }
 
+    _landSocks(h);
+    _walkMouse(h);
     chain.tick(h);
     for (final fired in chain.takeFired()) {
       (_chains[fired.chainId] ??= []).add(fired);
@@ -253,6 +355,14 @@ class NightSim {
 
     goose.tick(h, playerX: _x, playerHidden: _hidden);
     _noteGoose();
+
+    final spill = _spillX;
+    final running = goose.state == GooseState.chase || goose.state == GooseState.distracted;
+    if (spill != null && running && (goose.x - spill).abs() <= tuning.slipRadius) {
+      goose.slip();
+      _spillX = null;
+      _events.add(GooseSlipped(goose.x));
+    }
 
     if (goose.state == GooseState.chase && !_hidden && (goose.x - _x).abs() <= tuning.caughtDistance) {
       _caughtLeft = tuning.caughtAnim;
@@ -289,8 +399,41 @@ class NightSim {
     }
   }
 
-  void _hear(Noise noise, {LinkFired? link}) {
-    _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, tuning), link: link));
+  /// A sock that lands on something sets it off; on bare floor it flops.
+  void _landSocks(double h) {
+    for (final f in _flights) {
+      f.advance(h);
+    }
+    for (final f in _flights.where((f) => f.landed).toList()) {
+      _flights.remove(f);
+      final target = throwTarget(f.toX);
+      if (target != null) {
+        chain.poke(target);
+      } else {
+        _hear(Noise(x: f.toX, loudness: 0), tool: Tool.socks);
+      }
+    }
+  }
+
+  /// The mouse bumps the first live object ahead of it, squeakers too.
+  void _walkMouse(double h) {
+    final m = _mouse;
+    if (m == null || m.stopped) return;
+    final (from, to) = m.advance(h, tuning.mouseSpeed, min: 0, max: tuning.worldWidth);
+    Spot? hit;
+    for (final spot in level.spots.values) {
+      final ahead = m.dir > 0 ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;
+      if (!ahead || !_live(spot.id, squeakers: true)) continue;
+      if (hit == null || (spot.x - from).abs() < (hit.x - from).abs()) hit = spot;
+    }
+    if (hit != null) {
+      m.stop(hit.x);
+      chain.poke(hit.id);
+    }
+  }
+
+  void _hear(Noise noise, {LinkFired? link, Tool? tool}) {
+    _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, tuning), link: link, tool: tool));
     final wasAwake = goose.isAwake;
     goose.hear(noise, chainLinks: link?.link ?? 0);
     if (!wasAwake && goose.isAwake && link != null) {

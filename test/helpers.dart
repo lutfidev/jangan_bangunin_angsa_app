@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
@@ -36,6 +37,7 @@ Future<void> pumpScreen(WidgetTester tester, Widget screen, {bool settle = true}
 NightResult sampleCaught({
   List<String> chain = const ['glass', 'pot', 'robot'],
   WakeCause cause = WakeCause.noise,
+  Tool tool = Tool.socks,
 }) {
   final level = Levels.night3;
   return NightResult(
@@ -54,12 +56,16 @@ NightResult sampleCaught({
     ],
     wakeCause: cause,
     time: 42,
+    tool: tool,
   );
 }
 
 /// A Night 3 getaway carrying [loot].
-NightResult sampleEscape({List<String> loot = const ['toaster', 'chicken', 'egg'], double time = 167}) =>
-    NightResult(level: Levels.night3, outcome: Outcome.escaped, loot: loot, time: time);
+NightResult sampleEscape({
+  List<String> loot = const ['toaster', 'chicken', 'egg'],
+  double time = 167,
+  Tool tool = Tool.socks,
+}) => NightResult(level: Levels.night3, outcome: Outcome.escaped, loot: loot, time: time, tool: tool);
 
 /// Pumps 60fps frames for [seconds].
 Future<void> play(WidgetTester tester, double seconds) async {
@@ -75,7 +81,7 @@ Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
   await tester.pumpWidget(
     MaterialApp(
       onGenerateRoute: MainApp.route,
-      home: GameplayScreen(sim: s),
+      home: GameplayScreen(tool: s.tool, sim: s),
     ),
   );
   await tester.pump();
