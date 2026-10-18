@@ -159,7 +159,7 @@ class _Pending {
   final int chainId;
   final int link;
 
-  /// The chimer that was hit and is waiting to ring. It rings wherever it
-  /// stands by then, not necessarily at [spotId].
+  /// The chimer that was hit and is waiting to ring. [spotId] is only where
+  /// it was hit; it rings wherever it stands by then.
   final String? ringing;
 }

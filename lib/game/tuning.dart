@@ -38,7 +38,7 @@ class Tuning {
     this.maxStep = 1 / 60,
   });
 
-  /// Length of the floor line, the width of the gameplay board.
+  /// Length of the floor line: the 844px width of the gameplay board.
   final double worldWidth;
 
   /// Radius per ring; a noise draws one ring per loudness step.

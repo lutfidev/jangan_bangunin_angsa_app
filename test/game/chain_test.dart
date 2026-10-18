@@ -109,6 +109,14 @@ void main() {
     expect(c.takeFired().map((f) => f.objectId), ['robot', 'glass', 'pot', 'clock']);
   });
 
+  test('a clock carried off while it waits still rings', () {
+    final r = ChainRunner(Level.parse(_portableClock), const Tuning())..poke('plank');
+    r.tick(0.9);
+    r.move('clock', 'shelf');
+    r.tick(2);
+    expect(r.takeFired().map((f) => f.spotId), ['plank', 'shelf', 'tray']);
+  });
+
   test('a clock moved while it waits rings where it now stands', () {
     final r = ChainRunner(Level.parse(_portableClock), const Tuning())..poke('plank');
     r.tick(0.9); // plank squeaked, the clock was hit at 0.4s and is waiting
