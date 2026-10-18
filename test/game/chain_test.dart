@@ -129,6 +129,47 @@ void main() {
       ['1 plank@plank', '2 clock@shelf', '3 tray@tray'],
     );
   });
+
+  test('lift takes the pot off its spot', () {
+    expect(c.lift('pot'), isTrue);
+    expect(c.objectAt('counterPot'), isNull);
+    expect(c.spotOf('pot'), isNull);
+    expect(c.isHeld('pot'), isTrue);
+    expect(c.lift('pot'), isFalse);
+  });
+
+  test('lift refuses what is not portable', () {
+    expect(c.lift('glass'), isFalse);
+    expect(c.objectAt('counterLeft'), 'glass');
+  });
+
+  test('a held object goes down on a snap spot and makes a new chain', () {
+    c
+      ..lift('pot')
+      ..move('pot', 'underShelf');
+    expect(c.spotOf('pot'), 'underShelf');
+    expect(c.isHeld('pot'), isFalse);
+    c.poke('shelfBooks');
+    c.tick(1);
+    final fired = c.takeFired();
+    expect(fired.map((f) => f.objectId), ['books', 'pot']);
+    expect(fired.last.noise.loudness, 2);
+  });
+
+  test('a hit on an emptied spot fizzles', () {
+    c.poke('counterLeft');
+    c.tick(0.1); // the glass fell; the pot is hit at 0.4s
+    c.lift('pot');
+    c.tick(1);
+    expect(c.takeFired().map((f) => f.objectId), ['glass']);
+  });
+
+  test('a chimer waiting to ring cannot be lifted', () {
+    final r = ChainRunner(Level.parse(_portableClock), const Tuning())..poke('plank');
+    r.tick(0.9);
+    expect(r.lift('clock'), isFalse);
+    expect(r.isHeld('clock'), isFalse);
+  });
 }
 
 final _portableClock = minimalLevel(
