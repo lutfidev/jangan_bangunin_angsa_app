@@ -140,6 +140,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   Future<void> _pause() async {
     if (_paused || _done) return;
     _paused = true;
+    // A sock being aimed goes back in the pocket.
+    setState(() => _aimDx = null);
     _ticker.stop();
     _last = null;
     await Navigator.pushNamed(context, Routes.pause, arguments: _sim.tool);
@@ -152,13 +154,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
   void _aimStart() {
     // A freeze-frame freezes the player too.
-    if (_freezeLeft > 0 || !_sim.toolReady) return;
+    if (_paused || _freezeLeft > 0 || !_sim.toolReady) return;
     setState(() => _aimDx = 0);
   }
 
   void _release() {
     final dx = _aimDx;
-    if (dx == null) return;
+    if (dx == null || _paused) return;
     setState(() {
       _aimDx = null;
       // A short press is a cancel, not a throw at his own feet.
@@ -511,6 +513,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                 if (_aimDx != null) setState(() => _aimDx = dx);
               },
               onRelease: _release,
+              onCancel: () => setState(() => _aimDx = null),
             ),
           ),
           at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),

@@ -294,6 +294,41 @@ void main() {
       expect(sim.toolLeft, 3);
     });
 
+    testWidgets('an aim begun before HONK and let go in the freeze throws nothing', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 561);
+      tickUntil(sim, () => !sim.goose.rollingOver);
+      await pumpGameplay(tester, sim);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      sim.grab('egg');
+      await play(tester, 0.05);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
+    testWidgets('a cancelled touch throws nothing', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final g = await tester.startGesture(toolCenter(tester));
+      await g.moveBy(const Offset(-40, 0));
+      await g.cancel();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+      expect(toolButton(tester).aiming, isFalse);
+    });
+
+    testWidgets('pausing mid-aim drops the aim', (tester) async {
+      final sim = await pumpGameplay(tester);
+      final g = await tester.startGesture(toolCenter(tester), pointer: 7);
+      await g.moveBy(const Offset(-40, 0));
+      await _tapPause(tester);
+      await play(tester, 0.3);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.toolLeft, 3);
+    });
+
     testWidgets('marbles stay dim while she sleeps', (tester) async {
       final sim = await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.marbles));
       expect(toolButton(tester).ready, isFalse);

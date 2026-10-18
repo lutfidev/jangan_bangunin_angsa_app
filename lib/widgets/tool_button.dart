@@ -20,6 +20,7 @@ class ToolButton extends StatefulWidget {
     this.onAimStart,
     this.onAim,
     this.onRelease,
+    this.onCancel,
   });
 
   final Tool tool;
@@ -45,6 +46,10 @@ class ToolButton extends StatefulWidget {
 
   /// Socks: the finger lifted, wherever it is now.
   final VoidCallback? onRelease;
+
+  /// Socks: the system took the touch away (shade pulled, a call). Drops
+  /// the aim without throwing.
+  final VoidCallback? onCancel;
 
   static String nameOf(Tool tool) => switch (tool) {
     Tool.socks => 'spare sock',
@@ -74,10 +79,16 @@ class _ToolButtonState extends State<ToolButton> {
     if (e.pointer == _pointer) widget.onAim?.call(e.localPosition.dx - _startX);
   }
 
-  void _up(PointerEvent e) {
+  void _up(PointerUpEvent e) {
     if (e.pointer != _pointer) return;
     _pointer = null;
     widget.onRelease?.call();
+  }
+
+  void _cancel(PointerCancelEvent e) {
+    if (e.pointer != _pointer) return;
+    _pointer = null;
+    widget.onCancel?.call();
   }
 
   @override
@@ -120,7 +131,7 @@ class _ToolButtonState extends State<ToolButton> {
       onPointerDown: _down,
       onPointerMove: _move,
       onPointerUp: _up,
-      onPointerCancel: _up,
+      onPointerCancel: _cancel,
       child: Opacity(
         opacity: widget.ready || aiming ? 1 : 0.6,
         child: SizedBox(
