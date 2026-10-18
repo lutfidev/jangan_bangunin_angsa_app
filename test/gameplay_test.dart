@@ -169,6 +169,20 @@ void main() {
     double nudge(WidgetTester tester) =>
         tester.widget<Transform>(find.byKey(GameplayScreen.sceneKey)).transform.getTranslation().x;
 
+    testWidgets('Interact does nothing during the freeze-frame', (tester) async {
+      final sim = await pumpGameplay(tester, wokenByTheEgg());
+      await tester.tap(find.text('GRAB'));
+      await tester.pump();
+      expect(sim.carried, isEmpty);
+    });
+
+    testWidgets('system back pauses the night instead of leaving it', (tester) async {
+      await pumpGameplay(tester);
+      await tester.binding.handlePopRoute();
+      await play(tester, 0.3);
+      expect(find.byType(PauseScreen), findsOneWidget);
+    });
+
     testWidgets('the HONK nudge is 4px', (tester) async {
       await pumpGameplay(tester, wokenByTheEgg());
       expect(nudge(tester), 4);

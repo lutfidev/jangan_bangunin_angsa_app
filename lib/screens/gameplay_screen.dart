@@ -156,295 +156,308 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     final honk = _fx.honk;
     final nudge = _freezeLeft > 0 && !GameSettings.instance.reduceShake ? 4.0 : 0.0;
 
-    return Stage(
-      background: Palette.duskWall,
-      children: [
-        Positioned.fill(
-          child: Transform.translate(
-            key: GameplayScreen.sceneKey,
-            offset: Offset(nudge, 0),
-            child: Stack(
-              children: [
-                ...night3Backdrop(),
+    // System back pauses the night instead of throwing it away.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _pause();
+      },
+      child: Stage(
+        background: Palette.duskWall,
+        children: [
+          Positioned.fill(
+            child: Transform.translate(
+              key: GameplayScreen.sceneKey,
+              offset: Offset(nudge, 0),
+              child: Stack(
+                children: [
+                  ...night3Backdrop(),
 
-                // Gertrude's ear zone: only rings that touch it raise the meter.
-                if (!goose.isAwake)
-                  at(
-                    goose.x - 172,
-                    228,
-                    band == MeterBand.suspicious || band == MeterBand.danger
-                        ? const Opacity(
-                            opacity: 0.7,
-                            child: DashedOutline(
-                              color: Palette.beakOrange,
-                              strokeWidth: 2,
-                              oval: true,
-                              dash: 7,
-                              gap: 5,
-                            ),
-                          )
-                        : const Opacity(
-                            opacity: 0.4,
-                            child: DashedOutline(color: Palette.moonlight, strokeWidth: 2, oval: true, dash: 7, gap: 5),
-                          ),
-                    width: 344,
-                    height: 76,
-                  ),
-                night3Rug(),
-
-                // The chain kit; spent tippers and walkers lie where they fell.
-                for (final MapEntry(key: id, value: art) in objectArt.entries)
-                  at(
-                    art.box.left,
-                    art.box.top,
-                    Transform.rotate(
-                      angle: switch (id) {
-                        'glass' when _sim.chain.isSpent(id) => deg(-70),
-                        'robot' when _sim.chain.isSpent(id) => deg(-80),
-                        _ => 0,
-                      },
-                      child: Prop(art.kind, size: art.box.size),
-                    ),
-                  ),
-
-                // Loot still in the house, and what Interact would do.
-                if (interaction case GrabLoot(:final loot))
-                  at(
-                    lootArt[loot.id]!.box.left - 14,
-                    lootArt[loot.id]!.box.top - 14,
-                    const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
-                    width: lootArt[loot.id]!.box.size + 28,
-                    height: lootArt[loot.id]!.box.size + 16,
-                  ),
-                for (final loot in level.loot)
-                  if (!carried.contains(loot.id) && !loot.guarded) _loot(loot.id),
-                if (!carried.contains('chicken')) chickenSparkle(),
-
-                // Speed lines trail her while she runs.
-                if (chasing && !_caught)
-                  at(
-                    _gooseRight ? goose.x - 120 : goose.x + 60,
-                    196,
-                    const InlineSvg(
-                      key: GameplayScreen.speedLinesKey,
-                      '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
-                      width: 60,
-                      height: 50,
-                    ),
-                  ),
-
-                // Gertrude in her nest, the egg under her.
-                if (!_caught) at(goose.x - 70, 160, Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight)),
-                for (final loot in level.loot)
-                  if (!carried.contains(loot.id) && loot.guarded) _loot(loot.id),
-                night3Nest(),
-                ...switch (goose.state) {
-                  GooseState.asleep || GooseState.drowsy => [at(goose.x - 56, 160, const Snores(reversed: true))],
-                  GooseState.stirring => [
-                    at(goose.x - 56, 166, Text('z…?', style: display(18, color: Palette.moonlight))),
-                  ],
-                  GooseState.suspicious || GooseState.lostYou => [
+                  // Gertrude's ear zone: only rings that touch it raise the meter.
+                  if (!goose.isAwake)
                     at(
-                      goose.x - 72,
-                      120,
-                      Container(
-                        width: 34,
-                        height: 34,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: Palette.beakOrange,
-                          shape: BoxShape.circle,
-                          border: inkBorder(),
+                      goose.x - 172,
+                      228,
+                      band == MeterBand.suspicious || band == MeterBand.danger
+                          ? const Opacity(
+                              opacity: 0.7,
+                              child: DashedOutline(
+                                color: Palette.beakOrange,
+                                strokeWidth: 2,
+                                oval: true,
+                                dash: 7,
+                                gap: 5,
+                              ),
+                            )
+                          : const Opacity(
+                              opacity: 0.4,
+                              child: DashedOutline(
+                                color: Palette.moonlight,
+                                strokeWidth: 2,
+                                oval: true,
+                                dash: 7,
+                                gap: 5,
+                              ),
+                            ),
+                      width: 344,
+                      height: 76,
+                    ),
+                  night3Rug(),
+
+                  // The chain kit; spent tippers and walkers lie where they fell.
+                  for (final MapEntry(key: id, value: art) in objectArt.entries)
+                    at(
+                      art.box.left,
+                      art.box.top,
+                      Transform.rotate(
+                        angle: switch (id) {
+                          'glass' when _sim.chain.isSpent(id) => deg(-70),
+                          'robot' when _sim.chain.isSpent(id) => deg(-80),
+                          _ => 0,
+                        },
+                        child: Prop(art.kind, size: art.box.size),
+                      ),
+                    ),
+
+                  // Loot still in the house, and what Interact would do.
+                  if (interaction case GrabLoot(:final loot))
+                    at(
+                      lootArt[loot.id]!.box.left - 14,
+                      lootArt[loot.id]!.box.top - 14,
+                      const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
+                      width: lootArt[loot.id]!.box.size + 28,
+                      height: lootArt[loot.id]!.box.size + 16,
+                    ),
+                  for (final loot in level.loot)
+                    if (!carried.contains(loot.id) && !loot.guarded) _loot(loot.id),
+                  if (!carried.contains('chicken')) chickenSparkle(),
+
+                  // Speed lines trail her while she runs.
+                  if (chasing && !_caught)
+                    at(
+                      _gooseRight ? goose.x - 120 : goose.x + 60,
+                      196,
+                      const InlineSvg(
+                        key: GameplayScreen.speedLinesKey,
+                        '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
+                        width: 60,
+                        height: 50,
+                      ),
+                    ),
+
+                  // Gertrude in her nest, the egg under her.
+                  if (!_caught) at(goose.x - 70, 160, Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight)),
+                  for (final loot in level.loot)
+                    if (!carried.contains(loot.id) && loot.guarded) _loot(loot.id),
+                  night3Nest(),
+                  ...switch (goose.state) {
+                    GooseState.asleep || GooseState.drowsy => [at(goose.x - 56, 160, const Snores(reversed: true))],
+                    GooseState.stirring => [
+                      at(goose.x - 56, 166, Text('z…?', style: display(18, color: Palette.moonlight))),
+                    ],
+                    GooseState.suspicious || GooseState.lostYou => [
+                      at(
+                        goose.x - 72,
+                        120,
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Palette.beakOrange,
+                            shape: BoxShape.circle,
+                            border: inkBorder(),
+                          ),
+                          child: Text('?', style: display(20, height: 1)),
                         ),
-                        child: Text('?', style: display(20, height: 1)),
+                      ),
+                    ],
+                    _ => const <Widget>[],
+                  },
+
+                  // Milo, or Milo under a goose.
+                  if (_caught) ...[
+                    at(px - 50, 160, const Burglar(pose: BurglarPose.caught, width: 100)),
+                    at(px - 50, 182, const Goose(mood: GooseMood.awake, width: 100)),
+                    at(
+                      px - 90,
+                      150,
+                      const SizedBox(
+                        width: 180,
+                        height: 100,
+                        child: FittedBox(child: InlineSvg(featherPuffSvg, width: 330, height: 200)),
+                      ),
+                    ),
+                  ] else
+                    at(px - 30, 196, Burglar(pose: _pose(goose, carried), width: 60, flip: _miloRight)),
+                  if (_sneak && !goose.isAwake)
+                    at(
+                      px - 26,
+                      256,
+                      const InlineSvg(
+                        '<path d="M8 14 Q4 8 8 2 M52 14 Q56 8 52 2" fill="none" stroke="#5CC9A7" stroke-width="2.5" stroke-linecap="round"/>',
+                        width: 60,
+                        height: 18,
+                      ),
+                    ),
+
+                  switch (interaction) {
+                    GrabLoot(:final loot) => at(
+                      lootArt[loot.id]!.box.left - 4,
+                      lootArt[loot.id]!.box.top - 46,
+                      const PromptBubble('Grab'),
+                    ),
+                    Nudge(:final spotId) => at(
+                      spotAnchors[spotId]!.dx - 32,
+                      spotAnchors[spotId]!.dy - 64,
+                      const PromptBubble('Nudge'),
+                    ),
+                    null => const SizedBox.shrink(),
+                  },
+                  at(
+                    758,
+                    108,
+                    // The EXIT sign pulses while she chases.
+                    Transform.scale(
+                      scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
+                      child: const ExitSign(),
+                    ),
+                  ),
+
+                  FxLayer(fx: _fx),
+                  if (honk != null) ...[
+                    at(
+                      honk.at.dx - 80,
+                      honk.at.dy - 80,
+                      Opacity(
+                        opacity: 0.5 * honk.opacity,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Palette.gooseWhite, width: 6),
+                          ),
+                        ),
+                      ),
+                      width: 160,
+                      height: 160,
+                    ),
+                    at(
+                      honk.at.dx - 160,
+                      honk.at.dy - 90,
+                      Opacity(
+                        opacity: honk.opacity,
+                        child: Transform.rotate(
+                          angle: deg(-8),
+                          child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+                        ),
                       ),
                     ),
                   ],
-                  _ => const <Widget>[],
-                },
-
-                // Milo, or Milo under a goose.
-                if (_caught) ...[
-                  at(px - 50, 160, const Burglar(pose: BurglarPose.caught, width: 100)),
-                  at(px - 50, 182, const Goose(mood: GooseMood.awake, width: 100)),
-                  at(
-                    px - 90,
-                    150,
-                    const SizedBox(
-                      width: 180,
-                      height: 100,
-                      child: FittedBox(child: InlineSvg(featherPuffSvg, width: 330, height: 200)),
-                    ),
-                  ),
-                ] else
-                  at(px - 30, 196, Burglar(pose: _pose(goose, carried), width: 60, flip: _miloRight)),
-                if (_sneak && !goose.isAwake)
-                  at(
-                    px - 26,
-                    256,
-                    const InlineSvg(
-                      '<path d="M8 14 Q4 8 8 2 M52 14 Q56 8 52 2" fill="none" stroke="#5CC9A7" stroke-width="2.5" stroke-linecap="round"/>',
-                      width: 60,
-                      height: 18,
-                    ),
-                  ),
-
-                switch (interaction) {
-                  GrabLoot(:final loot) => at(
-                    lootArt[loot.id]!.box.left - 4,
-                    lootArt[loot.id]!.box.top - 46,
-                    const PromptBubble('Grab'),
-                  ),
-                  Nudge(:final spotId) => at(
-                    spotAnchors[spotId]!.dx - 32,
-                    spotAnchors[spotId]!.dy - 64,
-                    const PromptBubble('Nudge'),
-                  ),
-                  null => const SizedBox.shrink(),
-                },
-                at(
-                  758,
-                  108,
-                  // The EXIT sign pulses while she chases.
-                  Transform.scale(
-                    scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
-                    child: const ExitSign(),
-                  ),
-                ),
-
-                FxLayer(fx: _fx),
-                if (honk != null) ...[
-                  at(
-                    honk.at.dx - 80,
-                    honk.at.dy - 80,
-                    Opacity(
-                      opacity: 0.5 * honk.opacity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Palette.gooseWhite, width: 6),
+                  if (goose.state == GooseState.distracted)
+                    at(
+                      goose.x - 60,
+                      102,
+                      Pill(
+                        'DISTRACTED · ${goose.distractLeft.ceil()}s',
+                        color: Palette.lamp,
+                        borderWidth: 3,
+                        padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+                        textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
+                        leading: const InlineSvg(
+                          '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
+                          '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
+                          width: 24,
+                          height: 24,
                         ),
                       ),
                     ),
-                    width: 160,
-                    height: 160,
-                  ),
-                  at(
-                    honk.at.dx - 160,
-                    honk.at.dy - 90,
-                    Opacity(
-                      opacity: honk.opacity,
-                      child: Transform.rotate(
-                        angle: deg(-8),
-                        child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+
+                  ...floorAndControlBand(rules: true),
+                  loosePlank(),
+
+                  // Red chase frame.
+                  if (chasing)
+                    at(
+                      0,
+                      0,
+                      IgnorePointer(
+                        key: GameplayScreen.chaseFrameKey,
+                        child: Opacity(
+                          opacity: 0.55,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(border: Border.all(color: Palette.alarmTomato, width: 6)),
+                          ),
+                        ),
                       ),
+                      width: 844,
+                      height: 286,
                     ),
-                  ),
                 ],
-                if (goose.state == GooseState.distracted)
-                  at(
-                    goose.x - 60,
-                    102,
-                    Pill(
-                      'DISTRACTED · ${goose.distractLeft.ceil()}s',
-                      color: Palette.lamp,
-                      borderWidth: 3,
-                      padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
-                      textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
-                      leading: const InlineSvg(
-                        '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
-                        '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
-                        width: 24,
-                        height: 24,
+              ),
+            ),
+          ),
+
+          // HUD.
+          at(
+            14,
+            12,
+            NightPlate(
+              padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+              radius: 16,
+              depth: 3,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 8,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('LOOT', style: hudLabel(size: 10).copyWith(height: 1.1)),
+                      Text(
+                        '${carried.length}/${level.loot.length}',
+                        style: display(18, color: Palette.gooseWhite, height: 1.1),
                       ),
-                    ),
+                    ],
                   ),
-
-                ...floorAndControlBand(rules: true),
-                loosePlank(),
-
-                // Red chase frame.
-                if (chasing)
-                  at(
-                    0,
-                    0,
-                    IgnorePointer(
-                      key: GameplayScreen.chaseFrameKey,
-                      child: Opacity(
-                        opacity: 0.55,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(border: Border.all(color: Palette.alarmTomato, width: 6)),
-                        ),
-                      ),
+                  for (final loot in level.loot)
+                    LootSlot(
+                      kind: lootArt[loot.id]!.kind,
+                      state: carried.contains(loot.id)
+                          ? LootState.stolen
+                          : interaction is GrabLoot && interaction.loot.id == loot.id
+                          ? LootState.nearby
+                          : LootState.missing,
                     ),
-                    width: 844,
-                    height: 286,
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-
-        // HUD.
-        at(
-          14,
-          12,
-          NightPlate(
-            padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
-            radius: 16,
-            depth: 3,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 8,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('LOOT', style: hudLabel(size: 10).copyWith(height: 1.1)),
-                    Text(
-                      '${carried.length}/${level.loot.length}',
-                      style: display(18, color: Palette.gooseWhite, height: 1.1),
-                    ),
-                  ],
-                ),
-                for (final loot in level.loot)
-                  LootSlot(
-                    kind: lootArt[loot.id]!.kind,
-                    state: carried.contains(loot.id)
-                        ? LootState.stolen
-                        : interaction is GrabLoot && interaction.loot.id == loot.id
-                        ? LootState.nearby
-                        : LootState.missing,
-                  ),
-              ],
+          at(292, 14, AlertMeter(value: goose.meter.value)),
+          if (chasing) at(600, 18, _ChasePill(left: goose.chaseLeft / _sim.tuning.chaseTime)),
+          at(782, 12, RoundIconButton(onPressed: _pause, semanticLabel: 'Pause', child: const PauseBars())),
+          at(
+            14,
+            70,
+            Pill(
+              'Lure her out of bed · 0/2',
+              color: Palette.night,
+              borderColor: Palette.slate,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              textStyle: ui(11, color: Palette.gooseWhite),
+              leading: Text(
+                'GOAL',
+                style: ui(11, weight: FontWeight.w800, color: Palette.lamp, letterSpacing: 1),
+              ),
             ),
           ),
-        ),
-        at(292, 14, AlertMeter(value: goose.meter.value)),
-        if (chasing) at(600, 18, _ChasePill(left: goose.chaseLeft / _sim.tuning.chaseTime)),
-        at(782, 12, RoundIconButton(onPressed: _pause, semanticLabel: 'Pause', child: const PauseBars())),
-        at(
-          14,
-          70,
-          Pill(
-            'Lure her out of bed · 0/2',
-            color: Palette.night,
-            borderColor: Palette.slate,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            textStyle: ui(11, color: Palette.gooseWhite),
-            leading: Text(
-              'GOAL',
-              style: ui(11, weight: FontWeight.w800, color: Palette.lamp, letterSpacing: 1),
-            ),
-          ),
-        ),
 
-        // Touch controls. Tools arrive with Throw.
-        at(0, 286, Joystick(onChanged: _move)),
-        at(596, 316, const Opacity(opacity: 0.6, child: _ToolButton())),
-        at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
-        at(742, 294, _interactButton(interaction)),
-      ],
+          // Touch controls. Tools arrive with Throw.
+          at(0, 286, Joystick(onChanged: _move)),
+          at(596, 316, const Opacity(opacity: 0.6, child: _ToolButton())),
+          at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
+          at(742, 294, _interactButton(interaction)),
+        ],
+      ),
     );
   }
 
@@ -460,7 +473,12 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       : BurglarPose.sneak;
 
   Widget _interactButton(Interaction? interaction) {
-    void interact() => setState(() => _sim.interact());
+    void interact() {
+      // A freeze-frame freezes the player too.
+      if (_freezeLeft > 0) return;
+      setState(() => _sim.interact());
+    }
+
     const hand = Glyph(GameIcon.grab, size: 28, strokeWidth: 2.4);
     return switch (interaction) {
       GrabLoot(:final loot) => ActionButton(
