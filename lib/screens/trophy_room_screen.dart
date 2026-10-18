@@ -107,15 +107,17 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 8,
               children: [
+                // Sized so the longest entry (two-line name, three-line
+                // blurb, two-line "how") still fits the card.
                 Container(
-                  height: 132,
+                  height: 112,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Palette.parchment,
                     border: inkBorder(),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Prop(sel.kind, size: 118),
+                  child: Prop(sel.kind, size: 100),
                 ),
                 Text(
                   sel.tag,
