@@ -108,7 +108,41 @@ void main() {
     c.tick(5);
     expect(c.takeFired().map((f) => f.objectId), ['robot', 'glass', 'pot', 'clock']);
   });
+
+  test('a clock moved while it waits rings where it now stands', () {
+    final r = ChainRunner(Level.parse(_portableClock), const Tuning())..poke('plank');
+    r.tick(0.9); // plank squeaked, the clock was hit at 0.4s and is waiting
+    r
+      ..move('clock', 'shelf')
+      ..move('pot', 'stand');
+    r.tick(2);
+    expect(
+      r.takeFired().map((f) => '${f.link} ${f.objectId}@${f.spotId}'),
+      ['1 plank@plank', '2 clock@shelf', '3 tray@tray'],
+    );
+  });
 }
+
+final _portableClock = minimalLevel(
+  spots: [
+    {'id': 'plank', 'x': 640},
+    {'id': 'stand', 'x': 667, 'snap': true},
+    {'id': 'shelf', 'x': 100, 'snap': true},
+    {'id': 'potHome', 'x': 300, 'snap': true},
+    {'id': 'tray', 'x': 110},
+  ],
+  objects: [
+    {'id': 'plank', 'type': 'squeaker', 'spot': 'plank'},
+    {'id': 'clock', 'type': 'chimer', 'spot': 'stand', 'portable': true},
+    {'id': 'pot', 'type': 'amplifier', 'spot': 'potHome', 'portable': true},
+    {'id': 'tray', 'type': 'tipper', 'spot': 'tray'},
+  ],
+  links: [
+    {'from': 'plank', 'to': 'stand'},
+    {'from': 'stand', 'to': 'plank'},
+    {'from': 'shelf', 'to': 'tray'},
+  ],
+);
 
 final _cycle = minimalLevel(
   spots: [{'id': 'plank', 'x': 640}, {'id': 'clockStand', 'x': 667}],
