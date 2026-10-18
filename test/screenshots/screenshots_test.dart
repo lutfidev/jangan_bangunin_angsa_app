@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/briefing_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/chaos_escape_screen.dart';
@@ -14,6 +15,7 @@ import 'package:jangan_bangunin_angsa_app/screens/trophy_room_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/stage.dart';
+import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
 
 import '../game/fixtures.dart';
 import '../helpers.dart';
@@ -102,5 +104,69 @@ void main() {
     await play(tester, 1.2);
     expect(sim.outcome, isNull);
     await snap(tester, 'gameplay_caught');
+  });
+
+  testWidgets('gameplay_aim', (tester) async {
+    // Plan View: Milo at 352–412, aiming at the glass.
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 382);
+    await pumpGameplay(tester, sim);
+    final g = await tester.startGesture(tester.getCenter(find.byType(ToolButton)));
+    await g.moveBy(const Offset(-80, 0));
+    await tester.pump();
+    await snap(tester, 'gameplay_aim');
+    await g.up();
+  });
+
+  testWidgets('gameplay_throw', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 382);
+    sim
+      ..throwSock(62)
+      ..tick(0.25)
+      ..takeEvents();
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_throw');
+  });
+
+  testWidgets('gameplay_mouse', (tester) async {
+    final sim = NightSim(Levels.night3, tool: Tool.mouse)..setSneak(true);
+    sim
+      ..useTool()
+      ..tick(0.8)
+      ..takeEvents();
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_mouse');
+  });
+
+  testWidgets('gameplay_marbles', (tester) async {
+    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    walkTo(sim, 561);
+    tickUntil(sim, () => !sim.goose.rollingOver);
+    sim.grab('egg');
+    sim.setSneak(false);
+    walkTo(sim, 721);
+    sim
+      ..useTool()
+      ..takeEvents();
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_marbles');
+  });
+
+  testWidgets('gameplay_slip', (tester) async {
+    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    walkTo(sim, 561);
+    tickUntil(sim, () => !sim.goose.rollingOver);
+    sim.grab('egg');
+    sim.setSneak(false);
+    walkTo(sim, 621);
+    sim
+      ..takeEvents()
+      ..useTool();
+    tickUntil(sim, () => sim.goose.slipping);
+    sim.tick(0.1);
+    await pumpGameplay(tester, sim);
+    await play(tester, 0.05);
+    await snap(tester, 'gameplay_slip');
   });
 }

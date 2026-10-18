@@ -27,6 +27,7 @@ import '../widgets/tool_button.dart';
 import 'night3_set.dart';
 import 'night_art.dart';
 import 'scene.dart';
+import 'tool_art.dart';
 
 /// Landscape gameplay over Night 3, The Midnight Kitchen, driven by a
 /// [NightSim] that ticks once per frame.
@@ -253,6 +254,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     if (!carried.contains(loot.id) && !loot.guarded) _loot(loot.id),
                   if (!carried.contains('chicken')) chickenSparkle(),
 
+                  // Tools on the floor.
+                  if (_sim.spillX case final x?) ...marbleSpill(x),
+                  if (_sim.mouse case final mouse?) toyMouse(mouse),
+
                   // Speed lines trail her while she runs.
                   if (chasing && !_caught)
                     at(
@@ -267,7 +272,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     ),
 
                   // Gertrude in her nest, the egg under her.
-                  if (!_caught) at(goose.x - 70, 160, Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight)),
+                  if (!_caught)
+                    at(
+                      goose.x - 70,
+                      160,
+                      Transform.rotate(
+                        angle: goose.slipping ? deg(-20) : 0,
+                        child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
+                      ),
+                    ),
                   for (final loot in level.loot)
                     if (!carried.contains(loot.id) && loot.guarded) _loot(loot.id),
                   night3Nest(),
@@ -344,6 +357,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       child: const ExitSign(),
                     ),
                   ),
+
+                  // Socks in the air, and the one being aimed.
+                  for (final f in _sim.flights) flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX))),
+                  if (_aimDx case final dx?)
+                    Positioned.fill(
+                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)))),
+                    ),
 
                   FxLayer(fx: _fx),
                   if (honk != null) ...[
@@ -474,6 +494,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
           // Touch controls.
           at(0, 286, Joystick(onChanged: _sim.setMove)),
+          if (_aimDx != null) aimHint(),
           at(
             596,
             316,
