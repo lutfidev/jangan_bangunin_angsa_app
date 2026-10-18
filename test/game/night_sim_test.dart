@@ -172,6 +172,17 @@ void main() {
     expect(s.goose.isAwake, isTrue);
   });
 
+  test('the burglar stays on the floor line', () {
+    final s = NightSim(night3(), tuning: const Tuning(worldWidth: 500))..setMove(-1);
+    s.tick(10);
+    expect(s.playerX, 0);
+    s
+      ..setSneak(true)
+      ..setMove(1)
+      ..tick(20);
+    expect(s.playerX, 500);
+  });
+
   test('hiding needs a hide spot in reach, and holds the burglar still', () {
     final s = NightSim(night3());
     expect(s.toggleHide(), isFalse); // 236, hide spots at 180 and 720

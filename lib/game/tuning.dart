@@ -4,6 +4,7 @@
 /// Distances are artboard px along the floor line, times are seconds.
 class Tuning {
   const Tuning({
+    this.worldWidth = 844,
     this.ringRadius = 36,
     this.footstepRadius = 18,
     this.earHalfWidth = 172,
@@ -36,6 +37,9 @@ class Tuning {
     this.chimerDelay = 1,
     this.maxStep = 1 / 60,
   });
+
+  /// Length of the floor line, the width of the gameplay board.
+  final double worldWidth;
 
   /// Radius per ring; a noise draws one ring per loudness step.
   final double ringRadius;
