@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'routes.dart';
 import 'screens/briefing_screen.dart';
@@ -16,12 +18,24 @@ import 'theme/palette.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Fonts ship in assets/google_fonts/; never hit the network for them.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(_fontLicenses);
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const MainApp());
+}
+
+Stream<LicenseEntry> _fontLicenses() async* {
+  for (final family in ['BagelFatOne', 'BricolageGrotesque']) {
+    final license = await rootBundle.loadString(
+      'assets/google_fonts/$family-OFL.txt',
+    );
+    yield LicenseEntryWithLineBreaks([family], license);
+  }
 }
 
 class MainApp extends StatelessWidget {
