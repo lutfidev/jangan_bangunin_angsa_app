@@ -14,9 +14,10 @@ import 'screens/plan_view_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/trophy_room_screen.dart';
 import 'screens/victory_screen.dart';
+import 'state/levels.dart';
 import 'theme/palette.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Fonts ship in assets/google_fonts/; never hit the network for them.
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -26,6 +27,7 @@ void main() {
     DeviceOrientation.landscapeRight,
   ]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await Levels.load(rootBundle);
   runApp(const MainApp());
 }
 

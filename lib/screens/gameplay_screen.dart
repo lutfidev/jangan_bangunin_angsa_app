@@ -9,6 +9,7 @@ import '../widgets/chunky_button.dart';
 import '../widgets/dashed_outline.dart';
 import '../widgets/hud.dart';
 import '../widgets/stage.dart';
+import 'night_art.dart';
 import 'scene.dart';
 
 /// Landscape gameplay HUD over Night 3, The Midnight Kitchen.
@@ -79,13 +80,13 @@ class _GameplayScreenState extends State<GameplayScreen> {
         box(316, 110, 76, 160, Palette.floor, border: 3),
         box(319, 160, 70, 3, Palette.ink),
         box(319, 212, 70, 3, Palette.ink),
-        at(324, 126, const _Books([
+        at(324, 126, const Books([
           (Palette.alarmTomato, 32.0, 0.0),
           (Palette.calmMint, 28.0, 0.0),
           (Palette.moonlight, 34.0, 0.0),
           (Palette.lamp, 26.0, 14.0),
         ])),
-        at(324, 178, const _Books([
+        at(324, 178, const Books([
           (Palette.lamp, 30.0, 0.0),
           (Color(0xFF4C5BA8), 30.0, 0.0),
           (Palette.alarmTomato, 26.0, 0.0),
@@ -242,32 +243,6 @@ class _GameplayScreenState extends State<GameplayScreen> {
             onPressed: () {},
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _Books extends StatelessWidget {
-  const _Books(this.books);
-
-  /// Colour, height and lean (degrees) per spine.
-  final List<(Color, double, double)> books;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      spacing: 3,
-      children: [
-        for (final (color, height, lean) in books)
-          Transform.rotate(
-            angle: deg(lean),
-            child: Container(
-              width: 13,
-              height: height + 4,
-              decoration: BoxDecoration(color: color, border: inkBorder(2)),
-            ),
-          ),
       ],
     );
   }
