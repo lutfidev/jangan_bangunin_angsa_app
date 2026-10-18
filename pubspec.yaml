@@ -24,3 +24,4 @@ flutter:
   # rename them). Runtime fetching is disabled in main().
   assets:
     - assets/google_fonts/
+    - assets/levels/
