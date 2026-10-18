@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
+import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
+import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
+import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
@@ -25,7 +28,12 @@ Future<void> play(WidgetTester tester, double seconds) async {
 Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
   final s = sim ?? NightSim(Levels.night3);
   useStageSurface(tester);
-  await tester.pumpWidget(MaterialApp(onGenerateRoute: MainApp.route, home: GameplayScreen(sim: s)));
+  await tester.pumpWidget(
+    MaterialApp(
+      onGenerateRoute: MainApp.route,
+      home: GameplayScreen(sim: s),
+    ),
+  );
   await tester.pump();
   return s;
 }
@@ -34,10 +42,8 @@ Finder _prop(PropKind kind) => find.byWidgetPredicate((w) => w is Prop && w.kind
 
 ActionButton _interact(WidgetTester tester) => tester.widget<ActionButton>(find.byType(ActionButton));
 
-Future<void> _tapPause(WidgetTester tester) => tester.tap(
-  find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'),
-  warnIfMissed: false,
-);
+Future<void> _tapPause(WidgetTester tester) =>
+    tester.tap(find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'), warnIfMissed: false);
 
 void main() {
   testWidgets('the joystick walks Milo right', (tester) async {
@@ -144,5 +150,85 @@ void main() {
     expect(find.byType(VictoryScreen), findsOneWidget);
     expect(find.byType(PauseScreen), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  group('on screen', () {
+    /// Milo by the nest, the egg just grabbed outside her roll-over: HONK.
+    NightSim wokenByTheEgg() {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 561);
+      tickUntil(sim, () => !sim.goose.rollingOver);
+      expect(sim.grab('egg'), isFalse);
+      expect(sim.goose.state, GooseState.awake);
+      return sim;
+    }
+
+    Finder badge(int n) => find.byWidgetPredicate((w) => w is LinkBadge && w.number == n);
+
+    testWidgets('a chain counts up its badges 0.4s apart', (tester) async {
+      final sim = NightSim(Levels.night3);
+      walkTo(sim, 62);
+      await pumpGameplay(tester, sim);
+      await tester.tap(find.text('NUDGE'));
+      await play(tester, 0.05);
+      expect(badge(1), findsOneWidget);
+      expect(badge(2), findsNothing);
+      await play(tester, 0.4);
+      expect(badge(2), findsOneWidget);
+      expect(find.text('CLANG!'), findsWidgets);
+    });
+
+    testWidgets('HONK freezes the night for 0.3s', (tester) async {
+      final sim = await pumpGameplay(tester, wokenByTheEgg());
+      expect(find.text('HONK!'), findsWidgets);
+      final t = sim.elapsed;
+      await play(tester, 0.25);
+      expect(sim.elapsed, t);
+      await play(tester, 0.1);
+      expect(sim.elapsed, greaterThan(t));
+    });
+
+    double nudge(WidgetTester tester) =>
+        tester.widget<Transform>(find.byKey(GameplayScreen.sceneKey)).transform.getTranslation().x;
+
+    testWidgets('the HONK nudge is 4px', (tester) async {
+      await pumpGameplay(tester, wokenByTheEgg());
+      expect(nudge(tester), 4);
+      await play(tester, 0.4);
+      expect(nudge(tester), 0);
+    });
+
+    testWidgets('reduced shake turns the nudge off', (tester) async {
+      final before = GameSettings.instance.reduceShake;
+      addTearDown(() => GameSettings.instance.reduceShake = before);
+      GameSettings.instance.reduceShake = true;
+      await pumpGameplay(tester, wokenByTheEgg());
+      expect(nudge(tester), 0);
+    });
+
+    testWidgets('the chase shows the frame and the CHASE pill', (tester) async {
+      final sim = await pumpGameplay(tester, wokenByTheEgg());
+      expect(find.text('CHASE'), findsNothing);
+      await play(tester, 0.7);
+      expect(sim.goose.state, GooseState.chase);
+      expect(find.text('CHASE'), findsOneWidget);
+      expect(find.byKey(GameplayScreen.chaseFrameKey), findsOneWidget);
+    });
+
+    testWidgets('caught: the tableau, then the Caught screen after 1.2s', (tester) async {
+      final sim = await pumpGameplay(tester, wokenByTheEgg());
+      for (
+        var i = 0;
+        i < 120 && !find.byWidgetPredicate((w) => w is Burglar && w.pose == BurglarPose.caught).evaluate().isNotEmpty;
+        i++
+      ) {
+        await tester.pump(const Duration(microseconds: 16667));
+      }
+      expect(find.byWidgetPredicate((w) => w is Burglar && w.pose == BurglarPose.caught), findsOneWidget);
+      expect(sim.outcome, isNull);
+      await play(tester, 1.5);
+      expect(find.byType(CaughtScreen), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Prop && w.kind == PropKind.egg), findsOneWidget);
+    });
   });
 }

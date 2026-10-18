@@ -53,16 +53,7 @@ class CaughtScreen extends StatelessWidget {
         at(
           20,
           100,
-          const InlineSvg(
-            '<g fill="#FBF8F1" stroke="#1C1A2B" stroke-width="3" stroke-linejoin="round">'
-            '<path d="M30 40 Q44 22 60 30 Q46 46 30 40 Z" transform="rotate(-20 45 35)"/>'
-            '<path d="M270 30 Q286 14 300 24 Q286 38 270 30 Z" transform="rotate(25 285 26)"/>'
-            '<path d="M300 140 Q314 124 326 134 Q312 148 300 140 Z"/>'
-            '<path d="M10 150 Q24 134 38 144 Q24 158 10 150 Z" transform="rotate(30 24 146)"/>'
-            '</g>',
-            width: 330,
-            height: 200,
-          ),
+          const InlineSvg(featherPuffSvg, width: 330, height: 200),
         ),
 
         at(
