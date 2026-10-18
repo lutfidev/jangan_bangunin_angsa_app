@@ -15,22 +15,22 @@ import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'helpers.dart';
 
 void main() {
-  const screens = <String, Widget>{
-    'MainMenu': MainMenuScreen(),
-    'Briefing': BriefingScreen(),
-    'Gameplay': GameplayScreen(),
-    'PlanView': PlanViewScreen(),
-    'ChaosEscape': ChaosEscapeScreen(),
-    'Pause': PauseScreen(),
-    'Settings': SettingsScreen(),
-    'Victory': VictoryScreen(),
-    'Caught': CaughtScreen(),
-    'TrophyRoom': TrophyRoomScreen(),
+  final screens = <String, Widget>{
+    'MainMenu': const MainMenuScreen(),
+    'Briefing': const BriefingScreen(),
+    'Gameplay': const GameplayScreen(),
+    'PlanView': const PlanViewScreen(),
+    'ChaosEscape': const ChaosEscapeScreen(),
+    'Pause': const PauseScreen(),
+    'Settings': const SettingsScreen(),
+    'Victory': VictoryScreen(result: sampleEscape()),
+    'Caught': CaughtScreen(result: sampleCaught()),
+    'TrophyRoom': const TrophyRoomScreen(),
   };
 
   for (final MapEntry(key: name, value: screen) in screens.entries) {
     testWidgets('$name renders at 844x390 without errors', (tester) async {
-      await pumpScreen(tester, screen);
+      await pumpScreen(tester, screen, settle: screen is! GameplayScreen);
 
       // Overflows and build errors are reported as FlutterErrors.
       expect(tester.takeException(), isNull);

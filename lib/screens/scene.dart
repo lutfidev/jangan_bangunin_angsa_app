@@ -83,6 +83,15 @@ const nestSvg =
 const nestStrawSvg =
     '<path d="M30 16 L28 34 M56 20 L55 38 M82 21 L82 39 M108 20 L109 38 M134 16 L136 34" stroke="#1C1A2B" stroke-width="2" opacity="0.45"/>';
 
+/// Feathers puffing out of a caught Milo (330×200).
+const featherPuffSvg =
+    '<g fill="#FBF8F1" stroke="#1C1A2B" stroke-width="3" stroke-linejoin="round">'
+    '<path d="M30 40 Q44 22 60 30 Q46 46 30 40 Z" transform="rotate(-20 45 35)"/>'
+    '<path d="M270 30 Q286 14 300 24 Q286 38 270 30 Z" transform="rotate(25 285 26)"/>'
+    '<path d="M300 140 Q314 124 326 134 Q312 148 300 140 Z"/>'
+    '<path d="M10 150 Q24 134 38 144 Q24 158 10 150 Z" transform="rotate(30 24 146)"/>'
+    '</g>';
+
 /// Kitchen counter with cabinet below (the lit room on the left).
 List<Widget> kitchenCounter({bool details = true}) => [
   box(24, 206, 250, 64, Palette.wood, border: 3),

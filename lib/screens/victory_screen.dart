@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/night_sim.dart';
 import '../routes.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
@@ -10,11 +11,28 @@ import '../widgets/dashed_outline.dart';
 import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import 'night_art.dart';
 import 'scene.dart';
 
 /// Level complete: loot haul, run stats and the morning-after vignette.
 class VictoryScreen extends StatelessWidget {
-  const VictoryScreen({super.key});
+  const VictoryScreen({super.key, required this.result});
+
+  final NightResult result;
+
+  /// The morning-after line names the guarded loot if it went, else the
+  /// last thing grabbed.
+  String get _morning {
+    if (result.loot.isEmpty) return 'Morning. Nothing is missing.';
+    final guarded = result.level.loot.where((l) => l.guarded && result.loot.contains(l.id));
+    final id = guarded.isEmpty ? result.loot.last : guarded.first.id;
+    return 'Morning. The ${lootArt[id]!.name} is gone.';
+  }
+
+  static String _clock(double seconds) {
+    final s = seconds.floor();
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +63,15 @@ class VictoryScreen extends StatelessWidget {
         at(
           28,
           102,
-          const Row(
+          Row(
             spacing: 12,
             children: [
-              _LootCard(PropKind.toaster, 'Mega Toaster'),
-              _LootCard(PropKind.chicken, 'Rubber Chicken'),
-              _LootCard(PropKind.egg, 'Golden Egg'),
+              for (final loot in result.level.loot)
+                _LootCard(
+                  lootArt[loot.id]!.kind,
+                  lootArt[loot.id]!.name,
+                  stolen: result.loot.contains(loot.id),
+                ),
             ],
           ),
         ),
@@ -71,24 +92,19 @@ class VictoryScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     children: [
                       Text('STYLE', style: hudLabel(color: Palette.ink, size: 10, spacing: 1.4)),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text('Trickster', style: display(19, height: 1.15)),
-                      ),
-                      Text('Best chain ×6', style: ui(10, weight: FontWeight.w800)),
+                      Text('—', style: display(19, height: 1.15)),
                     ],
                   ),
                   _StatCard(
                     children: [
                       Text('SCORE', style: hudLabel(size: 10, spacing: 1.4)),
-                      Text('8,450', style: display(21, color: Palette.lamp, height: 1.2)),
+                      Text('—', style: display(21, color: Palette.lamp, height: 1.2)),
                     ],
                   ),
                   _StatCard(
                     children: [
                       Text('TIME', style: hudLabel(size: 10, spacing: 1.4)),
-                      Text('2:47', style: display(21, color: Palette.gooseWhite, height: 1.2)),
+                      Text(_clock(result.time), style: display(21, color: Palette.gooseWhite, height: 1.2)),
                     ],
                   ),
                   _StatCard(
@@ -96,12 +112,12 @@ class VictoryScreen extends StatelessWidget {
                     children: [
                       Text('HEIST GOALS', style: hudLabel(size: 10, spacing: 1.4)),
                       Semantics(
-                        label: 'Heist goals 2 of 3 socks',
+                        label: 'Heist goals not tracked yet',
                         child: const Row(
                           spacing: 2,
                           children: [
-                            SockGlyph(fill: Palette.calmMint, size: 21),
-                            SockGlyph(fill: Palette.lamp, size: 21),
+                            SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
+                            SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
                             SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
                           ],
                         ),
@@ -112,20 +128,6 @@ class VictoryScreen extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        // One line, shrunk if needed, so it never runs into the buttons.
-        at(
-          28,
-          290,
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '✓ Lured her out twice · ✓ 5+ link chain · ✗ Never seen — try a Ghost run for the last sock.',
-              style: ui(12, weight: FontWeight.w600, color: Palette.paleBlue),
-            ),
-          ),
-          width: 456,
         ),
         at(
           28,
@@ -155,17 +157,20 @@ class VictoryScreen extends StatelessWidget {
         ),
 
         // Morning after.
-        at(492, 22, const _MorningVignette()),
+        at(492, 22, _MorningVignette(_morning)),
       ],
     );
   }
 }
 
 class _LootCard extends StatelessWidget {
-  const _LootCard(this.kind, this.name);
+  const _LootCard(this.kind, this.name, {required this.stolen});
 
   final PropKind kind;
   final String name;
+
+  /// Loot left behind shows as a silhouette, without the tick.
+  final bool stolen;
 
   @override
   Widget build(BuildContext context) {
@@ -185,13 +190,13 @@ class _LootCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 spacing: 2,
                 children: [
-                  Prop(kind, size: 56),
+                  Prop(kind, size: 56, silhouette: !stolen),
                   Text(name, style: ui(12, weight: FontWeight.w800), softWrap: false),
                 ],
               ),
             ),
           ),
-          const Positioned(right: -8, top: -8, child: CheckBadge(size: 24, border: 3)),
+          if (stolen) const Positioned(right: -8, top: -8, child: CheckBadge(size: 24, border: 3)),
         ],
       ),
     );
@@ -232,7 +237,9 @@ class _StatCard extends StatelessWidget {
 }
 
 class _MorningVignette extends StatelessWidget {
-  const _MorningVignette();
+  const _MorningVignette(this.caption);
+
+  final String caption;
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +312,7 @@ class _MorningVignette extends StatelessWidget {
               16,
               16,
               Pill(
-                'Morning. The toaster is gone.',
+                caption,
                 borderWidth: 3,
                 radius: 10,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

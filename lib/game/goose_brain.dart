@@ -54,6 +54,12 @@ class GooseBrain {
 
   bool get sniffing => _state == GooseState.sleepwalk && _walk == _Walk.sniff;
 
+  /// Seconds of chase left; 0 when she isn't after anyone.
+  double get chaseLeft => _state == GooseState.chase || _state == GooseState.distracted ? _chaseLeft : 0;
+
+  /// Seconds left of a distraction; 0 when she isn't distracted.
+  double get distractLeft => _state == GooseState.distracted ? _timer : 0;
+
   /// A noise went off. [chainLinks] is its link number when a chain made it.
   void hear(Noise n, {int chainLinks = 0}) {
     _lastNoiseX = n.x;

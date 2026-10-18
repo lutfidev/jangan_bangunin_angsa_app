@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/goose_brain.dart';
+import '../game/night_sim.dart';
 import '../routes.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
@@ -9,11 +11,16 @@ import '../widgets/chunky_button.dart';
 import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import 'night_art.dart';
 import 'scene.dart';
 
 /// Caught: Gertrude sits on Milo, and the chain that woke her is recapped.
 class CaughtScreen extends StatelessWidget {
-  const CaughtScreen({super.key});
+  const CaughtScreen({super.key, required this.result});
+
+  final NightResult result;
+
+  static const recapKey = Key('caught-recap');
 
   @override
   Widget build(BuildContext context) {
@@ -46,16 +53,7 @@ class CaughtScreen extends StatelessWidget {
         at(
           20,
           100,
-          const InlineSvg(
-            '<g fill="#FBF8F1" stroke="#1C1A2B" stroke-width="3" stroke-linejoin="round">'
-            '<path d="M30 40 Q44 22 60 30 Q46 46 30 40 Z" transform="rotate(-20 45 35)"/>'
-            '<path d="M270 30 Q286 14 300 24 Q286 38 270 30 Z" transform="rotate(25 285 26)"/>'
-            '<path d="M300 140 Q314 124 326 134 Q312 148 300 140 Z"/>'
-            '<path d="M10 150 Q24 134 38 144 Q24 158 10 150 Z" transform="rotate(30 24 146)"/>'
-            '</g>',
-            width: 330,
-            height: 200,
-          ),
+          const InlineSvg(featherPuffSvg, width: 330, height: 200),
         ),
 
         at(
@@ -107,22 +105,23 @@ class CaughtScreen extends StatelessWidget {
               spacing: 6,
               children: [
                 Text('WHAT WOKE HER', style: hudLabel(size: 10, spacing: 1.4)),
-                Row(
-                  spacing: 6,
-                  children: [
-                    const _ChainTile(PropKind.glass),
-                    const _ChainArrow(Palette.lamp),
-                    const _ChainTile(PropKind.pot),
-                    const _ChainArrow(Palette.beakOrange),
-                    const _ChainTile(PropKind.robot),
-                    const _ChainArrow(Palette.alarmTomato),
-                    Text('HONK', style: display(18, color: Palette.alarmTomato)),
-                  ],
+                // A long chain shrinks to fit rather than overflow.
+                SizedBox(
+                  key: recapKey,
+                  width: 352,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      spacing: 6,
+                      children: [
+                        ..._causes(),
+                        Text('HONK', style: display(18, color: Palette.alarmTomato)),
+                      ],
+                    ),
+                  ),
                 ),
-                Text(
-                  'Tip: the pot doubles any noise that lands in it. Move the glass first.',
-                  style: ui(12, weight: FontWeight.w600, color: Palette.gooseWhite),
-                ),
+                Text(wakeTip(result), style: ui(12, weight: FontWeight.w600, color: Palette.gooseWhite)),
               ],
             ),
           ),
@@ -153,12 +152,31 @@ class CaughtScreen extends StatelessWidget {
       ],
     );
   }
+
+  /// The chain that woke her, link by link; or, with no chain, what did.
+  List<Widget> _causes() {
+    if (result.wakeChain.isNotEmpty) {
+      return [
+        for (final link in result.wakeChain) ...[
+          _ChainTile(objectIcon(link.objectId)),
+          _ChainArrow(linkColor(link.link)),
+        ],
+      ];
+    }
+    final level = result.level;
+    final Widget cause = switch (result.wakeCause) {
+      WakeCause.footsteps => const Burglar(width: 26),
+      WakeCause.grabbedGuarded => Prop(lootArt[level.loot.firstWhere((l) => l.guarded).id]!.kind, size: 32),
+      _ => Prop(lootArt[level.loot.firstWhere((l) => l.squeaks).id]!.kind, size: 32),
+    };
+    return [_ChainTile(cause), const _ChainArrow(Palette.alarmTomato)];
+  }
 }
 
 class _ChainTile extends StatelessWidget {
-  const _ChainTile(this.kind);
+  const _ChainTile(this.icon);
 
-  final PropKind kind;
+  final Widget icon;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +189,7 @@ class _ChainTile extends StatelessWidget {
         border: inkBorder(),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Prop(kind, size: 32),
+      child: icon,
     );
   }
 }

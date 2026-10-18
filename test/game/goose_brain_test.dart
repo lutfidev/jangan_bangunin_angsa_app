@@ -139,4 +139,24 @@ void main() {
     run(g, 2.5);
     expect(g.state, GooseState.asleep);
   });
+
+  test('chaseLeft counts down from 12', () {
+    final g = _goose();
+    expect(g.chaseLeft, 0);
+    g.wake(WakeCause.noise);
+    run(g, 0.3 + 2);
+    expect(g.state, GooseState.chase);
+    expect(g.chaseLeft, closeTo(10, 0.06));
+  });
+
+  test('distractLeft counts down from 4', () {
+    final g = _goose();
+    expect(g.distractLeft, 0);
+    g.wake(WakeCause.noise);
+    run(g, 0.5);
+    g.hear(const Noise(x: 113, loudness: 2), chainLinks: 2);
+    run(g, 1);
+    expect(g.state, GooseState.distracted);
+    expect(g.distractLeft, closeTo(3, 0.02));
+  });
 }
