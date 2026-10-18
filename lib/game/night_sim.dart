@@ -44,6 +44,48 @@ class Escaped extends SimEvent {
 
 enum Outcome { escaped, caught }
 
+/// What the Interact button would do right now.
+sealed class Interaction {
+  const Interaction();
+}
+
+class GrabLoot extends Interaction {
+  const GrabLoot(this.loot);
+
+  final Loot loot;
+}
+
+/// Bump the object at [spotId]: the stand-in for Throw until tools exist.
+class Nudge extends Interaction {
+  const Nudge(this.spotId, this.objectId);
+
+  final String spotId;
+  final String objectId;
+}
+
+/// How a night ended, for the Caught and Victory screens.
+class NightResult {
+  const NightResult({
+    required this.level,
+    required this.outcome,
+    required this.loot,
+    this.wakeChain = const [],
+    this.wakeCause,
+    required this.time,
+  });
+
+  final Level level;
+  final Outcome outcome;
+
+  /// Loot ids carried out (or held when caught), in the order grabbed.
+  final List<String> loot;
+  final List<LinkFired> wakeChain;
+  final WakeCause? wakeCause;
+
+  /// Seconds from the start of the night to the outcome.
+  final double time;
+}
+
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
 /// only by [tick].
 class NightSim {
@@ -71,12 +113,27 @@ class NightSim {
   double _squeakClock = 0;
   double? _caughtLeft;
   Outcome? _outcome;
+  double _elapsed = 0;
 
   double get playerX => _x;
   bool get sneaking => _sneak;
   bool get hidden => _hidden;
   List<String> get carried => List.unmodifiable(_carried);
   Outcome? get outcome => _outcome;
+
+  /// Seconds ticked so far; stops when the night ends.
+  double get elapsed => _elapsed;
+
+  NightResult? get result => _outcome == null
+      ? null
+      : NightResult(
+          level: level,
+          outcome: _outcome!,
+          loot: carried,
+          wakeChain: _wakeChain,
+          wakeCause: goose.wakeCause,
+          time: _elapsed,
+        );
 
   /// The links of the chain that woke her, for the Caught recap.
   List<LinkFired> get wakeChain => _wakeChain;
@@ -91,6 +148,44 @@ class NightSim {
   /// Sets off the object at [spotId]: a bump, a thrown sock, a wound-up toy.
   void poke(String spotId) {
     if (!_frozen) chain.poke(spotId);
+  }
+
+  /// The nearest loot in reach, else the nearest object in reach that can
+  /// still go off. Squeakers are stepped on, not nudged.
+  Interaction? get interaction {
+    if (_frozen || _hidden) return null;
+    Loot? loot;
+    for (final l in level.loot) {
+      if (_carried.contains(l.id) || (l.x - _x).abs() > tuning.reach) continue;
+      if (loot == null || (l.x - _x).abs() < (loot.x - _x).abs()) loot = l;
+    }
+    if (loot != null) return GrabLoot(loot);
+
+    Nudge? nudge;
+    double best = double.infinity;
+    for (final spot in level.spots.values) {
+      final d = (spot.x - _x).abs();
+      final id = chain.objectAt(spot.id);
+      if (d > tuning.reach || d >= best || id == null || chain.isSpent(id)) continue;
+      if (level.objects.any((o) => o.id == id && o.type == ObjectType.squeaker)) continue;
+      nudge = Nudge(spot.id, id);
+      best = d;
+    }
+    return nudge;
+  }
+
+  /// Does what [interaction] offers and returns it, or null if nothing was
+  /// in reach. A refused grab of the guarded loot still counts: she wakes.
+  Interaction? interact() {
+    final i = interaction;
+    switch (i) {
+      case GrabLoot(:final loot):
+        grab(loot.id);
+      case Nudge(:final spotId):
+        poke(spotId);
+      case null:
+    }
+    return i;
   }
 
   bool grab(String lootId) {
@@ -125,6 +220,7 @@ class NightSim {
     if (_outcome != null || dt <= 0) return;
     final steps = (dt / tuning.maxStep).ceil();
     for (var i = 0; i < steps && _outcome == null; i++) {
+      _elapsed += dt / steps;
       _step(dt / steps);
     }
   }

@@ -5,27 +5,6 @@ import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
 
-const _frame = 1 / 60;
-
-/// Walks (or sneaks) the burglar until they reach [x], a frame at a time.
-void walkTo(NightSim s, double x) {
-  final right = x > s.playerX;
-  s.setMove(right ? 1 : -1);
-  for (var i = 0; i < 60 * 30 && s.outcome == null; i++) {
-    if (right ? s.playerX >= x : s.playerX <= x) break;
-    s.tick(_frame);
-  }
-  s.setMove(0);
-}
-
-/// Ticks frames until [done], failing the test after [limit] seconds.
-void tickUntil(NightSim s, bool Function() done, {double limit = 30}) {
-  for (var t = 0.0; !done(); t += _frame) {
-    if (t > limit) fail('condition not met within ${limit}s');
-    s.tick(_frame);
-  }
-}
-
 bool _wokeUp(List<SimEvent> events) =>
     events.any((e) => e is GooseChanged && e.to == GooseState.awake);
 
@@ -119,7 +98,7 @@ void main() {
     s.goose.wake(WakeCause.noise);
     var closest = double.infinity;
     for (var i = 0; i < 60 * 4; i++) {
-      s.tick(_frame);
+      s.tick(frame);
       final d = (s.goose.x - s.playerX).abs();
       if (d < closest) closest = d;
     }
@@ -256,5 +235,96 @@ void main() {
       ..tick(1);
     expect(s.playerX, x);
     expect(s.grab('egg'), isFalse);
+  });
+
+  group('interaction', () {
+    test('offers the toaster at the start', () {
+      final i = NightSim(night3()).interaction;
+      expect(i, isA<GrabLoot>().having((g) => g.loot.id, 'loot', 'toaster'));
+    });
+
+    test('nudges the glass when no loot is in reach', () {
+      final s = NightSim(night3());
+      walkTo(s, 62);
+      expect(
+        s.interaction,
+        isA<Nudge>().having((n) => n.spotId, 'spot', 'counterLeft').having((n) => n.objectId, 'object', 'glass'),
+      );
+    });
+
+    test('loot wins over an object in reach', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 345);
+      expect(s.interaction, isA<GrabLoot>().having((g) => g.loot.id, 'loot', 'chicken'));
+      s.interact();
+      expect(s.interaction, isA<Nudge>().having((n) => n.objectId, 'object', 'books'));
+    });
+
+    test('a spent object is no longer offered', () {
+      final s = NightSim(night3());
+      walkTo(s, 62);
+      expect(s.interact(), isA<Nudge>());
+      s.tick(1);
+      expect(s.chain.isSpent('glass'), isTrue);
+      expect(s.interaction, isNull);
+    });
+
+    test('the plank is never offered', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 640);
+      expect(s.interaction, isA<Nudge>().having((n) => n.objectId, 'object', isNot('plank')));
+    });
+
+    test('nothing while hidden', () {
+      final s = NightSim(night3());
+      walkTo(s, 180);
+      expect(s.toggleHide(), isTrue);
+      expect(s.interaction, isNull);
+      expect(s.interact(), isNull);
+    });
+
+    test('interact grabs and returns what it did', () {
+      final s = NightSim(night3());
+      expect(s.interact(), isA<GrabLoot>());
+      expect(s.carried, ['toaster']);
+    });
+  });
+
+  group('result', () {
+    test('null until the night ends', () {
+      final s = NightSim(night3());
+      s.tick(1);
+      expect(s.result, isNull);
+    });
+
+    test('escape carries loot and time', () {
+      final s = NightSim(night3())..setSneak(true);
+      s.interact();
+      walkTo(s, 770);
+      final r = s.result!;
+      expect(r.outcome, Outcome.escaped);
+      expect(r.loot, ['toaster']);
+      expect(r.time, s.elapsed);
+      expect(r.time, greaterThan(0));
+      expect(r.level.id, 'night3');
+    });
+
+    test('caught carries the wake chain and cause', () {
+      final s = NightSim(night3());
+      s.poke('sideTable');
+      tickUntil(s, () => s.outcome != null);
+      final r = s.result!;
+      expect(r.outcome, Outcome.caught);
+      expect(r.wakeChain.map((f) => f.objectId), ['robot', 'clock']);
+      expect(r.wakeCause, WakeCause.noise);
+    });
+
+    test('elapsed stops at the outcome', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 770);
+      final t = s.elapsed;
+      s.tick(5);
+      expect(s.elapsed, t);
+    });
   });
 }
