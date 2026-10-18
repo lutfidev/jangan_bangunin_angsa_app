@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local working notes and Claude Code state, kept off the public repo
+/CLAUDE.md
+/docs/
+/.claude/
+/.superpowers/
