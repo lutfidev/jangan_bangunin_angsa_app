@@ -3,8 +3,9 @@ import 'package:jangan_bangunin_angsa_app/game/level.dart';
 
 import 'fixtures.dart';
 
-Matcher _formatError(String id) =>
-    throwsA(isA<FormatException>().having((e) => e.message, 'message', contains(id)));
+/// The whole message, so a short id like 'a' can't match by accident.
+Matcher _formatError(String message) =>
+    throwsA(isA<FormatException>().having((e) => e.message, 'message', message));
 
 void main() {
   test('night 3 parses', () {
@@ -22,13 +23,13 @@ void main() {
   });
 
   test('rejects a link to an unknown spot', () {
-    expect(() => Level.parse(minimalLevel(links: [{'from': 'a', 'to': 'nope'}])), _formatError('nope'));
+    expect(() => Level.parse(minimalLevel(links: [{'from': 'a', 'to': 'nope'}])), _formatError('link names an unknown spot: nope'));
   });
 
   test('rejects an object on an unknown spot', () {
     expect(
       () => Level.parse(minimalLevel(objects: [{'id': 'o', 'type': 'tipper', 'spot': 'ghost'}])),
-      _formatError('ghost'),
+      _formatError('object o names an unknown spot: ghost'),
     );
   });
 
@@ -38,7 +39,7 @@ void main() {
         {'id': 'o1', 'type': 'tipper', 'spot': 'a'},
         {'id': 'o2', 'type': 'chimer', 'spot': 'a'},
       ])),
-      _formatError('a'),
+      _formatError('two objects on spot: a'),
     );
   });
 
@@ -48,21 +49,21 @@ void main() {
         {'id': 'egg', 'x': 1, 'guarded': true},
         {'id': 'crown', 'x': 2, 'guarded': true},
       ])),
-      _formatError('crown'),
+      _formatError('more than one guarded loot: crown'),
     );
   });
 
   test('rejects a duplicate id', () {
     expect(
       () => Level.parse(minimalLevel(spots: [{'id': 'a', 'x': 1}, {'id': 'a', 'x': 2}])),
-      _formatError('a'),
+      _formatError('duplicate spot: a'),
     );
   });
 
   test('rejects an unknown object type', () {
     expect(
       () => Level.parse(minimalLevel(objects: [{'id': 'o', 'type': 'trebuchet', 'spot': 'a'}])),
-      _formatError('trebuchet'),
+      _formatError('unknown object type: trebuchet'),
     );
   });
 }

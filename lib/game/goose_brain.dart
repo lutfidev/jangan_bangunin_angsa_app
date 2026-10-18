@@ -11,13 +11,13 @@ enum _Walk { out, sniff, back }
 
 /// Gertrude. She lives on the floor line; [x] is where she is now.
 class GooseBrain {
-  GooseBrain({required this.bedX, required this.tuning}) : x = bedX, meter = NoiseMeter(tuning);
+  GooseBrain({required this.bedX, required this.tuning}) : _x = bedX, meter = NoiseMeter(tuning);
 
   final double bedX;
   final Tuning tuning;
   final NoiseMeter meter;
 
-  double x;
+  double _x;
   GooseState _state = GooseState.asleep;
   WakeCause? _wakeCause;
 
@@ -32,6 +32,7 @@ class GooseBrain {
   double _hiddenFor = 0;
   double _patrolFor = 0;
 
+  double get x => _x;
   GooseState get state => _state;
   WakeCause? get wakeCause => _wakeCause;
 
@@ -56,7 +57,7 @@ class GooseBrain {
   /// A noise went off. [chainLinks] is its link number when a chain made it.
   void hear(Noise n, {int chainLinks = 0}) {
     _lastNoiseX = n.x;
-    final touches = n.touchesEar(x, tuning);
+    final touches = n.touchesEar(_x, tuning);
     if (inBed) {
       if (touches) {
         _raise(n.loudness);
@@ -120,7 +121,7 @@ class GooseBrain {
         }
       case GooseState.chase:
         _chaseLeft -= dt;
-        _moveTo(playerHidden ? (_lastNoiseX ?? x) : playerX, tuning.chaseSpeed, dt);
+        _moveTo(playerHidden ? (_lastNoiseX ?? _x) : playerX, tuning.chaseSpeed, dt);
         _trackHiding(dt, playerHidden);
         if (_chaseLeft <= 0) _loseThem();
       case GooseState.distracted:
@@ -130,7 +131,7 @@ class GooseBrain {
         if (_state == GooseState.distracted && _timer <= 0) _state = GooseState.chase;
       case GooseState.lostYou:
         // Grumpy, not blind: walk into her and the chase is back on.
-        if (!playerHidden && (playerX - x).abs() <= tuning.caughtDistance) {
+        if (!playerHidden && (playerX - _x).abs() <= tuning.caughtDistance) {
           _state = GooseState.chase;
           _chaseLeft = tuning.chaseTime;
           _hiddenFor = 0;
@@ -181,11 +182,11 @@ class GooseBrain {
   /// Steps toward [target]; true once she is standing on it.
   bool _moveTo(double target, double speed, double dt) {
     final step = speed * dt;
-    if ((target - x).abs() <= step) {
-      x = target;
+    if ((target - _x).abs() <= step) {
+      _x = target;
       return true;
     }
-    x += target > x ? step : -step;
+    _x += target > _x ? step : -step;
     return false;
   }
 }

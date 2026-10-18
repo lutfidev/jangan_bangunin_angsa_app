@@ -167,7 +167,7 @@ class NightSim {
   void _movePlayer(double h) {
     if (_hidden || _dir == 0) return;
     final from = _x;
-    _x = (_x + _dir * (_sneak ? tuning.sneakSpeed : tuning.walkSpeed) * h).clamp(0, 844);
+    _x = (_x + _dir * (_sneak ? tuning.sneakSpeed : tuning.walkSpeed) * h).clamp(0, tuning.worldWidth);
     if (_x == from || _sneak) return;
 
     // Squeakers go off underfoot; Sneak steps over them.

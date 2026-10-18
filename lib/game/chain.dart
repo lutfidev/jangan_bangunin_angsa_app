@@ -55,7 +55,7 @@ class ChainRunner {
   void poke(String spotId) {
     final chainId = ++_chains;
     _visited[chainId] = {};
-    _schedule(_now, spotId, inLoudness: 1, chainId: chainId, link: 1, sounding: false);
+    _schedule(_now, spotId, inLoudness: 1, chainId: chainId, link: 1);
   }
 
   /// Rearrange: carry a portable object to a free snap spot.
@@ -64,7 +64,7 @@ class ChainRunner {
     final spot = level.spots[toSpot];
     if (object == null || !object.portable) throw StateError('$objectId is not portable');
     if (spot == null || !spot.snap) throw StateError('$toSpot is not a snap spot');
-    final from = _objectAt.entries.firstWhere((e) => e.value == objectId).key;
+    final from = _spotOf(objectId);
     if (from == toSpot) return;
     if (_objectAt.containsKey(toSpot)) throw StateError('$toSpot is taken');
     _objectAt
@@ -83,7 +83,15 @@ class ChainRunner {
       }
       if (next == null) break;
       _pending.remove(next);
-      next.sounding ? _sound(next) : _hit(next);
+      final ringing = next.ringing;
+      if (ringing == null) {
+        _hit(next);
+      } else {
+        // The chimer may have been carried off while it waited.
+        final spotId = _spotOf(ringing);
+        _visited[next.chainId]!.add(spotId);
+        _sound(next, ringing, spotId);
+      }
     }
   }
 
@@ -99,14 +107,14 @@ class ChainRunner {
     if (!_visited[p.chainId]!.add(p.spotId)) return;
     if (_objects[objectId]!.type == ObjectType.chimer) {
       _schedule(p.at + tuning.chimerDelay, p.spotId,
-          inLoudness: p.inLoudness, chainId: p.chainId, link: p.link, sounding: true);
+          inLoudness: p.inLoudness, chainId: p.chainId, link: p.link, ringing: objectId);
     } else {
-      _sound(p);
+      _sound(p, objectId, p.spotId);
     }
   }
 
-  void _sound(_Pending p) {
-    final object = _objects[_objectAt[p.spotId]]!;
+  void _sound(_Pending p, String objectId, String spotId) {
+    final object = _objects[objectId]!;
     final loudness = switch (object.type) {
       ObjectType.amplifier => math.min(3, 2 * p.inLoudness),
       ObjectType.chimer => 3,
@@ -117,31 +125,32 @@ class ChainRunner {
       chainId: p.chainId,
       link: p.link,
       objectId: object.id,
-      spotId: p.spotId,
-      noise: Noise(x: level.spots[p.spotId]!.x, loudness: loudness),
+      spotId: spotId,
+      noise: Noise(x: level.spots[spotId]!.x, loudness: loudness),
     ));
 
     // It pokes whatever sits in its reach: the first linked spot holding an object.
-    for (final link in level.linksFrom(p.spotId)) {
+    for (final link in level.linksFrom(spotId)) {
       if (_objectAt.containsKey(link.to)) {
-        _schedule(p.at + link.delay, link.to,
-            inLoudness: loudness, chainId: p.chainId, link: p.link + 1, sounding: false);
+        _schedule(p.at + link.delay, link.to, inLoudness: loudness, chainId: p.chainId, link: p.link + 1);
         break;
       }
     }
   }
 
   void _schedule(double at, String spotId,
-      {required int inLoudness, required int chainId, required int link, required bool sounding}) {
-    _pending.add(_Pending(at, _seq++, spotId, inLoudness, chainId, link, sounding));
+      {required int inLoudness, required int chainId, required int link, String? ringing}) {
+    _pending.add(_Pending(at, _seq++, spotId, inLoudness, chainId, link, ringing));
   }
+
+  String _spotOf(String objectId) => _objectAt.entries.firstWhere((e) => e.value == objectId).key;
 
   static bool _isOneShot(ObjectType type) =>
       type == ObjectType.tipper || type == ObjectType.walker || type == ObjectType.roller;
 }
 
 class _Pending {
-  _Pending(this.at, this.seq, this.spotId, this.inLoudness, this.chainId, this.link, this.sounding);
+  _Pending(this.at, this.seq, this.spotId, this.inLoudness, this.chainId, this.link, this.ringing);
 
   final double at;
   final int seq;
@@ -150,6 +159,7 @@ class _Pending {
   final int chainId;
   final int link;
 
-  /// True once a chimer has been hit and is waiting to ring.
-  final bool sounding;
+  /// The chimer that was hit and is waiting to ring. [spotId] is only where
+  /// it was hit; it rings wherever it stands by then.
+  final String? ringing;
 }
