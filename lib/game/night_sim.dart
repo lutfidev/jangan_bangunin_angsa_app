@@ -100,6 +100,20 @@ class Unhide extends Interaction {
   const Unhide();
 }
 
+/// Climb onto the crawlway from the floor by its end at [x].
+class Climb extends Interaction {
+  const Climb(this.x);
+
+  final double x;
+}
+
+/// Climb down off the crawlway by its end at [x].
+class ClimbDown extends Interaction {
+  const ClimbDown(this.x);
+
+  final double x;
+}
+
 /// How a night ended, for the Caught and Victory screens.
 class NightResult {
   const NightResult({
@@ -152,6 +166,7 @@ class NightSim {
   bool _sneak = false;
   bool _hidden = false;
   String? _held;
+  bool _up = false;
   final List<String> _carried = [];
   final List<SimEvent> _events = [];
   final Map<int, List<LinkFired>> _chains = {};
@@ -185,7 +200,12 @@ class NightSim {
   /// Whether the Tool button does anything right now. Marbles only work
   /// once she is up and after someone.
   bool get toolReady =>
-      _toolLeft > 0 && !_frozen && !_hidden && _held == null && (tool != Tool.marbles || goose.isAwake);
+      _toolLeft > 0 &&
+      !_frozen &&
+      !_hidden &&
+      _held == null &&
+      (tool != Tool.marbles || goose.isAwake) &&
+      (tool != Tool.mouse || !_up);
 
   /// Uses a tap tool: sets the mouse down, spills the marbles behind the
   /// burglar, or toots the kazoo. Socks are thrown with [throwSock].
@@ -207,6 +227,9 @@ class NightSim {
 
   /// The portable object the burglar is carrying; his hands are full.
   String? get held => _held;
+
+  /// Up on the crawlway: silent, out of her reach, only high loot in reach.
+  bool get up => _up;
   List<String> get carried => List.unmodifiable(_carried);
   Outcome? get outcome => _outcome;
 
@@ -283,8 +306,9 @@ class NightSim {
   ObjectType _typeOf(String objectId) => level.objects.firstWhere((o) => o.id == objectId).type;
 
   /// What Interact does here. Hidden, it only comes out; carrying, it only
-  /// puts down. Otherwise the nearest loot, else a walker to wind, else a
-  /// portable object to pick up, else a hide spot.
+  /// puts down; up on the crawlway, high loot else climbing down. On the
+  /// floor: the nearest loot, else a walker to wind, else a portable object
+  /// to pick up, else a hide spot, else climbing up.
   Interaction? get interaction {
     if (_frozen) return null;
     if (_hidden) return const Unhide();
@@ -295,10 +319,12 @@ class NightSim {
 
     Loot? loot;
     for (final l in level.loot) {
-      if (_carried.contains(l.id) || (l.x - _x).abs() > tuning.reach) continue;
+      if (_carried.contains(l.id) || l.high != _up || (l.x - _x).abs() > tuning.reach) continue;
       if (loot == null || (l.x - _x).abs() < (loot.x - _x).abs()) loot = l;
     }
     if (loot != null) return GrabLoot(loot);
+    final end = _crawlEndInReach();
+    if (_up) return end == null ? null : ClimbDown(end);
 
     final walker = _nearestSpot((s) => _live(s.id, squeakers: false) && _typeOf(chain.objectAt(s.id)!) == ObjectType.walker);
     if (walker != null) return Wind(walker.id, chain.objectAt(walker.id)!);
@@ -310,7 +336,24 @@ class NightSim {
     if (portable != null) return MoveObject(portable.id, chain.objectAt(portable.id)!);
 
     final hide = _hideInReach();
-    return hide == null ? null : Hide(hide);
+    if (hide != null) return Hide(hide);
+    return end == null ? null : Climb(end);
+  }
+
+  /// The end of the crawlway in reach, where he can get on or off.
+  double? _crawlEndInReach() {
+    final c = level.crawlway;
+    if (c == null) return null;
+    final end = (c.from - _x).abs() <= (c.to - _x).abs() ? c.from : c.to;
+    return (end - _x).abs() <= tuning.reach ? end : null;
+  }
+
+  /// Climbs onto the crawlway, or back down, by an end in reach.
+  bool toggleClimb() {
+    if (_frozen || _hidden || _held != null || _crawlEndInReach() == null) return false;
+    _up = !_up;
+    if (_up) _x = _x.clamp(level.crawlway!.from, level.crawlway!.to);
+    return true;
   }
 
   /// The nearest spot in reach that passes [test].
@@ -347,6 +390,8 @@ class NightSim {
         place(spotId);
       case Hide() || Unhide():
         toggleHide();
+      case Climb() || ClimbDown():
+        toggleClimb();
       case null:
     }
     return i;
@@ -354,7 +399,7 @@ class NightSim {
 
   /// Picks up the portable object [objectId] if it stands within reach.
   bool lift(String objectId) {
-    if (_frozen || _hidden || _held != null) return false;
+    if (_frozen || _hidden || _held != null || _up) return false;
     final spotId = chain.spotOf(objectId);
     if (spotId == null || (level.spots[spotId]!.x - _x).abs() > tuning.reach) return false;
     if (!chain.lift(objectId)) return false;
@@ -376,7 +421,7 @@ class NightSim {
   bool grab(String lootId) {
     if (_frozen || _hidden || _held != null || _carried.contains(lootId)) return false;
     final loot = level.loot.where((l) => l.id == lootId).firstOrNull;
-    if (loot == null || (loot.x - _x).abs() > tuning.reach) return false;
+    if (loot == null || loot.high != _up || (loot.x - _x).abs() > tuning.reach) return false;
     // She guards it from her bed, including while she stands there patrolling.
     final guarding = goose.inBed || (goose.state == GooseState.lostYou && goose.x == level.bedX);
     if (loot.guarded && guarding && !goose.rollingOver) {
@@ -396,7 +441,7 @@ class NightSim {
       _hidden = false;
       return true;
     }
-    if (_held != null || _hideInReach() == null) return false;
+    if (_held != null || _up || _hideInReach() == null) return false;
     _hidden = true;
     return true;
   }
@@ -438,7 +483,8 @@ class NightSim {
       _hear(fired.noise, link: fired);
     }
 
-    goose.tick(h, playerX: _x, playerHidden: _hidden);
+    // Up on the crawlway he is as out of reach as in a hide spot.
+    goose.tick(h, playerX: _x, playerHidden: _hidden || _up);
     _noteGoose();
 
     final spill = _spillX;
@@ -449,7 +495,7 @@ class NightSim {
       _events.add(GooseSlipped(goose.x));
     }
 
-    if (goose.state == GooseState.chase && !_hidden && (goose.x - _x).abs() <= tuning.caughtDistance) {
+    if (goose.state == GooseState.chase && !_hidden && !_up && (goose.x - _x).abs() <= tuning.caughtDistance) {
       _caughtLeft = tuning.caughtAnim;
       _events.add(const CaughtStarted());
     }
@@ -457,6 +503,12 @@ class NightSim {
 
   void _movePlayer(double h) {
     if (_hidden || _dir == 0) return;
+    final crawl = level.crawlway;
+    if (_up && crawl != null) {
+      // Crawling makes no sound at all.
+      _x = (_x + _dir * tuning.crawlSpeed * h).clamp(crawl.from, crawl.to);
+      return;
+    }
     final from = _x;
     _x = (_x + _dir * (_sneak ? tuning.sneakSpeed : tuning.walkSpeed) * h).clamp(0, tuning.worldWidth);
     if (_x == from || _sneak) return;
