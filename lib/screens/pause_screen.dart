@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/tools.dart';
 import '../routes.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
@@ -11,7 +12,10 @@ import '../widgets/stage.dart';
 import 'scene.dart';
 
 class PauseScreen extends StatelessWidget {
-  const PauseScreen({super.key});
+  const PauseScreen({super.key, this.tool = Tool.socks});
+
+  /// The night's tool, so Restart keeps it.
+  final Tool tool;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +80,7 @@ class PauseScreen extends StatelessWidget {
                     _Tile(
                       label: 'Restart night',
                       icon: GameIcon.retry,
-                      onPressed: () => Routes.restartNight(context),
+                      onPressed: () => Routes.restartNight(context, tool),
                     ),
                     _Tile(
                       label: 'Settings',

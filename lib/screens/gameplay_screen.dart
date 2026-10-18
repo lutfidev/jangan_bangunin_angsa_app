@@ -9,6 +9,7 @@ import '../art/icons.dart';
 import '../game/goose_brain.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
+import '../game/tools.dart';
 import '../game/noise_meter.dart';
 import '../routes.dart';
 import '../state/game_settings.dart';
@@ -29,10 +30,13 @@ import 'scene.dart';
 /// Landscape gameplay over Night 3, The Midnight Kitchen, driven by a
 /// [NightSim] that ticks once per frame.
 class GameplayScreen extends StatefulWidget {
-  const GameplayScreen({super.key, this.level, @visibleForTesting this.sim});
+  const GameplayScreen({super.key, this.level, this.tool = Tool.socks, @visibleForTesting this.sim});
 
   /// Defaults to [Levels.night3].
   final Level? level;
+
+  /// The tool picked at the briefing. An injected [sim] brings its own.
+  final Tool tool;
 
   /// A night already under way, for tests.
   final NightSim? sim;
@@ -55,7 +59,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   /// motion instead of skipping the night ahead.
   static const _maxFrame = 0.1;
 
-  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? Levels.night3);
+  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? Levels.night3, tool: widget.tool);
   late final Ticker _ticker = createTicker(_onTick);
   late final AppLifecycleListener _lifecycle = AppLifecycleListener(onInactive: _pause);
   late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: spotAnchors, tuning: _sim.tuning);
@@ -134,7 +138,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     _paused = true;
     _ticker.stop();
     _last = null;
-    await Navigator.pushNamed(context, Routes.pause);
+    await Navigator.pushNamed(context, Routes.pause, arguments: _sim.tool);
     _paused = false;
     if (mounted && !_done) _ticker.start();
   }

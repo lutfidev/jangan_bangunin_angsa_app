@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
 import 'package:jangan_bangunin_angsa_app/routes.dart';
 import 'package:jangan_bangunin_angsa_app/screens/briefing_screen.dart';
+import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
+import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
+import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/settings_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/trophy_room_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
+import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/controls.dart';
 
@@ -107,5 +113,61 @@ void main() {
         expect(read(), before);
       });
     }
+  });
+
+  group('the picked tool', () {
+    Finder tile(String name) => find.byWidgetPredicate((w) => w is ChunkyButton && w.semanticLabel == name);
+    Finder button(String label) => find.ancestor(of: find.text(label), matching: find.byType(ChunkyButton)).first;
+    Finder gameplayWith(Tool tool) => find.byWidgetPredicate((w) => w is GameplayScreen && w.tool == tool);
+
+    Future<void> pumpOnRoutes(WidgetTester tester, Widget home) async {
+      useStageSurface(tester);
+      await tester.pumpWidget(MaterialApp(onGenerateRoute: MainApp.route, home: home));
+      await tester.pump();
+    }
+
+    testWidgets('Sneak in starts the night with it', (tester) async {
+      await pumpOnRoutes(tester, const BriefingScreen());
+      await tester.tap(tile('Wind-up Mouse'));
+      await tester.pump();
+      await tester.tap(button('Sneak in'));
+      await play(tester, 0.3);
+      expect(gameplayWith(Tool.mouse), findsOneWidget);
+    });
+
+    testWidgets('the locked kazoo can be read but not taken', (tester) async {
+      await pumpOnRoutes(tester, const BriefingScreen());
+      await tester.tap(tile('Kazoo (locked)'));
+      await tester.pump();
+      expect(find.text('Earn 6 socks to unlock. One loud toot right where you stand.'), findsOneWidget);
+      expect(tester.widget<ChunkyButton>(button('Sneak in')).onPressed, isNull);
+    });
+
+    testWidgets('Retry after a catch keeps it', (tester) async {
+      await pumpOnRoutes(tester, CaughtScreen(result: sampleCaught(tool: Tool.marbles)));
+      await tester.tap(button('Retry'));
+      await play(tester, 0.3);
+      expect(gameplayWith(Tool.marbles), findsOneWidget);
+    });
+
+    testWidgets('Replay after a getaway keeps it', (tester) async {
+      await pumpOnRoutes(tester, VictoryScreen(result: sampleEscape(tool: Tool.mouse)));
+      await tester.tap(button('Replay'));
+      await play(tester, 0.3);
+      expect(gameplayWith(Tool.mouse), findsOneWidget);
+    });
+
+    testWidgets('Restart night from pause keeps it', (tester) async {
+      await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.mouse));
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'),
+        warnIfMissed: false,
+      );
+      await play(tester, 0.3);
+      await tester.tap(button('Restart night'));
+      await play(tester, 0.3);
+      expect(gameplayWith(Tool.mouse), findsOneWidget);
+      expect(find.byType(GameplayScreen), findsOneWidget);
+    });
   });
 }

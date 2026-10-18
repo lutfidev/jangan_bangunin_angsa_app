@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'game/tools.dart';
+
 abstract final class Routes {
   static const menu = '/';
   static const briefing = '/briefing';
@@ -16,11 +18,12 @@ abstract final class Routes {
   static void toMenu(BuildContext context) =>
       Navigator.popUntil(context, ModalRoute.withName(menu));
 
-  /// Start the night over from a fresh gameplay screen.
-  static void restartNight(BuildContext context) =>
+  /// Start the night over from a fresh gameplay screen, with the same tool.
+  static void restartNight(BuildContext context, Tool tool) =>
       Navigator.pushNamedAndRemoveUntil(
         context,
         gameplay,
         ModalRoute.withName(menu),
+        arguments: tool,
       );
 }
