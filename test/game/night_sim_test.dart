@@ -632,6 +632,13 @@ void main() {
       expect(s.hidden, isFalse);
     });
 
+    test('escaping while holding', () {
+      final s = holdingPot();
+      walkTo(s, 770);
+      expect(s.outcome, Outcome.escaped);
+      expect(s.result, isNotNull);
+    });
+
     test('caught while holding', () {
       final s = holdingPot();
       s.goose.wake(WakeCause.noise);

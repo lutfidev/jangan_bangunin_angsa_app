@@ -270,7 +270,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       height: lootArt[loot.id]!.box.size + 16,
                     ),
                   for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && !loot.guarded) _loot(loot.id),
+                    if (!carried.contains(loot.id) && !loot.guarded && !(loot.high && _sim.up)) _loot(loot.id),
                   if (!carried.contains('chicken')) chickenSparkle(),
 
                   // Tools on the floor.
@@ -351,6 +351,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     ),
                     if (_sim.held case final held?)
                       at(px - 20, 168, Prop(objectArt[held]!.kind, size: 40)),
+                    // Up there he'd hide the loot he crawls to; it goes in front.
+                    for (final loot in level.loot)
+                      if (_sim.up && loot.high && !carried.contains(loot.id)) _loot(loot.id),
                   ],
                   if (_sneak && !goose.isAwake && !_sim.hidden && !_sim.up)
                     at(
@@ -604,6 +607,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       Unhide() => ActionButton(label: 'OUT', semanticLabel: 'Come out of hiding', onPressed: interact),
       Climb() => ActionButton(label: 'CLIMB', semanticLabel: 'Climb onto the cabinets', onPressed: interact),
       ClimbDown() => ActionButton(label: 'DOWN', semanticLabel: 'Climb down', onPressed: interact),
+      // Hands full: the only thing he could do is put it down.
+      null when _sim.held != null => const Opacity(
+        opacity: 0.6,
+        child: ActionButton(label: 'PLACE', onPressed: null),
+      ),
       null => const Opacity(
         opacity: 0.6,
         child: ActionButton(label: 'GRAB', icon: hand, onPressed: null),

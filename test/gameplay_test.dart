@@ -403,5 +403,26 @@ void main() {
       expect(tester.getTopLeft(find.byType(Burglar)).dy, 106 - 74);
       expect(find.widgetWithText(ActionButton, 'DOWN'), findsOneWidget);
     });
+
+    testWidgets('hands full and no snap spot in reach: a dim PLACE, not GRAB', (tester) async {
+      final sim = sneakTo(113);
+      sim.interact();
+      walkTo(sim, 250);
+      await pumpGameplay(tester, sim);
+      expect(find.text('GRAB'), findsNothing);
+      expect(_interact(tester).label, 'PLACE');
+      expect(_interact(tester).onPressed, isNull);
+    });
+
+    testWidgets('the chicken shows in front of Milo while he crawls up to it', (tester) async {
+      final sim = sneakTo(260);
+      sim.toggleClimb();
+      walkTo(sim, 353);
+      await pumpGameplay(tester, sim);
+      final order = tester
+          .widgetList(find.byWidgetPredicate((w) => w is Burglar || (w is Prop && w.kind == PropKind.chicken && w.size == 46)))
+          .toList();
+      expect(order.indexWhere((w) => w is Prop), greaterThan(order.indexWhere((w) => w is Burglar)));
+    });
   });
 }

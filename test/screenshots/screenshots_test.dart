@@ -207,4 +207,15 @@ void main() {
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_cabinet');
   });
+
+  testWidgets('gameplay_place', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 113);
+    sim.interact();
+    walkTo(sim, 596);
+    sim.place('underSideTable');
+    walkTo(sim, 372);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_place');
+  });
 }
