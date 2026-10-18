@@ -348,7 +348,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       spotAnchors[spotId]!.dy - 64,
                       const PromptBubble('Wind'),
                     ),
-                    null => const SizedBox.shrink(),
+                    // The other verbs show on the button only, like Plan View's MOVE POT.
+                    _ => const SizedBox.shrink(),
                   },
                   at(
                     758,
@@ -555,7 +556,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
         icon: hand,
         onPressed: interact,
       ),
-      null => const Opacity(
+      // Rearrange and hiding get their buttons in the next commit.
+      _ => const Opacity(
         opacity: 0.6,
         child: ActionButton(label: 'GRAB', icon: hand, onPressed: null),
       ),

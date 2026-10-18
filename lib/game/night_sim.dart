@@ -73,6 +73,33 @@ class Wind extends Interaction {
   final String objectId;
 }
 
+/// Pick up the portable object at [spotId] (Rearrange).
+class MoveObject extends Interaction {
+  const MoveObject(this.spotId, this.objectId);
+
+  final String spotId;
+  final String objectId;
+}
+
+/// Put the carried object down on the free snap spot [spotId].
+class PlaceObject extends Interaction {
+  const PlaceObject(this.spotId);
+
+  final String spotId;
+}
+
+/// Duck into the hide spot at [x].
+class Hide extends Interaction {
+  const Hide(this.x);
+
+  final double x;
+}
+
+/// Come out of the hide spot.
+class Unhide extends Interaction {
+  const Unhide();
+}
+
 /// How a night ended, for the Caught and Victory screens.
 class NightResult {
   const NightResult({
@@ -124,6 +151,7 @@ class NightSim {
   double? _spillX;
   bool _sneak = false;
   bool _hidden = false;
+  String? _held;
   final List<String> _carried = [];
   final List<SimEvent> _events = [];
   final Map<int, List<LinkFired>> _chains = {};
@@ -157,7 +185,7 @@ class NightSim {
   /// Whether the Tool button does anything right now. Marbles only work
   /// once she is up and after someone.
   bool get toolReady =>
-      _toolLeft > 0 && !_frozen && !_hidden && (tool != Tool.marbles || goose.isAwake);
+      _toolLeft > 0 && !_frozen && !_hidden && _held == null && (tool != Tool.marbles || goose.isAwake);
 
   /// Uses a tap tool: sets the mouse down, spills the marbles behind the
   /// burglar, or toots the kazoo. Socks are thrown with [throwSock].
@@ -176,6 +204,9 @@ class NightSim {
     return true;
   }
   bool get hidden => _hidden;
+
+  /// The portable object the burglar is carrying; his hands are full.
+  String? get held => _held;
   List<String> get carried => List.unmodifiable(_carried);
   Outcome? get outcome => _outcome;
 
@@ -236,7 +267,7 @@ class NightSim {
 
   /// Lobs a sock at [aimX]. False if there is none to throw.
   bool throwSock(double aimX) {
-    if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden) return false;
+    if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden || _held != null) return false;
     _toolLeft--;
     _flights.add(Flight(fromX: _x, toX: throwLanding(aimX), duration: tuning.throwFlightTime));
     return true;
@@ -251,9 +282,17 @@ class NightSim {
 
   ObjectType _typeOf(String objectId) => level.objects.firstWhere((o) => o.id == objectId).type;
 
-  /// The nearest loot in reach, else a walker in reach to wind up.
+  /// What Interact does here. Hidden, it only comes out; carrying, it only
+  /// puts down. Otherwise the nearest loot, else a walker to wind, else a
+  /// portable object to pick up, else a hide spot.
   Interaction? get interaction {
-    if (_frozen || _hidden) return null;
+    if (_frozen) return null;
+    if (_hidden) return const Unhide();
+    if (_held != null) {
+      final spot = _nearestSpot((s) => s.snap && chain.objectAt(s.id) == null);
+      return spot == null ? null : PlaceObject(spot.id);
+    }
+
     Loot? loot;
     for (final l in level.loot) {
       if (_carried.contains(l.id) || (l.x - _x).abs() > tuning.reach) continue;
@@ -261,17 +300,36 @@ class NightSim {
     }
     if (loot != null) return GrabLoot(loot);
 
-    Wind? wind;
-    double best = double.infinity;
+    final walker = _nearestSpot((s) => _live(s.id, squeakers: false) && _typeOf(chain.objectAt(s.id)!) == ObjectType.walker);
+    if (walker != null) return Wind(walker.id, chain.objectAt(walker.id)!);
+
+    final portable = _nearestSpot((s) {
+      final id = chain.objectAt(s.id);
+      return id != null && !chain.isSpent(id) && level.objects.any((o) => o.id == id && o.portable);
+    });
+    if (portable != null) return MoveObject(portable.id, chain.objectAt(portable.id)!);
+
+    final hide = _hideInReach();
+    return hide == null ? null : Hide(hide);
+  }
+
+  /// The nearest spot in reach that passes [test].
+  Spot? _nearestSpot(bool Function(Spot) test) {
+    Spot? best;
     for (final spot in level.spots.values) {
       final d = (spot.x - _x).abs();
-      final id = chain.objectAt(spot.id);
-      if (d > tuning.reach || d >= best || id == null || chain.isSpent(id)) continue;
-      if (_typeOf(id) != ObjectType.walker) continue;
-      wind = Wind(spot.id, id);
-      best = d;
+      if (d > tuning.reach || (best != null && d >= (best.x - _x).abs()) || !test(spot)) continue;
+      best = spot;
     }
-    return wind;
+    return best;
+  }
+
+  double? _hideInReach() {
+    double? best;
+    for (final h in level.hideSpots) {
+      if ((h - _x).abs() <= tuning.reach && (best == null || (h - _x).abs() < (best - _x).abs())) best = h;
+    }
+    return best;
   }
 
   /// Does what [interaction] offers and returns it, or null if nothing was
@@ -283,13 +341,40 @@ class NightSim {
         grab(loot.id);
       case Wind(:final spotId):
         poke(spotId);
+      case MoveObject(:final objectId):
+        lift(objectId);
+      case PlaceObject(:final spotId):
+        place(spotId);
+      case Hide() || Unhide():
+        toggleHide();
       case null:
     }
     return i;
   }
 
+  /// Picks up the portable object [objectId] if it stands within reach.
+  bool lift(String objectId) {
+    if (_frozen || _hidden || _held != null) return false;
+    final spotId = chain.spotOf(objectId);
+    if (spotId == null || (level.spots[spotId]!.x - _x).abs() > tuning.reach) return false;
+    if (!chain.lift(objectId)) return false;
+    _held = objectId;
+    return true;
+  }
+
+  /// Puts the carried object down on [spotId]: a free snap spot in reach.
+  bool place(String spotId) {
+    final held = _held;
+    final spot = level.spots[spotId];
+    if (_frozen || held == null || spot == null || !spot.snap) return false;
+    if (chain.objectAt(spotId) != null || (spot.x - _x).abs() > tuning.reach) return false;
+    chain.move(held, spotId);
+    _held = null;
+    return true;
+  }
+
   bool grab(String lootId) {
-    if (_frozen || _hidden || _carried.contains(lootId)) return false;
+    if (_frozen || _hidden || _held != null || _carried.contains(lootId)) return false;
     final loot = level.loot.where((l) => l.id == lootId).firstOrNull;
     if (loot == null || (loot.x - _x).abs() > tuning.reach) return false;
     // She guards it from her bed, including while she stands there patrolling.
@@ -311,7 +396,7 @@ class NightSim {
       _hidden = false;
       return true;
     }
-    if (!level.hideSpots.any((h) => (h - _x).abs() <= tuning.reach)) return false;
+    if (_held != null || _hideInReach() == null) return false;
     _hidden = true;
     return true;
   }
