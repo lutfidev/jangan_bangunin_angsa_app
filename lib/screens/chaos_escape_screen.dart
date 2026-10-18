@@ -68,11 +68,7 @@ class ChaosEscapeScreen extends StatelessWidget {
         at(
           290,
           150,
-          SceneHotspot(
-            label: 'Gertrude, distracted',
-            onTap: () => Navigator.pushReplacementNamed(context, Routes.caught),
-            child: const Goose(mood: GooseMood.awake, width: 150),
-          ),
+          const Goose(mood: GooseMood.awake, width: 150),
         ),
         at(
           318,
@@ -140,11 +136,7 @@ class ChaosEscapeScreen extends StatelessWidget {
         at(
           756,
           108,
-          SceneHotspot(
-            label: 'Exit',
-            onTap: () => Navigator.pushReplacementNamed(context, Routes.victory),
-            child: const ExitSign(),
-          ),
+          const ExitSign(),
         ),
 
         ...floorAndControlBand(),

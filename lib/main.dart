@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'game/night_sim.dart';
 import 'routes.dart';
 import 'screens/briefing_screen.dart';
 import 'screens/caught_screen.dart';
@@ -43,7 +44,9 @@ Stream<LicenseEntry> _fontLicenses() async* {
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
-  static final Map<String, WidgetBuilder> _screens = {
+  /// Screens by route name. Caught and Victory take the night's
+  /// [NightResult] as the route argument.
+  static final Map<String, Widget Function(Object? arguments)> _screens = {
     Routes.menu: (_) => const MainMenuScreen(),
     Routes.briefing: (_) => const BriefingScreen(),
     Routes.gameplay: (_) => const GameplayScreen(),
@@ -51,10 +54,23 @@ class MainApp extends StatelessWidget {
     Routes.chaosEscape: (_) => const ChaosEscapeScreen(),
     Routes.pause: (_) => const PauseScreen(),
     Routes.settings: (_) => const SettingsScreen(),
-    Routes.victory: (_) => const VictoryScreen(),
-    Routes.caught: (_) => const CaughtScreen(),
+    Routes.victory: (result) => VictoryScreen(result: result! as NightResult),
+    Routes.caught: (result) => CaughtScreen(result: result! as NightResult),
     Routes.trophyRoom: (_) => const TrophyRoomScreen(),
   };
+
+  /// Builds every named route with a 200ms fade.
+  static Route<void>? route(RouteSettings settings) {
+    final builder = _screens[settings.name];
+    if (builder == null) return null;
+    return PageRouteBuilder<void>(
+      settings: settings,
+      transitionDuration: const Duration(milliseconds: 200),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, _) => builder(settings.arguments),
+      transitionsBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,18 +86,7 @@ class MainApp extends StatelessWidget {
         scaffoldBackgroundColor: Palette.midnight,
       ),
       initialRoute: Routes.menu,
-      onGenerateRoute: (settings) {
-        final builder = _screens[settings.name];
-        if (builder == null) return null;
-        return PageRouteBuilder<void>(
-          settings: settings,
-          transitionDuration: const Duration(milliseconds: 200),
-          reverseTransitionDuration: const Duration(milliseconds: 200),
-          pageBuilder: (context, _, _) => builder(context),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        );
-      },
+      onGenerateRoute: route,
     );
   }
 }
