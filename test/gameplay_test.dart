@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
-import 'package:jangan_bangunin_angsa_app/main.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
@@ -16,27 +15,6 @@ import 'package:jangan_bangunin_angsa_app/widgets/joystick.dart';
 
 import 'game/fixtures.dart';
 import 'helpers.dart';
-
-/// Pumps 60fps frames for [seconds].
-Future<void> play(WidgetTester tester, double seconds) async {
-  for (var t = 0.0; t < seconds - 1e-9; t += frame) {
-    await tester.pump(const Duration(microseconds: 16667));
-  }
-}
-
-/// The gameplay screen on the app's real routes, driving [sim].
-Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
-  final s = sim ?? NightSim(Levels.night3);
-  useStageSurface(tester);
-  await tester.pumpWidget(
-    MaterialApp(
-      onGenerateRoute: MainApp.route,
-      home: GameplayScreen(sim: s),
-    ),
-  );
-  await tester.pump();
-  return s;
-}
 
 Finder _prop(PropKind kind) => find.byWidgetPredicate((w) => w is Prop && w.kind == kind);
 
@@ -226,6 +204,7 @@ void main() {
       }
       expect(find.byWidgetPredicate((w) => w is Burglar && w.pose == BurglarPose.caught), findsOneWidget);
       expect(sim.outcome, isNull);
+      expect(find.byKey(GameplayScreen.speedLinesKey), findsNothing);
       await play(tester, 1.5);
       expect(find.byType(CaughtScreen), findsOneWidget);
       expect(find.byWidgetPredicate((w) => w is Prop && w.kind == PropKind.egg), findsOneWidget);

@@ -43,6 +43,9 @@ class GameplayScreen extends StatefulWidget {
   /// The red edge drawn while she chases.
   static const chaseFrameKey = Key('gameplay-chase-frame');
 
+  /// The speed lines behind her while she runs.
+  static const speedLinesKey = Key('gameplay-speed-lines');
+
   @override
   State<GameplayScreen> createState() => _GameplayScreenState();
 }
@@ -218,11 +221,12 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                 if (!carried.contains('chicken')) chickenSparkle(),
 
                 // Speed lines trail her while she runs.
-                if (chasing)
+                if (chasing && !_caught)
                   at(
                     _gooseRight ? goose.x - 120 : goose.x + 60,
                     196,
                     const InlineSvg(
+                      key: GameplayScreen.speedLinesKey,
                       '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
                       width: 60,
                       height: 50,
@@ -314,7 +318,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     honk.at.dx - 80,
                     honk.at.dy - 80,
                     Opacity(
-                      opacity: 0.5,
+                      opacity: 0.5 * honk.opacity,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -328,9 +332,12 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   at(
                     honk.at.dx - 160,
                     honk.at.dy - 90,
-                    Transform.rotate(
-                      angle: deg(-8),
-                      child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+                    Opacity(
+                      opacity: honk.opacity,
+                      child: Transform.rotate(
+                        angle: deg(-8),
+                        child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+                      ),
                     ),
                   ),
                 ],
