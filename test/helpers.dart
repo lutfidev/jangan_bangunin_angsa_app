@@ -17,11 +17,17 @@ void useStageSurface(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
-/// Pumps [screen] on its own inside a [MaterialApp].
-Future<void> pumpScreen(WidgetTester tester, Widget screen) async {
+/// Pumps [screen] on its own inside a [MaterialApp]. A screen that never
+/// settles (gameplay ticks every frame) gets a few frames instead.
+Future<void> pumpScreen(WidgetTester tester, Widget screen, {bool settle = true}) async {
   useStageSurface(tester);
   await tester.pumpWidget(MaterialApp(home: screen));
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 /// Pumps the app's real routes, starting at [route].

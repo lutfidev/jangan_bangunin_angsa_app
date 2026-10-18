@@ -30,7 +30,7 @@ void main() {
 
   for (final MapEntry(key: name, value: screen) in screens.entries) {
     testWidgets('$name renders at 844x390 without errors', (tester) async {
-      await pumpScreen(tester, screen);
+      await pumpScreen(tester, screen, settle: screen is! GameplayScreen);
 
       // Overflows and build errors are reported as FlutterErrors.
       expect(tester.takeException(), isNull);
