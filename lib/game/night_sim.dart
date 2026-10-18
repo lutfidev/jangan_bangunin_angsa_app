@@ -28,6 +28,13 @@ class GooseChanged extends SimEvent {
   final GooseState to;
 }
 
+/// She ran onto the spilled marbles at [x] and went down.
+class GooseSlipped extends SimEvent {
+  const GooseSlipped(this.x);
+
+  final double x;
+}
+
 class LootGrabbed extends SimEvent {
   const LootGrabbed(this.id);
 
@@ -113,6 +120,8 @@ class NightSim {
   double _facing = 1;
   int _toolLeft;
   final List<Flight> _flights = [];
+  ToyMouse? _mouse;
+  double? _spillX;
   bool _sneak = false;
   bool _hidden = false;
   final List<String> _carried = [];
@@ -138,6 +147,34 @@ class NightSim {
 
   /// Socks in the air.
   List<Flight> get flights => List.unmodifiable(_flights);
+
+  /// The wind-up mouse, once it is set down.
+  ToyMouse? get mouse => _mouse;
+
+  /// Where the marbles lie, until she slips on them.
+  double? get spillX => _spillX;
+
+  /// Whether the Tool button does anything right now. Marbles only work
+  /// once she is up and after someone.
+  bool get toolReady =>
+      _toolLeft > 0 && !_frozen && !_hidden && (tool != Tool.marbles || goose.isAwake);
+
+  /// Uses a tap tool: sets the mouse down, spills the marbles behind the
+  /// burglar, or toots the kazoo. Socks are thrown with [throwSock].
+  bool useTool() {
+    if (tool == Tool.socks || !toolReady) return false;
+    _toolLeft--;
+    switch (tool) {
+      case Tool.mouse:
+        _mouse = ToyMouse(x: _x, dir: _facing);
+      case Tool.marbles:
+        _spillX = (_x - _facing * tuning.spillBehind).clamp(0, tuning.worldWidth).toDouble();
+      case Tool.kazoo:
+        _hear(Noise(x: _x, loudness: 3), tool: Tool.kazoo);
+      case Tool.socks:
+    }
+    return true;
+  }
   bool get hidden => _hidden;
   List<String> get carried => List.unmodifiable(_carried);
   Outcome? get outcome => _outcome;
@@ -309,6 +346,7 @@ class NightSim {
     }
 
     _landSocks(h);
+    _walkMouse(h);
     chain.tick(h);
     for (final fired in chain.takeFired()) {
       (_chains[fired.chainId] ??= []).add(fired);
@@ -317,6 +355,13 @@ class NightSim {
 
     goose.tick(h, playerX: _x, playerHidden: _hidden);
     _noteGoose();
+
+    final spill = _spillX;
+    if (spill != null && goose.state == GooseState.chase && (goose.x - spill).abs() <= tuning.slipRadius) {
+      goose.slip();
+      _spillX = null;
+      _events.add(GooseSlipped(goose.x));
+    }
 
     if (goose.state == GooseState.chase && !_hidden && (goose.x - _x).abs() <= tuning.caughtDistance) {
       _caughtLeft = tuning.caughtAnim;
@@ -366,6 +411,23 @@ class NightSim {
       } else {
         _hear(Noise(x: f.toX, loudness: 0), tool: Tool.socks);
       }
+    }
+  }
+
+  /// The mouse bumps the first live object ahead of it, squeakers too.
+  void _walkMouse(double h) {
+    final m = _mouse;
+    if (m == null || m.stopped) return;
+    final (from, to) = m.advance(h, tuning.mouseSpeed, min: 0, max: tuning.worldWidth);
+    Spot? hit;
+    for (final spot in level.spots.values) {
+      final ahead = m.dir > 0 ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;
+      if (!ahead || !_live(spot.id, squeakers: true)) continue;
+      if (hit == null || (spot.x - from).abs() < (hit.x - from).abs()) hit = spot;
+    }
+    if (hit != null) {
+      m.stop(hit.x);
+      chain.poke(hit.id);
     }
   }
 

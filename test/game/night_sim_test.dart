@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
@@ -365,6 +366,124 @@ void main() {
       expect(s.toolLeft, 1);
       expect(s.throwSock(62), isFalse);
     });
+  });
+
+  group('mouse', () {
+    NightSim mouseAt(double x, {double facing = 1}) {
+      final s = NightSim(night3(), tool: Tool.mouse)..setSneak(true);
+      walkTo(s, x);
+      s
+        ..setMove(facing)
+        ..setMove(0);
+      return s;
+    }
+
+    test('facing left it walks into the pot: CLANG lures her', () {
+      final s = mouseAt(236, facing: -1);
+      expect(s.useTool(), isTrue);
+      expect(s.toolLeft, 0);
+      tickUntil(s, () => s.goose.state == GooseState.sleepwalk);
+      expect(s.mouse!.stopped, isTrue);
+      expect(s.mouse!.x, 113);
+    });
+
+    test('facing right it knocks the books off', () {
+      final s = mouseAt(236);
+      s.useTool();
+      tickUntil(s, () => s.chain.isSpent('books'));
+      expect(s.mouse!.x, 340);
+    });
+
+    test('it leaves alone what it was set down on', () {
+      final s = NightSim(
+        Level.parse(minimalLevel(
+          spots: [{'id': 'a', 'x': 0}, {'id': 'b', 'x': 100}],
+          objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'o2', 'type': 'tipper', 'spot': 'b'}],
+        )),
+        tool: Tool.mouse,
+      );
+      s.useTool();
+      tickUntil(s, () => s.chain.isSpent('o2'));
+      expect(s.chain.isSpent('o'), isFalse);
+    });
+
+    test('it steps on the plank', () {
+      final s = mouseAt(625);
+      s.useTool();
+      tickUntil(s, () => s.mouse!.stopped);
+      expect(s.mouse!.x, 640);
+      expect(s.takeEvents().whereType<NoiseMade>().any((n) => n.link?.objectId == 'plank'), isTrue);
+    });
+
+    test('it stops at the wall', () {
+      final s = NightSim(Level.parse(minimalLevel(spots: [{'id': 'a', 'x': 0}])), tool: Tool.mouse);
+      s.useTool();
+      tickUntil(s, () => s.mouse!.stopped, limit: 15);
+      expect(s.mouse!.x, 844);
+    });
+
+    test('one mouse per night', () {
+      final s = NightSim(night3(), tool: Tool.mouse);
+      expect(s.useTool(), isTrue);
+      expect(s.useTool(), isFalse);
+      expect(s.toolReady, isFalse);
+    });
+  });
+
+  group('marbles', () {
+    test('not while she sleeps', () {
+      final s = NightSim(night3(), tool: Tool.marbles);
+      expect(s.toolReady, isFalse);
+      expect(s.useTool(), isFalse);
+      expect(s.toolLeft, 1);
+    });
+
+    test('spilled behind Milo, she slips on them', () {
+      final s = NightSim(night3(), tool: Tool.marbles)..setSneak(true);
+      walkTo(s, 561);
+      tickUntil(s, () => !s.goose.rollingOver);
+      s.grab('egg');
+      expect(s.goose.isAwake, isTrue);
+      s.setSneak(false);
+      walkTo(s, 621);
+      expect(s.toolReady, isTrue);
+      expect(s.useTool(), isTrue);
+      expect(s.spillX, closeTo(s.playerX - 24, 0.01));
+      tickUntil(s, () => s.goose.slipping, limit: 3);
+      expect(s.takeEvents().whereType<GooseSlipped>(), hasLength(1));
+      expect(s.spillX, isNull);
+      expect(s.outcome, isNull);
+    });
+  });
+
+  group('kazoo', () {
+    test('a far toot moves her', () {
+      final s = NightSim(night3(), tool: Tool.kazoo)..setSneak(true);
+      walkTo(s, 62);
+      s.takeEvents();
+      expect(s.useTool(), isTrue);
+      final toot = s.takeEvents().whereType<NoiseMade>().single;
+      expect(toot.tool, Tool.kazoo);
+      expect(toot.noise.loudness, 3);
+      expect(toot.noise.x, 62);
+      expect(s.goose.state, GooseState.sleepwalk);
+    });
+
+    test('a close toot wakes her', () {
+      final s = NightSim(night3(), tool: Tool.kazoo);
+      s.useTool();
+      expect(s.goose.isAwake, isTrue);
+    });
+
+    test('one toot per night', () {
+      final s = NightSim(night3(), tool: Tool.kazoo);
+      s.useTool();
+      expect(s.useTool(), isFalse);
+    });
+  });
+
+  test('socks are thrown, not used with a tap', () {
+    expect(NightSim(night3()).useTool(), isFalse);
   });
 
   test('facing follows the last move', () {
