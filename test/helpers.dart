@@ -5,9 +5,11 @@ import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
-import 'package:jangan_bangunin_angsa_app/routes.dart';
+import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/stage.dart';
+
+import 'game/fixtures.dart';
 
 /// Sizes the test surface to the design artboard, so screens render at 1:1.
 void useStageSurface(WidgetTester tester) {
@@ -28,18 +30,6 @@ Future<void> pumpScreen(WidgetTester tester, Widget screen, {bool settle = true}
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
   }
-}
-
-/// Pumps the app's real routes, starting at [route].
-Future<void> pumpApp(WidgetTester tester, {String route = Routes.menu, Object? arguments}) async {
-  useStageSurface(tester);
-  await tester.pumpWidget(
-    MaterialApp(
-      onGenerateRoute: MainApp.route,
-      onGenerateInitialRoutes: (_) => [MainApp.route(RouteSettings(name: route, arguments: arguments))!],
-    ),
-  );
-  await tester.pump();
 }
 
 /// A Night 3 catch: [chain] lists the objects that went off, in order.
@@ -70,3 +60,24 @@ NightResult sampleCaught({
 /// A Night 3 getaway carrying [loot].
 NightResult sampleEscape({List<String> loot = const ['toaster', 'chicken', 'egg'], double time = 167}) =>
     NightResult(level: Levels.night3, outcome: Outcome.escaped, loot: loot, time: time);
+
+/// Pumps 60fps frames for [seconds].
+Future<void> play(WidgetTester tester, double seconds) async {
+  for (var t = 0.0; t < seconds - 1e-9; t += frame) {
+    await tester.pump(const Duration(microseconds: 16667));
+  }
+}
+
+/// The gameplay screen on the app's real routes, driving [sim].
+Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
+  final s = sim ?? NightSim(Levels.night3);
+  useStageSurface(tester);
+  await tester.pumpWidget(
+    MaterialApp(
+      onGenerateRoute: MainApp.route,
+      home: GameplayScreen(sim: s),
+    ),
+  );
+  await tester.pump();
+  return s;
+}
