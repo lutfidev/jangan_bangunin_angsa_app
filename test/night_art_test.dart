@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
@@ -67,5 +68,24 @@ void main() {
   test('wakeTip without a chain follows the cause', () {
     expect(wakeTip(_caughtBy([], cause: WakeCause.footsteps)), contains('Sneak'));
     expect(wakeTip(_caughtBy([], cause: WakeCause.grabbedGuarded)), contains('roll-over'));
+  });
+
+  test('every hide spot has its tag and peek', () {
+    expect(hideArt.keys, Levels.night3.hideSpots);
+  });
+
+  test('every snap spot has a glow and a pot box on its x', () {
+    for (final spot in Levels.night3.spots.values.where((s) => s.snap)) {
+      expect(snapAnchors[spot.id]?.dx, spot.x, reason: spot.id);
+      expect(potBoxAt(spot.id).centerX, closeTo(spot.x, 0.5), reason: spot.id);
+    }
+  });
+
+  testWidgets('every burglar pose renders', (tester) async {
+    for (final pose in BurglarPose.values) {
+      await tester.pumpWidget(Center(child: Burglar(pose: pose, width: 60)));
+      expect(find.byType(Burglar), findsOneWidget, reason: pose.name);
+      expect(tester.takeException(), isNull, reason: pose.name);
+    }
   });
 }

@@ -36,6 +36,27 @@ const objectArt = <String, ({PropKind kind, ArtBox box})>{
   'clock': (kind: PropKind.clock, box: ArtBox(612, 168, 110)),
 };
 
+/// Centres of the glowing snap-spot circles: on the counter, or just
+/// above the floor.
+const snapAnchors = <String, Offset>{
+  'counterPot': Offset(113, 185),
+  'underShelf': Offset(372, 252),
+  'underSideTable': Offset(596, 252),
+};
+
+/// Where the pot stands on [spotId]: up on the counter, else on the floor.
+ArtBox potBoxAt(String spotId) =>
+    spotId == 'counterPot' ? objectArt['pot']!.box : ArtBox(spotAnchors[spotId]!.dx - 25, 232, 50);
+
+/// The crawlway plank's top surface; Milo crawls with his feet on it.
+const crawlwayTop = 106.0;
+
+/// Per hide spot x: where its HIDE tag goes, and where Milo peeks out.
+final hideArt = <double, ({Offset tag, Offset peek})>{
+  148: (tag: Offset(129, 222), peek: Offset(152, 228)),
+  703: (tag: Offset(684, 146), peek: Offset(706, 188)),
+};
+
 /// Where a spot's rings and badges are drawn; x matches the level.
 const spotAnchors = <String, Offset>{
   'counterLeft': Offset(62, 188),
