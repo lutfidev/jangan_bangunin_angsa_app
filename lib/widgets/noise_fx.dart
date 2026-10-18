@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../game/goose_brain.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
+import '../game/tools.dart';
 import '../game/tuning.dart';
 import '../screens/night_art.dart';
 import '../screens/scene.dart';
@@ -28,6 +29,7 @@ const _fade = 0.4;
 const _feetY = 262.0;
 const _handsY = 220.0;
 const _headY = 210.0;
+const _slipY = 200.0;
 
 abstract class _Fx {
   _Fx(this.life);
@@ -94,13 +96,20 @@ class NoiseFx {
   /// The last badge of each chain, where the next link's arc starts.
   final Map<int, Offset> _lastLink = {};
 
-  void take(SimEvent e, {required double playerX, required double gooseX}) {
+  void take(SimEvent e, {required double gooseX}) {
     switch (e) {
-      case NoiseMade(:final noise, :final link):
+      case NoiseMade(:final noise, :final link, :final tool):
         final at = link == null
-            ? Offset(playerX, noise.loudness == 0 ? _feetY : _handsY)
+            ? Offset(noise.x, noise.loudness == 0 ? _feetY : _handsY)
             : anchors[link.spotId]!;
         rings.add(RingFx(at, noise.radius(tuning), math.max(noise.loudness, 1), threatColor(noise.loudness)));
+        switch (tool) {
+          case Tool.socks:
+            words.add(WordFx('flop!', Palette.calmMint, at));
+          case Tool.kazoo:
+            words.add(WordFx('TOOT!', Palette.alarmTomato, at));
+          case _:
+        }
         if (link == null) return;
         badges.add(BadgeFx(link.link, at, link.link == 1 ? null : _lastLink[link.chainId]));
         _lastLink[link.chainId] = at;
@@ -108,6 +117,8 @@ class NoiseFx {
         words.add(WordFx(sfxWord(type), threatColor(noise.loudness), at));
       case GooseChanged(to: GooseState.awake):
         honk = HonkFx(Offset(gooseX, _headY));
+      case GooseSlipped(:final x):
+        words.add(WordFx('SLIP!', Palette.lamp, Offset(x, _slipY)));
       case _:
     }
   }

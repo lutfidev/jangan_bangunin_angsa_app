@@ -23,6 +23,7 @@ import '../widgets/joystick.dart';
 import '../widgets/noise_fx.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import '../widgets/tool_button.dart';
 import 'night3_set.dart';
 import 'night_art.dart';
 import 'scene.dart';
@@ -68,11 +69,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   bool _sneak = true;
   bool _paused = false;
   bool _done = false;
-  bool _miloRight = true;
   bool _gooseRight = false;
 
   /// HONK's freeze-frame: nothing ticks while this runs down.
   double _freezeLeft = 0;
+
+  /// Drag since the finger went down on the Tool button; null when not aiming.
+  double? _aimDx;
 
   /// The goose has landed on Milo; the caught tableau plays.
   bool _caught = false;
@@ -104,7 +107,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     _sim.tick(dt);
     _fx.advance(dt);
     for (final e in _sim.takeEvents()) {
-      _fx.take(e, playerX: _sim.playerX, gooseX: _sim.goose.x);
+      _fx.take(e, gooseX: _sim.goose.x);
       switch (e) {
         case GooseChanged(to: GooseState.awake):
           // "A 0.3s freeze-frame, one white flash ring and HONK lettering."
@@ -143,9 +146,23 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     if (mounted && !_done) _ticker.start();
   }
 
-  void _move(double dir) {
-    _sim.setMove(dir);
-    if (dir != 0) _miloRight = dir > 0;
+  /// Where the aimed sock would come down: 4 artboard px per px of drag.
+  double _aimX(double dx) => _sim.throwLanding(_sim.playerX + dx * 4);
+
+  void _aimStart() {
+    // A freeze-frame freezes the player too.
+    if (_freezeLeft > 0 || !_sim.toolReady) return;
+    setState(() => _aimDx = 0);
+  }
+
+  void _release() {
+    final dx = _aimDx;
+    if (dx == null) return;
+    setState(() {
+      _aimDx = null;
+      // A short press is a cancel, not a throw at his own feet.
+      if (dx.abs() >= 6 && _freezeLeft <= 0) _sim.throwSock(_aimX(dx));
+    });
   }
 
   @override
@@ -293,7 +310,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       ),
                     ),
                   ] else
-                    at(px - 30, 196, Burglar(pose: _pose(goose, carried), width: 60, flip: _miloRight)),
+                    at(px - 30, 196, Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0)),
                   if (_sneak && !goose.isAwake)
                     at(
                       px - 26,
@@ -455,9 +472,26 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
             ),
           ),
 
-          // Touch controls. Tools arrive with Throw.
-          at(0, 286, Joystick(onChanged: _move)),
-          at(596, 316, const Opacity(opacity: 0.6, child: _ToolButton())),
+          // Touch controls.
+          at(0, 286, Joystick(onChanged: _sim.setMove)),
+          at(
+            596,
+            316,
+            ToolButton(
+              tool: _sim.tool,
+              left: _sim.toolLeft,
+              ready: _sim.toolReady,
+              aiming: _aimDx != null,
+              onTap: () {
+                if (_freezeLeft <= 0) setState(() => _sim.useTool());
+              },
+              onAimStart: _aimStart,
+              onAim: (dx) {
+                if (_aimDx != null) setState(() => _aimDx = dx);
+              },
+              onRelease: _release,
+            ),
+          ),
           at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
           at(742, 294, _interactButton(interaction)),
         ],
@@ -534,55 +568,6 @@ class _ChasePill extends StatelessWidget {
           Text(
             'CHASE',
             style: ui(10, weight: FontWeight.w800, letterSpacing: 1, color: Palette.alarmTomato),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The tool slot; inert until Throw lands (langkah 3).
-class _ToolButton extends StatelessWidget {
-  const _ToolButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 54,
-      height: 54,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ChunkyButton(
-            onPressed: null,
-            semanticLabel: 'Tool: spare sock, 3 left. Hold to aim and throw',
-            width: 54,
-            height: 54,
-            depth: 3,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SockGlyph(fill: Palette.lamp),
-                Text('TOOL', style: ui(9, weight: FontWeight.w800, letterSpacing: 1, height: 1.1)),
-              ],
-            ),
-          ),
-          Positioned(
-            right: -6,
-            top: -6,
-            child: IgnorePointer(
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 22),
-                height: 22,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: Palette.ink, borderRadius: BorderRadius.circular(999)),
-                child: Text(
-                  '×3',
-                  style: ui(11, weight: FontWeight.w800, color: Palette.lamp),
-                ),
-              ),
-            ),
           ),
         ],
       ),
