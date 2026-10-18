@@ -129,6 +129,13 @@ class GooseBrain {
         _trackHiding(dt, playerHidden);
         if (_state == GooseState.distracted && _timer <= 0) _state = GooseState.chase;
       case GooseState.lostYou:
+        // Grumpy, not blind: walk into her and the chase is back on.
+        if (!playerHidden && (playerX - x).abs() <= tuning.caughtDistance) {
+          _state = GooseState.chase;
+          _chaseLeft = tuning.chaseTime;
+          _hiddenFor = 0;
+          return;
+        }
         _patrolFor += dt;
         if (_moveTo(bedX, tuning.patrolSpeed, dt) && _patrolFor >= tuning.patrolTime) {
           meter.reset();

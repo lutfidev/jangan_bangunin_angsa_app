@@ -117,10 +117,17 @@ void main() {
   });
 
   test('chase gives up after 12s', () {
+    // The burglar keeps 100px ahead; she never gets close enough to catch them.
     final g = _goose()..wake(WakeCause.noise);
-    run(g, 0.35 + 11.9, playerX: 844);
+    void outrun(double seconds) {
+      for (var t = 0.0; t < seconds - 1e-9; t += 0.05) {
+        g.tick(0.05, playerX: g.x - 100, playerHidden: false);
+      }
+    }
+
+    outrun(0.35 + 11.9);
     expect(g.state, GooseState.chase);
-    run(g, 0.2, playerX: 844);
+    outrun(0.2);
     expect(g.state, GooseState.lostYou);
   });
 

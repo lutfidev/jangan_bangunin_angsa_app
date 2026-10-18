@@ -65,6 +65,7 @@ class NightSim {
   final List<SimEvent> _events = [];
   final Map<int, List<LinkFired>> _chains = {};
   List<LinkFired> _wakeChain = const [];
+  List<LinkFired>? _wakingChain;
   late GooseState _gooseSeen = goose.state;
   double _footClock = 0;
   double _squeakClock = 0;
@@ -96,7 +97,9 @@ class NightSim {
     if (_frozen || _hidden || _carried.contains(lootId)) return false;
     final loot = level.loot.where((l) => l.id == lootId).firstOrNull;
     if (loot == null || (loot.x - _x).abs() > tuning.reach) return false;
-    if (loot.guarded && goose.inBed && !goose.rollingOver) {
+    // She guards it from her bed, including while she stands there patrolling.
+    final guarding = goose.inBed || (goose.state == GooseState.lostYou && goose.x == level.bedX);
+    if (loot.guarded && guarding && !goose.rollingOver) {
       goose.wake(WakeCause.grabbedGuarded);
       _noteGoose();
       return false;
@@ -195,12 +198,17 @@ class NightSim {
     final wasAwake = goose.isAwake;
     goose.hear(noise, chainLinks: link?.link ?? 0);
     if (!wasAwake && goose.isAwake && link != null) {
-      _wakeChain = List.unmodifiable(_chains[link.chainId]!);
+      _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }
     _noteGoose();
   }
 
   void _noteGoose() {
+    if (goose.state == GooseState.awake && _gooseSeen != GooseState.awake) {
+      // A wake no chain caused (footsteps, grabbing the egg) has no chain to recap.
+      _wakeChain = _wakingChain ?? const [];
+      _wakingChain = null;
+    }
     if (goose.state != _gooseSeen) {
       _events.add(GooseChanged(_gooseSeen, goose.state));
       _gooseSeen = goose.state;

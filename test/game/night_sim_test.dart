@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
 
@@ -107,6 +108,68 @@ void main() {
     s.tick(6);
     expect(s.outcome, isNull);
     expect(s.goose.state, GooseState.lostYou);
+  });
+
+  test('a hidden burglar is not caught even when she walks right up to them', () {
+    final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 660); // sneak past the plank
+    s.setSneak(false);
+    walkTo(s, 720); // at a walk: the last noise she heard is a footstep by the coat rack
+    expect(s.toggleHide(), isTrue);
+    s.goose.wake(WakeCause.noise);
+    var closest = double.infinity;
+    for (var i = 0; i < 60 * 4; i++) {
+      s.tick(_frame);
+      final d = (s.goose.x - s.playerX).abs();
+      if (d < closest) closest = d;
+    }
+    expect(closest, lessThanOrEqualTo(const Tuning().caughtDistance));
+    expect(s.takeEvents().whereType<CaughtStarted>(), isEmpty);
+    expect(s.outcome, isNull);
+  });
+
+  test('a later wake that no chain caused clears the old wake chain', () {
+    final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 720);
+    s.toggleHide();
+    s.poke('sideTable');
+    tickUntil(s, () => s.goose.state == GooseState.lostYou);
+    tickUntil(s, () => s.goose.inBed);
+    expect(s.wakeChain, isNotEmpty);
+    s.toggleHide();
+    walkTo(s, 561);
+    tickUntil(s, () => !s.goose.rollingOver);
+    expect(s.grab('egg'), isFalse);
+    expect(s.goose.wakeCause, WakeCause.grabbedGuarded);
+    expect(s.wakeChain, isEmpty);
+  });
+
+  test('a patrolling goose that runs into the burglar chases again', () {
+    final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 720);
+    s.toggleHide();
+    s.poke('sideTable');
+    tickUntil(s, () => s.goose.state == GooseState.lostYou);
+    s
+      ..toggleHide()
+      ..setSneak(false)
+      ..setMove(-1); // straight into her as she walks back to bed
+    tickUntil(s, () => s.outcome != null, limit: 10);
+    expect(s.outcome, Outcome.caught);
+  });
+
+  test('the egg stays guarded while she patrols at her bed', () {
+    final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 720);
+    s.toggleHide();
+    s.poke('sideTable');
+    tickUntil(s, () => s.goose.state == GooseState.lostYou);
+    s.toggleHide();
+    walkTo(s, 561);
+    tickUntil(s, () => s.goose.x == 502);
+    expect(s.goose.state, GooseState.lostYou);
+    expect(s.grab('egg'), isFalse);
+    expect(s.goose.isAwake, isTrue);
   });
 
   test('hiding needs a hide spot in reach, and holds the burglar still', () {
