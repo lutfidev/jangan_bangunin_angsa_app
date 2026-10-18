@@ -1,0 +1,38 @@
+{
+  "id": "night3",
+  "name": "The Midnight Kitchen",
+  "playerStart": 236,
+  "exitX": 770,
+  "bedX": 502,
+  "hideSpots": [180, 720],
+  "spots": [
+    {"id": "counterLeft", "x": 62},
+    {"id": "counterPot", "x": 113, "snap": true},
+    {"id": "shelfBooks", "x": 340},
+    {"id": "underShelf", "x": 372, "snap": true},
+    {"id": "underSideTable", "x": 596, "snap": true},
+    {"id": "sideTable", "x": 614},
+    {"id": "plank", "x": 640},
+    {"id": "clockStand", "x": 667}
+  ],
+  "objects": [
+    {"id": "glass", "type": "tipper", "spot": "counterLeft"},
+    {"id": "pot", "type": "amplifier", "spot": "counterPot", "portable": true},
+    {"id": "books", "type": "tipper", "spot": "shelfBooks"},
+    {"id": "robot", "type": "walker", "spot": "sideTable"},
+    {"id": "plank", "type": "squeaker", "spot": "plank"},
+    {"id": "clock", "type": "chimer", "spot": "clockStand"}
+  ],
+  "links": [
+    {"from": "counterLeft", "to": "counterPot"},
+    {"from": "shelfBooks", "to": "underShelf"},
+    {"from": "sideTable", "to": "underSideTable", "delay": 0.8},
+    {"from": "sideTable", "to": "clockStand", "delay": 1.2},
+    {"from": "plank", "to": "clockStand"}
+  ],
+  "loot": [
+    {"id": "toaster", "x": 218},
+    {"id": "chicken", "x": 353, "squeaks": true},
+    {"id": "egg", "x": 561, "guarded": true}
+  ]
+}
