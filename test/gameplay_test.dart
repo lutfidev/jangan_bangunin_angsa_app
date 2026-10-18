@@ -59,7 +59,7 @@ void main() {
 
   testWidgets('nothing in reach disables Interact', (tester) async {
     final sim = NightSim(Levels.night3);
-    walkTo(sim, 280);
+    walkTo(sim, 300);
     await pumpGameplay(tester, sim);
     expect(_interact(tester).onPressed, isNull);
   });
@@ -345,6 +345,63 @@ void main() {
       expect(sim.mouse, isNotNull);
       expect(find.text('×0'), findsOneWidget);
       expect(toolButton(tester).ready, isFalse);
+    });
+  });
+
+  group('rearrange, hide, crawl', () {
+    NightSim sneakTo(double x) {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, x);
+      return sim;
+    }
+
+    Future<void> tapInteract(WidgetTester tester, String label) async {
+      await tester.tap(find.widgetWithText(ActionButton, label));
+      await play(tester, 0.1);
+    }
+
+    testWidgets('MOVE POT lifts the pot over his head', (tester) async {
+      final sim = await pumpGameplay(tester, sneakTo(113));
+      await tapInteract(tester, 'MOVE POT');
+      expect(sim.held, 'pot');
+      final milo = tester.widget<Burglar>(find.byType(Burglar));
+      expect(milo.pose, BurglarPose.carry);
+      expect(tester.getTopLeft(_prop(PropKind.pot)).dy, lessThan(tester.getTopLeft(find.byType(Burglar)).dy));
+    });
+
+    testWidgets('PLACE puts the pot down under the shelf', (tester) async {
+      final sim = sneakTo(113);
+      sim.interact();
+      walkTo(sim, 372);
+      await pumpGameplay(tester, sim);
+      await tapInteract(tester, 'PLACE');
+      expect(sim.chain.spotOf('pot'), 'underShelf');
+      expect(tester.getTopLeft(_prop(PropKind.pot)), const Offset(347, 232));
+    });
+
+    testWidgets('HIDE hides Milo and OUT brings him back', (tester) async {
+      final sim = await pumpGameplay(tester, sneakTo(148));
+      expect(find.text('HIDE'), findsNWidgets(2)); // the tag and the button
+      await tapInteract(tester, 'HIDE');
+      expect(sim.hidden, isTrue);
+      expect(find.byType(Burglar), findsNothing);
+      await tapInteract(tester, 'OUT');
+      expect(sim.hidden, isFalse);
+      expect(find.byType(Burglar), findsOneWidget);
+    });
+
+    testWidgets('no HIDE tag out of reach while she sleeps', (tester) async {
+      await pumpGameplay(tester);
+      expect(find.text('HIDE'), findsNothing);
+    });
+
+    testWidgets('CLIMB puts Milo on the crawlway, crawling', (tester) async {
+      final sim = await pumpGameplay(tester, sneakTo(260));
+      await tapInteract(tester, 'CLIMB');
+      expect(sim.up, isTrue);
+      expect(tester.widget<Burglar>(find.byType(Burglar)).pose, BurglarPose.crawl);
+      expect(tester.getTopLeft(find.byType(Burglar)).dy, 106 - 74);
+      expect(find.widgetWithText(ActionButton, 'DOWN'), findsOneWidget);
     });
   });
 }

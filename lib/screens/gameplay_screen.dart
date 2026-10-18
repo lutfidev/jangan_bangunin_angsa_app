@@ -179,6 +179,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     final chasing = goose.state == GooseState.chase || goose.state == GooseState.distracted;
     final honk = _fx.honk;
     final nudge = _freezeLeft > 0 && !GameSettings.instance.reduceShake ? 4.0 : 0.0;
+    final handY = _sim.up ? crawlHandY : 212.0;
 
     // System back pauses the night instead of throwing it away.
     return PopScope(
@@ -228,20 +229,36 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     ),
                   night3Rug(),
 
-                  // The chain kit; spent tippers and walkers lie where they fell.
-                  for (final MapEntry(key: id, value: art) in objectArt.entries)
-                    at(
-                      art.box.left,
-                      art.box.top,
-                      Transform.rotate(
-                        angle: switch (id) {
-                          'glass' when _sim.chain.isSpent(id) => deg(-70),
-                          'robot' when _sim.chain.isSpent(id) => deg(-80),
-                          _ => 0,
-                        },
-                        child: Prop(art.kind, size: art.box.size),
+                  // Free snap spots glow, brighter while he carries something.
+                  for (final MapEntry(key: spotId, value: c) in snapAnchors.entries)
+                    if (_sim.chain.objectAt(spotId) == null)
+                      at(
+                        c.dx - 15,
+                        c.dy - 15,
+                        Opacity(
+                          opacity: _sim.held != null ? 0.85 : 0.35,
+                          child: const DashedOutline(color: Palette.lamp, strokeWidth: 3, oval: true),
+                        ),
+                        width: 30,
+                        height: 30,
                       ),
-                    ),
+
+                  // The chain kit; spent tippers and walkers lie where they fell,
+                  // the pot wherever it was put down.
+                  for (final MapEntry(key: id, value: art) in objectArt.entries)
+                    if (_sim.chain.spotOf(id) case final spotId?)
+                      at(
+                        id == 'pot' ? potBoxAt(spotId).left : art.box.left,
+                        id == 'pot' ? potBoxAt(spotId).top : art.box.top,
+                        Transform.rotate(
+                          angle: switch (id) {
+                            'glass' when _sim.chain.isSpent(id) => deg(-70),
+                            'robot' when _sim.chain.isSpent(id) => deg(-80),
+                            _ => 0,
+                          },
+                          child: Prop(art.kind, size: art.box.size),
+                        ),
+                      ),
 
                   // Loot still in the house, and what Interact would do.
                   if (interaction case GrabLoot(:final loot))
@@ -324,9 +341,18 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         child: FittedBox(child: InlineSvg(featherPuffSvg, width: 330, height: 200)),
                       ),
                     ),
-                  ] else
-                    at(px - 30, 196, Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0)),
-                  if (_sneak && !goose.isAwake)
+                  ] else if (_sim.hidden)
+                    ...hidingMilo(_nearestHide(level, px))
+                  else ...[
+                    at(
+                      px - 30,
+                      _sim.up ? crawlwayTop - 74 : 196,
+                      Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0),
+                    ),
+                    if (_sim.held case final held?)
+                      at(px - 20, 168, Prop(objectArt[held]!.kind, size: 40)),
+                  ],
+                  if (_sneak && !goose.isAwake && !_sim.hidden && !_sim.up)
                     at(
                       px - 26,
                       256,
@@ -351,6 +377,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     // The other verbs show on the button only, like Plan View's MOVE POT.
                     _ => const SizedBox.shrink(),
                   },
+                  // HIDE tags: the one in reach, or all of them once she is up.
+                  for (final h in level.hideSpots)
+                    if (!_sim.hidden && ((interaction is Hide && interaction.x == h) || goose.isAwake))
+                      hideTag(hideArt[h]!.tag),
                   at(
                     758,
                     108,
@@ -362,10 +392,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   ),
 
                   // Socks in the air, and the one being aimed.
-                  for (final f in _sim.flights) flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX))),
+                  for (final f in _sim.flights) flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: handY)),
                   if (_aimDx case final dx?)
                     Positioned.fill(
-                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)))),
+                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)), handY: handY)),
                     ),
 
                   FxLayer(fx: _fx),
@@ -529,11 +559,18 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     return at(art.box.left, art.box.top, Prop(art.kind, size: art.box.size));
   }
 
-  static BurglarPose _pose(GooseBrain goose, List<String> carried) => goose.isAwake
+  BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.up
+      ? BurglarPose.crawl
+      : _sim.held != null
+      ? BurglarPose.carry
+      : goose.isAwake
       ? BurglarPose.panic
       : carried.isNotEmpty
       ? BurglarPose.carry
       : BurglarPose.sneak;
+
+  static double _nearestHide(Level level, double x) =>
+      level.hideSpots.reduce((a, b) => (a - x).abs() <= (b - x).abs() ? a : b);
 
   Widget _interactButton(Interaction? interaction) {
     void interact() {
@@ -556,8 +593,18 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
         icon: hand,
         onPressed: interact,
       ),
-      // Rearrange and hiding get their buttons in the next commit.
-      _ => const Opacity(
+      // The other verbs are words only, like Plan View's MOVE POT.
+      MoveObject(:final objectId) => ActionButton(
+        label: 'MOVE ${objectId.toUpperCase()}',
+        semanticLabel: 'Move the $objectId',
+        onPressed: interact,
+      ),
+      PlaceObject() => ActionButton(label: 'PLACE', semanticLabel: 'Put the ${_sim.held} down', onPressed: interact),
+      Hide() => ActionButton(label: 'HIDE', semanticLabel: 'Hide', onPressed: interact),
+      Unhide() => ActionButton(label: 'OUT', semanticLabel: 'Come out of hiding', onPressed: interact),
+      Climb() => ActionButton(label: 'CLIMB', semanticLabel: 'Climb onto the cabinets', onPressed: interact),
+      ClimbDown() => ActionButton(label: 'DOWN', semanticLabel: 'Climb down', onPressed: interact),
+      null => const Opacity(
         opacity: 0.6,
         child: ActionButton(label: 'GRAB', icon: hand, onPressed: null),
       ),

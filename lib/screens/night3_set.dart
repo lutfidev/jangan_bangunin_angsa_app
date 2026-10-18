@@ -9,7 +9,8 @@ import 'scene.dart';
 
 /// Night 3's room, The Midnight Kitchen: everything that never moves.
 
-/// Walls, window, lamp, counter, bookshelf, side tables and the exit door.
+/// Walls, window, lamp, counter, bookshelf, crawlway, side tables, coat
+/// rack and the exit door.
 List<Widget> night3Backdrop() => [
   // Rooms: lit kitchen, living room, hall.
   box(0, 0, 300, 270, Palette.lampRoom),
@@ -55,11 +56,13 @@ List<Widget> night3Backdrop() => [
     (Color(0xFF4C5BA8), 30.0, 0.0),
     (Palette.alarmTomato, 26.0, 0.0),
   ])),
+  ...crawlway(),
 
   // Side tables, and the gnome in the hall.
   box(594, 236, 40, 34, Palette.wood, border: 3),
   box(708, 236, 44, 34, Palette.wood, border: 3),
   at(708, 196, const Prop(PropKind.gnome, size: 44)),
+  ...coatRack(),
 
   // The way out.
   ...exitDoor(knob: true),
