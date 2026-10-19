@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
@@ -13,6 +14,7 @@ import 'package:jangan_bangunin_angsa_app/screens/plan_view_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/settings_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/trophy_room_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/stage.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
@@ -40,14 +42,28 @@ NightSim _wokenByTheEgg() {
 }
 
 void main() {
+  // The HUD board's GOAL pill is the lure goal, so Ghost is already earned.
+  setUp(() => HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.ghost})));
+  tearDown(HeistLog.instance.clear);
+
   final screens = <String, Widget Function()>{
     'menu': () => const MainMenuScreen(),
-    'briefing': () => const BriefingScreen(),
+    'briefing': () {
+      // The briefing board has only the Trickster sock.
+      HeistLog.instance
+        ..clear()
+        ..record(sampleEscape(goalsMet: {PlayStyle.trickster}));
+      return const BriefingScreen();
+    },
     'plan_view': () => const PlanViewScreen(),
     'chaos_escape': () => const ChaosEscapeScreen(),
     'pause': () => const PauseScreen(),
     'settings': () => const SettingsScreen(),
-    'victory': () => VictoryScreen(result: sampleEscape()),
+    'victory': () {
+      // Board D: no sock from an earlier run, so the recap reads like the board.
+      HeistLog.instance.clear();
+      return VictoryScreen(result: sampleEscape());
+    },
     'caught': () => CaughtScreen(result: sampleCaught()),
     'trophy_room': () => const TrophyRoomScreen(),
   };
@@ -217,5 +233,32 @@ void main() {
     walkTo(sim, 372);
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_place');
+  });
+
+  testWidgets('gameplay_combo', (tester) async {
+    // Over the loose plank and back three times, then into the coat rack:
+    // plank, clock, plank, clock... one combo.
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 600);
+    sim.setSneak(false);
+    walkTo(sim, 650);
+    walkTo(sim, 630);
+    walkTo(sim, 650);
+    walkTo(sim, 703);
+    sim.toggleHide();
+    tickUntil(sim, () => sim.combo.count >= 4);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_combo');
+  });
+
+  testWidgets('gameplay_combo_asleep', (tester) async {
+    // Glass → pot lures her, then the books: a 3-link combo while she sleeps.
+    final sim = NightSim(Levels.night3);
+    sim.poke('counterLeft');
+    tickUntil(sim, () => sim.combo.count >= 2);
+    sim.poke('shelfBooks');
+    tickUntil(sim, () => sim.combo.count >= 3);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_combo_asleep');
   });
 }

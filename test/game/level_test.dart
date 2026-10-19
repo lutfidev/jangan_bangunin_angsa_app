@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 
 import 'fixtures.dart';
@@ -93,5 +94,27 @@ void main() {
       _formatError('high loot off the crawlway: cup'),
     );
     expect(() => Level.parse(minimalLevel(loot: [cup])), _formatError('high loot off the crawlway: cup'));
+  });
+
+  test('night 3 has a goal per style', () {
+    final goals = night3().goals;
+    expect(goals.map((g) => g.style), [PlayStyle.ghost, PlayStyle.trickster, PlayStyle.chaos]);
+    expect(goals.map((g) => g.kind), [GoalKind.neverSuspicious, GoalKind.lure, GoalKind.chain]);
+    expect(goals.map((g) => g.count), [1, 2, 5]);
+  });
+
+  test('goals are optional', () {
+    expect(Level.parse(minimalLevel()).goals, isEmpty);
+  });
+
+  test('rejects bad goals', () {
+    Level parse(List<Object?> goals) => Level.parse(minimalLevel(goals: goals));
+    expect(() => parse([{'style': 'sneaky', 'kind': 'lure'}]), _formatError('unknown goal style: sneaky'));
+    expect(() => parse([{'style': 'ghost', 'kind': 'nap'}]), _formatError('unknown goal kind: nap'));
+    expect(
+      () => parse([{'style': 'ghost', 'kind': 'neverSuspicious'}, {'style': 'ghost', 'kind': 'lure'}]),
+      _formatError('duplicate goal style: ghost'),
+    );
+    expect(() => parse([{'style': 'chaos', 'kind': 'chain', 'count': 0}]), _formatError('goal count below 1: chaos'));
   });
 }

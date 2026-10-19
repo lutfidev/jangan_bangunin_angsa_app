@@ -51,10 +51,11 @@ ArtBox potBoxAt(String spotId) =>
 /// The crawlway plank's top surface; Milo crawls with his feet on it.
 const crawlwayTop = 106.0;
 
-/// Per hide spot x: where its HIDE tag goes, and where Milo peeks out.
-final hideArt = <double, ({Offset tag, Offset peek})>{
-  148: (tag: Offset(129, 222), peek: Offset(152, 228)),
-  703: (tag: Offset(684, 146), peek: Offset(706, 188)),
+/// Per hide spot x: where its HIDE tag goes, where Milo peeks out, and the
+/// gap a cabinet door leaves open while he is inside.
+final hideArt = <double, ({Offset tag, Offset peek, Rect? crack})>{
+  148: (tag: Offset(129, 222), peek: Offset(152, 228), crack: Rect.fromLTWH(146, 215, 43, 48)),
+  703: (tag: Offset(684, 146), peek: Offset(706, 188), crack: null),
 };
 
 /// Where a spot's rings and badges are drawn; x matches the level.

@@ -16,6 +16,7 @@ String minimalLevel({
   List<Object?>? loot,
   List<double>? hideSpots,
   Map<String, Object?>? crawlway,
+  List<Object?>? goals,
 }) => jsonEncode({
   'id': 'test',
   'name': 'Test',
@@ -28,6 +29,7 @@ String minimalLevel({
   'objects': objects ?? [{'id': 'o', 'type': 'tipper', 'spot': 'a'}],
   'links': links ?? <Object?>[],
   'loot': loot ?? <Object?>[],
+  'goals': ?goals,
 });
 
 const frame = 1 / 60;

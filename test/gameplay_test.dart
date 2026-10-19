@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
@@ -26,6 +29,8 @@ Future<void> _tapPause(WidgetTester tester) =>
     tester.tap(find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'), warnIfMissed: false);
 
 void main() {
+  tearDown(HeistLog.instance.clear);
+
   testWidgets('the joystick walks Milo right', (tester) async {
     await pumpGameplay(tester);
     final before = tester.getTopLeft(find.byType(Burglar)).dx;
@@ -114,6 +119,17 @@ void main() {
     expect(find.byType(VictoryScreen), findsOneWidget);
     expect(find.byType(GameplayScreen), findsNothing);
     expect(find.text('Mega Toaster'), findsOneWidget);
+  });
+
+  testWidgets('an escape records its socks', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    sim.interact(); // the toaster: no sock without loot
+    walkTo(sim, 768);
+    sim.setMove(1);
+    await pumpGameplay(tester, sim);
+    await play(tester, 0.6);
+    expect(find.byType(VictoryScreen), findsOneWidget);
+    expect(HeistLog.instance.earned('night3'), {PlayStyle.ghost});
   });
 
   testWidgets('the night ends once', (tester) async {
@@ -395,6 +411,21 @@ void main() {
       expect(find.text('HIDE'), findsNothing);
     });
 
+    testWidgets('no HIDE tags while she is up and Milo is up on the crawlway', (tester) async {
+      final sim = sneakTo(260)..toggleClimb();
+      sim.goose.wake(WakeCause.noise);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HIDE'), findsNothing);
+    });
+
+    testWidgets('no HIDE tags while she is up and Milo holds the pot', (tester) async {
+      final sim = sneakTo(113);
+      expect(sim.lift('pot'), isTrue);
+      sim.goose.wake(WakeCause.noise);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HIDE'), findsNothing);
+    });
+
     testWidgets('CLIMB puts Milo on the crawlway, crawling', (tester) async {
       final sim = await pumpGameplay(tester, sneakTo(260));
       await tapInteract(tester, 'CLIMB');
@@ -423,6 +454,80 @@ void main() {
           .widgetList(find.byWidgetPredicate((w) => w is Burglar || (w is Prop && w.kind == PropKind.chicken && w.size == 46)))
           .toList();
       expect(order.indexWhere((w) => w is Prop), greaterThan(order.indexWhere((w) => w is Burglar)));
+    });
+  });
+
+  group('heist HUD', () {
+    void earn(Set<PlayStyle> styles) => HeistLog.instance.record(sampleEscape(goalsMet: styles));
+
+    testWidgets('the GOAL pill starts on Ghost', (tester) async {
+      await pumpGameplay(tester);
+      expect(find.text('Never let her turn suspicious'), findsOneWidget);
+    });
+
+    testWidgets('the GOAL pill skips earned goals', (tester) async {
+      earn({PlayStyle.ghost});
+      await pumpGameplay(tester);
+      expect(find.text('Lure her out of bed · 0/2'), findsOneWidget);
+    });
+
+    testWidgets('the GOAL pill skips a failed Ghost', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.goose
+        ..hear(const Noise(x: 480, loudness: 1))
+        ..hear(const Noise(x: 480, loudness: 1));
+      sim.tick(frame);
+      expect(sim.seen, isTrue);
+      await pumpGameplay(tester, sim);
+      expect(find.text('Lure her out of bed · 0/2'), findsOneWidget);
+    });
+
+    testWidgets('with every sock earned the pill points at the exit', (tester) async {
+      earn(PlayStyle.values.toSet());
+      await pumpGameplay(tester);
+      expect(find.text('Make it to the exit'), findsOneWidget);
+    });
+
+    testWidgets('a two-link chain while she sleeps keeps the meter, no banner', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.poke('counterLeft'); // glass → pot
+      tickUntil(sim, () => sim.combo.count >= 2);
+      expect(sim.goose.isAwake, isFalse);
+      await pumpGameplay(tester, sim);
+      expect(find.byType(AlertMeter), findsOneWidget);
+      expect(find.byKey(GameplayScreen.comboKey), findsNothing);
+    });
+
+    testWidgets('a bigger combo while she sleeps shows beside the meter', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.poke('counterLeft'); // glass → pot
+      tickUntil(sim, () => sim.combo.count >= 2);
+      sim.poke('shelfBooks');
+      tickUntil(sim, () => sim.combo.count >= 3);
+      expect(sim.goose.isAwake, isFalse);
+      await pumpGameplay(tester, sim);
+      expect(find.byType(AlertMeter), findsOneWidget);
+      expect(find.byKey(GameplayScreen.comboKey), findsOneWidget);
+      expect(tester.getTopLeft(find.byKey(GameplayScreen.comboKey)).dx, greaterThan(552));
+    });
+
+    testWidgets('a combo shows the banner in place of the meter', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 600);
+      sim.setSneak(false);
+      walkTo(sim, 650);
+      walkTo(sim, 630);
+      walkTo(sim, 703);
+      sim.toggleHide();
+      tickUntil(sim, () => sim.combo.count >= 2 && sim.goose.isAwake);
+      await pumpGameplay(tester, sim);
+      // The outlined text draws its words more than once.
+      expect(find.descendant(of: find.byKey(GameplayScreen.comboKey), matching: find.text('CHAIN ×${sim.combo.count}!')), findsWidgets);
+      expect(find.descendant(of: find.byKey(GameplayScreen.comboKey), matching: find.textContaining('CHAOS COMBO +')), findsOneWidget);
+      expect(find.byType(AlertMeter), findsNothing);
+      await play(tester, 6);
+      expect(find.byKey(GameplayScreen.comboKey), findsNothing);
+      expect(find.byType(AlertMeter), findsOneWidget);
     });
   });
 }

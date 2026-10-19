@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/heist.dart';
 import '../game/tools.dart';
 import '../routes.dart';
+import '../state/heist_log.dart';
+import '../state/levels.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
@@ -11,16 +14,10 @@ import '../widgets/controls.dart';
 import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import 'heist_copy.dart';
 import 'scene.dart';
 
-typedef _Goal = ({String style, Color color, Color textColor, String text, bool earned});
 typedef _Tool = ({Tool tool, PropKind kind, String name, String style, Color color, String desc, bool locked});
-
-const List<_Goal> _goals = [
-  (style: 'GHOST', color: Palette.calmMint, textColor: Palette.ink, text: 'Never let her turn suspicious', earned: false),
-  (style: 'TRICK', color: Palette.lamp, textColor: Palette.ink, text: 'Lure her out of bed twice', earned: true),
-  (style: 'CHAOS', color: Palette.alarmTomato, textColor: Palette.gooseWhite, text: 'Fire a 5-link chain', earned: false),
-];
 
 const List<_Tool> _tools = [
   (tool: Tool.socks, kind: PropKind.sock, name: 'Spare Socks ×3', style: 'TRICKSTER', color: Palette.lamp, desc: 'Hold Tool, drag to aim, release to throw. Hits whatever it lands on.', locked: false),
@@ -45,6 +42,8 @@ class _BriefingScreenState extends State<BriefingScreen> {
   @override
   Widget build(BuildContext context) {
     final selected = _tools[_tool];
+    final level = Levels.night3;
+    final earned = HeistLog.instance.earned(level.id);
     return Stage(
       background: Palette.midnight,
       children: [
@@ -91,8 +90,11 @@ class _BriefingScreenState extends State<BriefingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 8,
               children: [
-                Text('HEIST GOALS · 1 / 3 SOCKS', style: hudLabel(color: Palette.mutedInk)),
-                for (final goal in _goals) _GoalRow(goal),
+                Text(
+                  'HEIST GOALS · ${earned.length} / ${level.goals.length} SOCKS',
+                  style: hudLabel(color: Palette.mutedInk),
+                ),
+                for (final goal in level.goals) _GoalRow(goal, earned: earned.contains(goal.style)),
                 Text(
                   'One style per run. Come back for the rest.',
                   style: ui(11, weight: FontWeight.w600, color: Palette.mutedInk),
@@ -224,12 +226,14 @@ class _BriefingScreenState extends State<BriefingScreen> {
 }
 
 class _GoalRow extends StatelessWidget {
-  const _GoalRow(this.goal);
+  const _GoalRow(this.goal, {required this.earned});
 
-  final _Goal goal;
+  final HeistGoal goal;
+  final bool earned;
 
   @override
   Widget build(BuildContext context) {
+    final look = styleLook(goal.style);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -240,17 +244,17 @@ class _GoalRow extends StatelessWidget {
         spacing: 10,
         children: [
           Pill(
-            goal.style,
-            color: goal.color,
+            look.tag,
+            color: look.color,
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            textStyle: ui(10, weight: FontWeight.w800, color: goal.textColor),
+            textStyle: ui(10, weight: FontWeight.w800, color: look.text),
           ),
           Expanded(
-            child: Text(goal.text, style: ui(13, height: 1.25)),
+            child: Text(goalBrief(goal), style: ui(13, height: 1.25)),
           ),
           Semantics(
-            label: goal.earned ? 'Sock earned' : 'Sock not yet earned',
-            child: SockGlyph(fill: goal.earned ? Palette.lamp : Palette.slate),
+            label: earned ? 'Sock earned' : 'Sock not yet earned',
+            child: SockGlyph(fill: earned ? Palette.lamp : Palette.slate),
           ),
         ],
       ),

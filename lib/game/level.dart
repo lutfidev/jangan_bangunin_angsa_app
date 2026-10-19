@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'heist.dart';
+
 /// The six object types of the chain kit (Gameplay 2.0 board).
 enum ObjectType { tipper, amplifier, walker, roller, chimer, squeaker }
 
@@ -74,6 +76,7 @@ class Level {
     required this.objects,
     required this.links,
     required this.loot,
+    required this.goals,
   });
 
   factory Level.fromJson(Map<String, Object?> json) {
@@ -139,6 +142,20 @@ class Level {
       loot.add(item);
     }
 
+    final goals = <HeistGoal>[];
+    for (final g in _list(json, 'goals')) {
+      final styleName = _str(g, 'style');
+      final style = PlayStyle.values.where((s) => s.name == styleName).firstOrNull ??
+          (throw FormatException('unknown goal style: $styleName'));
+      final kindName = _str(g, 'kind');
+      final kind = GoalKind.values.where((k) => k.name == kindName).firstOrNull ??
+          (throw FormatException('unknown goal kind: $kindName'));
+      final count = g['count'] as int? ?? 1;
+      if (goals.any((x) => x.style == style)) throw FormatException('duplicate goal style: $styleName');
+      if (count < 1) throw FormatException('goal count below 1: $styleName');
+      goals.add(HeistGoal(style: style, kind: kind, count: count));
+    }
+
     return Level._(
       id: id,
       name: _str(json, 'name'),
@@ -151,6 +168,7 @@ class Level {
       objects: objects,
       links: links,
       loot: loot,
+      goals: goals,
     );
   }
 
@@ -167,6 +185,9 @@ class Level {
   final List<LevelObject> objects;
   final List<Link> links;
   final List<Loot> loot;
+
+  /// The night's heist goals, one per style.
+  final List<HeistGoal> goals;
 
   /// Links out of [spotId] in file order, which is poke priority.
   List<Link> linksFrom(String spotId) => [for (final k in links) if (k.from == spotId) k];

@@ -5,6 +5,7 @@ import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
+import 'package:jangan_bangunin_angsa_app/screens/night3_set.dart';
 import 'package:jangan_bangunin_angsa_app/screens/night_art.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 
@@ -31,6 +32,20 @@ NightResult _caughtBy(List<String> objects, {WakeCause cause = WakeCause.noise})
 }
 
 void main() {
+  test('the crawlway plank covers the level crawlway', () {
+    final crawl = Levels.night3.crawlway!;
+    expect(crawlwayArt.left, lessThanOrEqualTo(crawl.from));
+    expect(crawlwayArt.right, greaterThanOrEqualTo(crawl.to));
+  });
+
+  test('every hide spot has art', () {
+    for (final x in Levels.night3.hideSpots) {
+      expect(hideArt[x], isNotNull, reason: '$x');
+    }
+    expect(hideArt[148]!.crack, isNotNull);
+    expect(hideArt[703]!.crack, isNull);
+  });
+
   test('every Night 3 spot has an anchor on its x', () {
     for (final spot in Levels.night3.spots.values) {
       expect(spotAnchors[spot.id]?.dx, spot.x, reason: spot.id);

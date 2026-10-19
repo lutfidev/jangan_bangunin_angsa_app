@@ -44,6 +44,12 @@ class Tuning {
     this.spillBehind = 24,
     this.slipRadius = 16,
     this.slipTime = 2,
+    this.comboWindow = 3,
+    this.linkScore = 120,
+    this.comboMaxMultiplier = 10,
+    this.lootScore = 1000,
+    this.guardedLootScore = 2500,
+    this.goalScore = 1000,
     this.maxStep = 1 / 60,
   });
 
@@ -145,6 +151,24 @@ class Tuning {
 
   /// Bag of Marbles: "Gertrude slips and loses 2 seconds."
   final double slipTime;
+
+  /// Chaos combo: "Every link fired within 3s adds ×1 to your score multiplier."
+  final double comboWindow;
+
+  /// Points per link, times the combo multiplier. 120 makes a 4-link combo
+  /// "+1,200", as on the Chaos escape board.
+  final int linkScore;
+
+  /// The multiplier stops growing here, so pacing a reusable squeaker can't
+  /// run the score away.
+  final int comboMaxMultiplier;
+
+  /// Points per loot carried out; the guarded one is worth more.
+  final int lootScore;
+  final int guardedLootScore;
+
+  /// Points per heist goal met on a getaway.
+  final int goalScore;
 
   /// Longest simulation step; bigger ticks are split.
   final double maxStep;
