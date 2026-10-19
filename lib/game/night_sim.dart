@@ -1,5 +1,6 @@
 import 'chain.dart';
 import 'goose_brain.dart';
+import 'heist.dart';
 import 'level.dart';
 import 'noise.dart';
 import 'tools.dart';
@@ -124,6 +125,11 @@ class NightResult {
     this.wakeCause,
     required this.time,
     this.tool = Tool.socks,
+    this.score = 0,
+    this.bestChain = 0,
+    this.lures = 0,
+    this.style = PlayStyle.ghost,
+    this.goalsMet = const {},
   });
 
   final Level level;
@@ -139,6 +145,21 @@ class NightResult {
 
   /// Seconds from the start of the night to the outcome.
   final double time;
+
+  /// Link points, plus loot and goals on a getaway.
+  final int score;
+
+  /// The longest chaos combo.
+  final int bestChain;
+
+  /// Times she sleepwalked out of bed.
+  final int lures;
+
+  /// The badge: how the night went.
+  final PlayStyle style;
+
+  /// Heist goals met; only a getaway meets any.
+  final Set<PlayStyle> goalsMet;
 }
 
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
@@ -147,6 +168,7 @@ class NightSim {
   NightSim(this.level, {this.tool = Tool.socks, this.tuning = const Tuning()})
     : chain = ChainRunner(level, tuning),
       goose = GooseBrain(bedX: level.bedX, tuning: tuning),
+      combo = Combo(tuning),
       _x = level.playerStart,
       _toolLeft = tool == Tool.socks ? tuning.sockCount : 1;
 
@@ -155,6 +177,9 @@ class NightSim {
   final Tuning tuning;
   final ChainRunner chain;
   final GooseBrain goose;
+
+  /// Tonight's chaos combo.
+  final Combo combo;
 
   double _x;
   double _dir = 0;
@@ -178,6 +203,9 @@ class NightSim {
   double? _caughtLeft;
   Outcome? _outcome;
   double _elapsed = 0;
+  int _lures = 0;
+  bool _seen = false;
+  bool _woke = false;
 
   double get playerX => _x;
   bool get sneaking => _sneak;
@@ -236,17 +264,63 @@ class NightSim {
   /// Seconds ticked so far; stops when the night ends.
   double get elapsed => _elapsed;
 
-  NightResult? get result => _outcome == null
-      ? null
-      : NightResult(
-          level: level,
-          outcome: _outcome!,
-          loot: carried,
-          wakeChain: _wakeChain,
-          wakeCause: goose.wakeCause,
-          time: _elapsed,
-          tool: tool,
-        );
+  /// Seconds until the current combo runs out.
+  double get comboLeft => combo.leftAt(_elapsed);
+
+  /// Times she has sleepwalked out of bed.
+  int get lures => _lures;
+
+  /// Whether she has turned suspicious, or worse, tonight.
+  bool get seen => _seen;
+
+  /// Whether she has woken up tonight.
+  bool get woke => _woke;
+
+  /// Whether tonight so far does what [goal] asks, getaway or not.
+  bool met(HeistGoal goal) => switch (goal.kind) {
+    GoalKind.neverSuspicious => !_seen,
+    GoalKind.lure => _lures >= goal.count,
+    GoalKind.chain => combo.best >= goal.count,
+  };
+
+  /// The badge: Chaos if she woke, Trickster if she was lured, else Ghost.
+  PlayStyle get style => _woke
+      ? PlayStyle.chaos
+      : _lures > 0
+      ? PlayStyle.trickster
+      : PlayStyle.ghost;
+
+  NightResult? get result {
+    final outcome = _outcome;
+    if (outcome == null) return null;
+    final escaped = outcome == Outcome.escaped;
+    final goalsMet = {
+      if (escaped)
+        for (final g in level.goals)
+          if (met(g)) g.style,
+    };
+    var score = combo.total;
+    if (escaped) {
+      for (final l in level.loot) {
+        if (_carried.contains(l.id)) score += l.guarded ? tuning.guardedLootScore : tuning.lootScore;
+      }
+      score += tuning.goalScore * goalsMet.length;
+    }
+    return NightResult(
+      level: level,
+      outcome: outcome,
+      loot: carried,
+      wakeChain: _wakeChain,
+      wakeCause: goose.wakeCause,
+      time: _elapsed,
+      tool: tool,
+      score: score,
+      bestChain: combo.best,
+      lures: _lures,
+      style: style,
+      goalsMet: goalsMet,
+    );
+  }
 
   /// The links of the chain that woke her, for the Caught recap.
   List<LinkFired> get wakeChain => _wakeChain;
@@ -480,6 +554,7 @@ class NightSim {
     chain.tick(h);
     for (final fired in chain.takeFired()) {
       (_chains[fired.chainId] ??= []).add(fired);
+      combo.link(_elapsed);
       _hear(fired.noise, link: fired);
     }
 
@@ -586,6 +661,16 @@ class NightSim {
       _wakingChain = null;
     }
     if (goose.state != _gooseSeen) {
+      switch (goose.state) {
+        case GooseState.sleepwalk:
+          _lures++;
+        case GooseState.awake:
+          _woke = true;
+          _seen = true;
+        case GooseState.suspicious || GooseState.chase || GooseState.distracted || GooseState.lostYou:
+          _seen = true;
+        case _:
+      }
       _events.add(GooseChanged(_gooseSeen, goose.state));
       _gooseSeen = goose.state;
     }

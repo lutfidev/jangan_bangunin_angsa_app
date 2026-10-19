@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -9,6 +10,25 @@ import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
+
+const _night3Goals = [
+  {'style': 'ghost', 'kind': 'neverSuspicious'},
+  {'style': 'trickster', 'kind': 'lure', 'count': 2},
+  {'style': 'chaos', 'kind': 'chain', 'count': 5},
+];
+
+/// A chimer far out of her ear zone: every ring lures her out of bed.
+Level _lureLevel() => Level.parse(minimalLevel(
+  spots: [{'id': 'a', 'x': 10}],
+  objects: [{'id': 'clock', 'type': 'chimer', 'spot': 'a'}],
+  goals: _night3Goals,
+));
+
+/// Rings the chimer and waits until she is out of bed.
+void _lure(NightSim s) {
+  s.poke('a');
+  tickUntil(s, () => s.goose.state == GooseState.sleepwalk);
+}
 
 bool _wokeUp(List<SimEvent> events) =>
     events.any((e) => e is GooseChanged && e.to == GooseState.awake);
@@ -769,6 +789,90 @@ void main() {
       walkTo(s, 260);
       expect(s.toggleClimb(), isFalse);
       expect(s.interaction, isNull);
+    });
+  });
+
+  group('heist', () {
+    test('fired links feed the combo', () {
+      final s = NightSim(Level.parse(minimalLevel(
+        spots: [{'id': 'a', 'x': 10}, {'id': 'b', 'x': 20}],
+        objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'p', 'type': 'tipper', 'spot': 'b'}],
+        links: [{'from': 'a', 'to': 'b'}],
+      )));
+      s.poke('a');
+      s.tick(1);
+      expect(s.combo.count, 2);
+      expect(s.combo.best, 2);
+      expect(s.comboLeft, closeTo(2.4, 0.05));
+    });
+
+    test('Night 3 can reach a 5-link combo', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 600);
+      s.setSneak(false);
+      // Each crossing of the loose plank sets off plank → clock.
+      walkTo(s, 650);
+      walkTo(s, 630);
+      walkTo(s, 650);
+      walkTo(s, 703);
+      expect(s.toggleHide(), isTrue);
+      tickUntil(s, () => s.combo.best >= 5, limit: 6);
+      expect(s.outcome, isNull);
+    });
+
+    test('luring counts sleepwalks', () {
+      final s = NightSim(_lureLevel());
+      _lure(s);
+      expect(s.lures, 1);
+      tickUntil(s, () => s.goose.inBed);
+      _lure(s);
+      expect(s.lures, 2);
+      expect(s.met(const HeistGoal(style: PlayStyle.trickster, kind: GoalKind.lure, count: 2)), isTrue);
+      expect(s.seen, isFalse);
+      expect(s.woke, isFalse);
+      expect(s.style, PlayStyle.trickster);
+    });
+
+    test('waking from a sleepwalk fails Ghost', () {
+      final s = NightSim(_lureLevel());
+      _lure(s);
+      tickUntil(s, () => s.goose.sniffing);
+      s.poke('a');
+      tickUntil(s, () => s.goose.isAwake);
+      expect(s.woke, isTrue);
+      expect(s.seen, isTrue);
+      expect(s.style, PlayStyle.chaos);
+      expect(s.met(const HeistGoal(style: PlayStyle.ghost, kind: GoalKind.neverSuspicious)), isFalse);
+    });
+
+    test('caught nights meet no goals', () {
+      final s = NightSim(_lureLevel());
+      _lure(s);
+      tickUntil(s, () => s.goose.inBed);
+      _lure(s);
+      tickUntil(s, () => s.goose.sniffing);
+      s.poke('a');
+      tickUntil(s, () => s.outcome != null);
+      expect(s.outcome, Outcome.caught);
+      expect(s.result!.goalsMet, isEmpty);
+      expect(s.result!.lures, 2);
+      expect(s.result!.score, s.combo.total);
+    });
+
+    test('an escape scores loot, links and goals', () {
+      final s = NightSim(Level.fromJson({
+        ...jsonDecode(minimalLevel(loot: [{'id': 'cup', 'x': 20}], goals: _night3Goals)) as Map<String, Object?>,
+        'exitX': 50,
+      }));
+      walkTo(s, 20);
+      expect(s.grab('cup'), isTrue);
+      walkTo(s, 50);
+      final r = s.result!;
+      expect(r.outcome, Outcome.escaped);
+      expect(r.goalsMet, {PlayStyle.ghost});
+      expect(r.style, PlayStyle.ghost);
+      expect(r.score, 1000 + 1000);
+      expect(r.bestChain, 0);
     });
   });
 }
