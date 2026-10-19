@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/heist.dart';
 import '../game/night_sim.dart';
 import '../routes.dart';
+import '../state/heist_log.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
@@ -11,6 +13,7 @@ import '../widgets/dashed_outline.dart';
 import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import 'heist_copy.dart';
 import 'night_art.dart';
 import 'scene.dart';
 
@@ -29,6 +32,63 @@ class VictoryScreen extends StatelessWidget {
     return 'Morning. The ${lootArt[id]!.name} is gone.';
   }
 
+  /// Under the badge: the best combo, else the lures, else nothing at all.
+  String get _styleLine {
+    if (result.bestChain >= 2) return 'Best chain ×${result.bestChain}';
+    if (result.lures > 0) return 'Lured ×${result.lures}';
+    return 'Not a peep';
+  }
+
+  /// Goals met tonight first, then the rest, each in level order.
+  List<(HeistGoal, bool)> get _goalsMetFirst => [
+    for (final g in result.level.goals)
+      if (result.goalsMet.contains(g.style)) (g, true),
+    for (final g in result.level.goals)
+      if (!result.goalsMet.contains(g.style)) (g, false),
+  ];
+
+  /// After the goals: where the next sock is.
+  String get _hint {
+    final missing = [for (final (g, met) in _goalsMetFirst) if (!met) g];
+    if (missing.isEmpty) return 'every sock tonight!';
+    final name = styleLook(missing.first.style).name;
+    return missing.length == 1 ? 'try a $name run for the last sock.' : 'try a $name run for another sock.';
+  }
+
+  /// "✓ Lured her out twice · ✓ 5+ link chain · ✗ Never seen — try a Ghost
+  /// run for the last sock." The ticks are drawn; the font has no glyph.
+  Widget _recap() {
+    final style = ui(12, weight: FontWeight.w600, color: Palette.paleBlue);
+    final goals = _goalsMetFirst;
+    final spoken = [for (final (g, met) in goals) '${met ? '✓' : '✗'} ${goalRecap(g)}'].join(' · ');
+    return Semantics(
+      label: '$spoken — $_hint',
+      child: ExcludeSemantics(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            TextSpan(
+              style: style,
+              children: [
+                for (final (i, (g, met)) in goals.indexed) ...[
+                  if (i > 0) const TextSpan(text: ' · '),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Glyph(met ? GameIcon.check : GameIcon.cross, size: 11, strokeWidth: 3.5, color: Palette.paleBlue),
+                  ),
+                  TextSpan(text: ' ${goalRecap(g)}'),
+                ],
+                TextSpan(text: goals.isEmpty ? '' : ' — $_hint'),
+              ],
+            ),
+            softWrap: false,
+          ),
+        ),
+      ),
+    );
+  }
+
   static String _clock(double seconds) {
     final s = seconds.floor();
     return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
@@ -36,6 +96,9 @@ class VictoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final look = styleLook(result.style);
+    final goals = result.level.goals;
+    final earnedBefore = HeistLog.instance.earned(result.level.id);
     return Stage(
       background: Palette.midnight,
       children: [
@@ -88,17 +151,23 @@ class VictoryScreen extends StatelessWidget {
                 spacing: 8,
                 children: [
                   _StatCard(
-                    color: Palette.lamp,
+                    color: look.color,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     children: [
-                      Text('STYLE', style: hudLabel(color: Palette.ink, size: 10, spacing: 1.4)),
-                      Text('—', style: display(19, height: 1.15)),
+                      Text('STYLE', style: hudLabel(color: look.text, size: 10, spacing: 1.4)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        // One line, or the row's intrinsic height counts it wrapped.
+                        child: Text(look.name, style: display(19, color: look.text, height: 1.15), maxLines: 1),
+                      ),
+                      Text(_styleLine, style: ui(10, weight: FontWeight.w800, color: look.text), maxLines: 1),
                     ],
                   ),
                   _StatCard(
                     children: [
                       Text('SCORE', style: hudLabel(size: 10, spacing: 1.4)),
-                      Text('—', style: display(21, color: Palette.lamp, height: 1.2)),
+                      Text(thousands(result.score), style: display(21, color: Palette.lamp, height: 1.2)),
                     ],
                   ),
                   _StatCard(
@@ -112,13 +181,17 @@ class VictoryScreen extends StatelessWidget {
                     children: [
                       Text('HEIST GOALS', style: hudLabel(size: 10, spacing: 1.4)),
                       Semantics(
-                        label: 'Heist goals not tracked yet',
-                        child: const Row(
+                        label: 'Heist goals ${result.goalsMet.length} of ${goals.length} socks',
+                        child: Row(
                           spacing: 2,
                           children: [
-                            SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
-                            SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
-                            SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
+                            // Socks met tonight in lamp; earned on an earlier run in mint.
+                            for (final g in goals)
+                              result.goalsMet.contains(g.style)
+                                  ? const SockGlyph(fill: Palette.lamp, size: 21)
+                                  : earnedBefore.contains(g.style)
+                                  ? const SockGlyph(fill: Palette.calmMint, size: 21)
+                                  : const SockGlyph(fill: Palette.slate, stroke: Color(0xFF55598F), size: 21),
                           ],
                         ),
                       ),
@@ -127,6 +200,14 @@ class VictoryScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+        at(
+          28,
+          290,
+          SizedBox(
+            width: 440,
+            child: _recap(),
           ),
         ),
         at(

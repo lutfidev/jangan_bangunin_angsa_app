@@ -1,13 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
+import 'package:jangan_bangunin_angsa_app/game/level.dart';
+import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
+import 'package:jangan_bangunin_angsa_app/theme/palette.dart';
+import 'package:jangan_bangunin_angsa_app/art/icons.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
 
+import 'game/fixtures.dart';
 import 'helpers.dart';
 
 void main() {
+  tearDown(HeistLog.instance.clear);
+
   /// Prop kinds in the "what woke her" recap, left to right.
   List<PropKind> recap(WidgetTester tester) {
     final props = find.descendant(of: find.byKey(CaughtScreen.recapKey), matching: find.byType(Prop));
@@ -64,5 +73,47 @@ void main() {
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(loot: [])));
     expect(find.text('Morning. Nothing is missing.'), findsOneWidget);
     expect(find.byType(CheckBadge), findsNothing);
+  });
+
+  testWidgets('Victory shows the style badge and score', (tester) async {
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape()));
+    expect(find.text('Trickster'), findsOneWidget);
+    expect(find.text('Best chain ×6'), findsOneWidget);
+    expect(find.text('8,450'), findsOneWidget);
+  });
+
+  testWidgets('Victory sub line without a chain', (tester) async {
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 0, lures: 0, style: PlayStyle.ghost)));
+    expect(find.text('Ghost'), findsOneWidget);
+    expect(find.text('Not a peep'), findsOneWidget);
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 1, lures: 3)));
+    expect(find.text('Lured ×3'), findsOneWidget);
+  });
+
+  testWidgets('Victory recap line', (tester) async {
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape()));
+    expect(
+      find.bySemanticsLabel('✓ Lured her out twice · ✓ 5+ link chain · ✗ Never seen — try a Ghost run for the last sock.'),
+      findsOneWidget,
+    );
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(goalsMet: PlayStyle.values.toSet())));
+    expect(find.bySemanticsLabel(RegExp('— every sock tonight!\$')), findsOneWidget);
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(goalsMet: {})));
+    expect(find.bySemanticsLabel(RegExp(r'— try a Ghost run for another sock\.$')), findsOneWidget);
+  });
+
+  testWidgets('Victory socks', (tester) async {
+    HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.ghost}));
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape()));
+    final fills = tester.widgetList<SockGlyph>(find.byType(SockGlyph)).map((s) => s.fill);
+    expect(fills, [Palette.calmMint, Palette.lamp, Palette.lamp]);
+    expect(find.bySemanticsLabel('Heist goals 2 of 3 socks'), findsOneWidget);
+  });
+
+  testWidgets('Victory with no goals', (tester) async {
+    final result = NightResult(level: Level.parse(minimalLevel()), outcome: Outcome.escaped, loot: const [], time: 5);
+    await pumpScreen(tester, VictoryScreen(result: result));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SockGlyph), findsNothing);
   });
 }
