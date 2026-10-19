@@ -117,4 +117,61 @@ void main() {
     );
     expect(() => parse([{'style': 'chaos', 'kind': 'chain', 'count': 0}]), _formatError('goal count below 1: chaos'));
   });
+
+  test('parses remix alternatives', () {
+    final level = night3();
+    expect(level.remixLoot, {'toaster': [266, 424], 'chicken': [280]});
+    expect(level.remixSpots, {'pot': ['underShelf', 'underSideTable']});
+  });
+
+  test('remix entries are optional', () {
+    final level = Level.parse(minimalLevel());
+    expect(level.remixLoot, isEmpty);
+    expect(level.remixSpots, isEmpty);
+  });
+
+  test('rejects bad remix entries', () {
+    final spots = [
+      {'id': 'a', 'x': 10},
+      {'id': 'b', 'x': 50, 'snap': true},
+      {'id': 'c', 'x': 90},
+    ];
+    final objects = [
+      {'id': 'o', 'type': 'tipper', 'spot': 'a'},
+      {'id': 'pot', 'type': 'amplifier', 'spot': 'c', 'portable': true},
+    ];
+    final loot = [
+      {'id': 'cup', 'x': 200},
+      {'id': 'egg', 'x': 400, 'guarded': true},
+      {'id': 'hat', 'x': 60, 'high': true},
+    ];
+    Level parse(Map<String, Object?> remix) => Level.parse(minimalLevel(
+      spots: spots,
+      objects: objects,
+      loot: loot,
+      crawlway: {'from': 40, 'to': 80},
+      remix: remix,
+    ));
+    expect(() => parse({'loot': {'mug': [5]}}), _formatError('remix names unknown loot: mug'));
+    expect(() => parse({'loot': {'egg': [300]}}), _formatError('remix moves the guarded loot: egg'));
+    expect(() => parse({'loot': {'hat': [100]}}), _formatError('high loot off the crawlway: hat'));
+    expect(() => parse({'objects': {'o': ['b']}}), _formatError('remix moves a fixed object: o'));
+    expect(() => parse({'objects': {'ghost': ['b']}}), _formatError('remix names unknown object: ghost'));
+    expect(() => parse({'objects': {'pot': ['a']}}), _formatError('remix spot is not a snap spot: a'));
+    expect(() => parse({'objects': {'pot': ['zzz']}}), _formatError('remix names an unknown spot: zzz'));
+    expect(parse({'loot': {'cup': [300], 'hat': [70]}, 'objects': {'pot': ['b']}}).remixLoot['cup'], [300]);
+  });
+
+  test('rearranged moves loot and objects', () {
+    final level = night3();
+    final moved = level.rearranged(lootX: {'toaster': 424}, objectSpots: {'pot': 'underShelf'});
+    expect(moved.loot.firstWhere((l) => l.id == 'toaster').x, 424);
+    expect(moved.objects.firstWhere((o) => o.id == 'pot').spot, 'underShelf');
+    expect(moved.loot.firstWhere((l) => l.id == 'chicken').x, 353);
+    expect(moved.objects.firstWhere((o) => o.id == 'glass').spot, 'counterLeft');
+    expect(moved.id, level.id);
+    expect(moved.goals, level.goals);
+    expect(level.loot.firstWhere((l) => l.id == 'toaster').x, 218);
+    expect(level.objects.firstWhere((o) => o.id == 'pot').spot, 'counterPot');
+  });
 }

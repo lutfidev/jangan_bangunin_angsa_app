@@ -77,6 +77,8 @@ class Level {
     required this.links,
     required this.loot,
     required this.goals,
+    required this.remixLoot,
+    required this.remixSpots,
   });
 
   factory Level.fromJson(Map<String, Object?> json) {
@@ -156,6 +158,31 @@ class Level {
       goals.add(HeistGoal(style: style, kind: kind, count: count));
     }
 
+    final remix = json['remix'] as Map<String, Object?>? ?? const {};
+    final remixLoot = <String, List<double>>{};
+    for (final MapEntry(key: lootId, value: xs) in (remix['loot'] as Map<String, Object?>? ?? const {}).entries) {
+      final item = loot.where((l) => l.id == lootId).firstOrNull ??
+          (throw FormatException('remix names unknown loot: $lootId'));
+      if (item.guarded) throw FormatException('remix moves the guarded loot: $lootId');
+      final alternatives = [for (final x in xs as List) (x as num).toDouble()];
+      if (item.high && !alternatives.every((x) => crawlway?.covers(x) ?? false)) {
+        throw FormatException('high loot off the crawlway: $lootId');
+      }
+      remixLoot[lootId] = alternatives;
+    }
+    final remixSpots = <String, List<String>>{};
+    for (final MapEntry(key: objectId, value: ids) in (remix['objects'] as Map<String, Object?>? ?? const {}).entries) {
+      final object = objects.where((o) => o.id == objectId).firstOrNull ??
+          (throw FormatException('remix names unknown object: $objectId'));
+      if (!object.portable) throw FormatException('remix moves a fixed object: $objectId');
+      final alternatives = [for (final id in ids as List) id as String];
+      for (final spotId in alternatives) {
+        checkSpot(spotId, 'remix');
+        if (!spots[spotId]!.snap) throw FormatException('remix spot is not a snap spot: $spotId');
+      }
+      remixSpots[objectId] = alternatives;
+    }
+
     return Level._(
       id: id,
       name: _str(json, 'name'),
@@ -169,6 +196,8 @@ class Level {
       links: links,
       loot: loot,
       goals: goals,
+      remixLoot: remixLoot,
+      remixSpots: remixSpots,
     );
   }
 
@@ -188,6 +217,41 @@ class Level {
 
   /// The night's heist goals, one per style.
   final List<HeistGoal> goals;
+
+  /// Nightly Remix: the other x each loot may start at, in file order.
+  final Map<String, List<double>> remixLoot;
+
+  /// Nightly Remix: the other snap spots each portable object may start on.
+  final Map<String, List<String>> remixSpots;
+
+  /// This house with loot moved to [lootX] and objects started on
+  /// [objectSpots], keyed by id. The caller keeps them on valid spots.
+  Level rearranged({Map<String, double> lootX = const {}, Map<String, String> objectSpots = const {}}) => Level._(
+    id: id,
+    name: name,
+    playerStart: playerStart,
+    exitX: exitX,
+    bedX: bedX,
+    hideSpots: hideSpots,
+    crawlway: crawlway,
+    spots: spots,
+    objects: [
+      for (final o in objects)
+        objectSpots.containsKey(o.id)
+            ? LevelObject(id: o.id, type: o.type, spot: objectSpots[o.id]!, portable: o.portable)
+            : o,
+    ],
+    links: links,
+    loot: [
+      for (final l in loot)
+        lootX.containsKey(l.id)
+            ? Loot(id: l.id, x: lootX[l.id]!, guarded: l.guarded, squeaks: l.squeaks, high: l.high)
+            : l,
+    ],
+    goals: goals,
+    remixLoot: remixLoot,
+    remixSpots: remixSpots,
+  );
 
   /// Links out of [spotId] in file order, which is poke priority.
   List<Link> linksFrom(String spotId) => [for (final k in links) if (k.from == spotId) k];

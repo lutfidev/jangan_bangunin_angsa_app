@@ -40,5 +40,9 @@
     {"style": "ghost", "kind": "neverSuspicious"},
     {"style": "trickster", "kind": "lure", "count": 2},
     {"style": "chaos", "kind": "chain", "count": 5}
-  ]
+  ],
+  "remix": {
+    "loot": {"toaster": [266, 424], "chicken": [280]},
+    "objects": {"pot": ["underShelf", "underSideTable"]}
+  }
 }
