@@ -35,5 +35,10 @@
     {"id": "toaster", "x": 218},
     {"id": "chicken", "x": 353, "squeaks": true, "high": true},
     {"id": "egg", "x": 561, "guarded": true}
+  ],
+  "goals": [
+    {"style": "ghost", "kind": "neverSuspicious"},
+    {"style": "trickster", "kind": "lure", "count": 2},
+    {"style": "chaos", "kind": "chain", "count": 5}
   ]
 }
