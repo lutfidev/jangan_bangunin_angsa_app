@@ -230,4 +230,20 @@ void main() {
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_place');
   });
+
+  testWidgets('gameplay_combo', (tester) async {
+    // Over the loose plank and back three times, then into the coat rack:
+    // plank, clock, plank, clock... one combo.
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 600);
+    sim.setSneak(false);
+    walkTo(sim, 650);
+    walkTo(sim, 630);
+    walkTo(sim, 650);
+    walkTo(sim, 703);
+    sim.toggleHide();
+    tickUntil(sim, () => sim.combo.count >= 4);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_combo');
+  });
 }
