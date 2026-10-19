@@ -226,7 +226,7 @@ class VictoryScreen extends StatelessWidget {
             spacing: 12,
             children: [
               ChunkyButton.secondary(
-                onPressed: () => Routes.restartNight(context, result.tool),
+                onPressed: () => Routes.restartNight(context, result.setup),
                 label: 'Replay',
                 icon: GameIcon.retry,
                 iconStroke: 2.8,

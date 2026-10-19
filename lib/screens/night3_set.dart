@@ -74,9 +74,9 @@ Widget night3Rug() => box(410, 258, 190, 22, Palette.rug, border: 3, oval: true)
 /// Her nest, drawn in front of her and the egg.
 Widget night3Nest() => at(424, 234, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
 
-/// The sparkle that marks the rubber chicken on top of the shelf.
-Widget chickenSparkle() => at(
-  368,
+/// The sparkle that marks the rubber chicken, standing at [x] up high.
+Widget chickenSparkle(double x) => at(
+  x + 15,
   62,
   const InlineSvg(
     '<path d="M10 1 L12 8 L19 10 L12 12 L10 19 L8 12 L1 10 L8 8 Z" fill="#FFC14D" stroke="#1C1A2B" stroke-width="2" stroke-linejoin="round"/>',
@@ -130,12 +130,12 @@ List<Widget> coatRack() => [
 Widget hideTag(Offset at_) => at(
   at_.dx,
   at_.dy,
-  Pill(
+  Unmirror(child: Pill(
     'HIDE',
     radius: 6,
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
     textStyle: ui(10, weight: FontWeight.w800),
-  ),
+  )),
 );
 
 /// Milo tucked into the hide spot at [x]: only his masked eyes show. The

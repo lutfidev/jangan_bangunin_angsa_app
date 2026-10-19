@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../art/art.dart';
 import '../art/icons.dart';
 import '../game/heist.dart';
+import '../game/modifiers.dart';
 import '../game/tools.dart';
 import '../routes.dart';
 import '../state/heist_log.dart';
@@ -196,7 +197,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
             child: ChunkyButton.primary(
               onPressed: selected.locked
                   ? null
-                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: selected.tool),
+                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: NightSetup(tool: selected.tool)),
               label: 'Sneak in',
               trailingIcon: GameIcon.arrow,
               iconSize: 18,

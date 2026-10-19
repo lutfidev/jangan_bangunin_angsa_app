@@ -10,6 +10,29 @@ import '../theme/type.dart';
 /// Shared set pieces for the house: walls, furniture, floor line and the
 /// touch-control band beneath it.
 
+/// Mirror Night: whether the room around this widget is drawn flipped.
+class MirrorScope extends InheritedWidget {
+  const MirrorScope({super.key, required this.mirrored, required super.child});
+
+  final bool mirrored;
+
+  static bool of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<MirrorScope>()?.mirrored ?? false;
+
+  @override
+  bool updateShouldNotify(MirrorScope oldWidget) => oldWidget.mirrored != mirrored;
+}
+
+/// Words in a flipped room: flips [child] back about its own centre, so it
+/// still reads left to right where the room put it.
+class Unmirror extends StatelessWidget {
+  const Unmirror({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => MirrorScope.of(context) ? Transform.flip(flipX: true, child: child) : child;
+}
+
 /// Inline SVG markup, clipped to its box like an HTML `<svg>`.
 class InlineSvg extends StatelessWidget {
   const InlineSvg(this.body, {super.key, required this.width, required this.height});
@@ -154,7 +177,8 @@ class ExitSign extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 4,
         children: [
-          Text('EXIT', style: ui(12, weight: FontWeight.w800, letterSpacing: 1, height: 1)),
+          // In a mirrored room the arrow turns to the door; the word still reads.
+          Unmirror(child: Text('EXIT', style: ui(12, weight: FontWeight.w800, letterSpacing: 1, height: 1))),
           const Glyph(GameIcon.arrow, size: 12, strokeWidth: 3.5),
         ],
       ),

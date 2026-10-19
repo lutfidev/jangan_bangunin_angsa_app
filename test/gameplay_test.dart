@@ -6,14 +6,17 @@ import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
+import 'package:jangan_bangunin_angsa_app/game/remix.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
+import 'package:jangan_bangunin_angsa_app/screens/night_art.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
 import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
+import 'package:jangan_bangunin_angsa_app/main.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/joystick.dart';
@@ -529,6 +532,102 @@ void main() {
       await play(tester, 6);
       expect(find.byKey(GameplayScreen.comboKey), findsNothing);
       expect(find.byType(AlertMeter), findsOneWidget);
+    });
+  });
+
+  group('night setup', () {
+    Finder inScene(Finder f) => find.descendant(of: find.byKey(GameplayScreen.sceneKey), matching: f);
+
+    /// Every line of text in the room reads left to right.
+    void expectReadable(WidgetTester tester) {
+      final texts = inScene(find.byType(RichText));
+      expect(texts, findsWidgets);
+      for (final e in texts.evaluate()) {
+        final scaleX = e.renderObject!.getTransformTo(null).storage[0];
+        expect(scaleX, greaterThan(0), reason: (e.widget as RichText).text.toPlainText());
+      }
+    }
+
+    testWidgets('a remixed night draws loot where the level put it', (tester) async {
+      await pumpGameplay(tester, NightSim(Levels.night3.rearranged(lootX: {'toaster': 735})));
+      expect(tester.getTopLeft(inScene(_prop(PropKind.toaster))).dx, 735 - 32);
+    });
+
+    testWidgets('mirror draws the house flipped', (tester) async {
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(mirror: true)));
+      expect(tester.getCenter(find.byType(Burglar)).dx, closeTo(844 - sim.playerX, 1));
+      expect(tester.getCenter(find.text('EXIT')).dx, lessThan(100));
+    });
+
+    testWidgets('mirror: joystick right walks Milo right on screen', (tester) async {
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(mirror: true)));
+      final start = sim.playerX;
+      final before = tester.getTopLeft(find.byType(Burglar)).dx;
+      final g = await tester.startGesture(tester.getCenter(find.byType(Joystick)));
+      await g.moveBy(const Offset(30, 0));
+      await play(tester, 0.5);
+      expect(sim.playerX, lessThan(start));
+      expect(tester.getTopLeft(find.byType(Burglar)).dx, greaterThan(before));
+      await g.up();
+    });
+
+    testWidgets('mirror: a sock lands the way you drag', (tester) async {
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(mirror: true)));
+      final g = await tester.startGesture(tester.getCenter(find.byType(ToolButton)));
+      await g.moveBy(const Offset(40, 0));
+      await play(tester, 0.05);
+      await g.up();
+      await play(tester, 0.05);
+      expect(sim.flights.single.toX, closeTo(sim.playerX - 160, 1));
+    });
+
+    testWidgets('mirror keeps every word readable', (tester) async {
+      final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.kazoo, mirror: true));
+      await pumpGameplay(tester, sim);
+      expectReadable(tester); // EXIT, snores
+      sim.poke('shelfBooks');
+      await play(tester, 0.2);
+      expectReadable(tester); // SFX word, link badge
+      sim.useTool();
+      await play(tester, 0.1);
+      expect(find.text('HONK!'), findsWidgets); // outline and fill
+      expectReadable(tester);
+      await play(tester, 0.6);
+      expectReadable(tester); // mid-chase
+    });
+
+    testWidgets('pause and restart keep the setup', (tester) async {
+      const setup = NightSetup(tool: Tool.mouse, lightSleeper: true, remixSeed: 20261019);
+      await pumpGameplay(tester, NightSim(remixed(Levels.night3, 20261019), setup: setup));
+      await _tapPause(tester);
+      await play(tester, 0.3);
+      await tester.tap(find.text('Restart night'));
+      await play(tester, 0.3);
+      final screen = tester.widget<GameplayScreen>(find.byType(GameplayScreen));
+      expect(screen.setup, setup);
+    });
+
+    testWidgets('retry replays the same remix', (tester) async {
+      const seed = 20261019;
+      final level = remixed(Levels.night3, seed);
+      useStageSurface(tester);
+      await tester.pumpWidget(MaterialApp(
+        onGenerateRoute: MainApp.route,
+        home: CaughtScreen(result: NightResult(
+          level: level,
+          outcome: Outcome.caught,
+          loot: const [],
+          time: 3,
+          setup: const NightSetup(remixSeed: seed),
+        )),
+      ));
+      await tester.pump();
+      await tester.tap(find.text('Retry'));
+      await play(tester, 0.3);
+      for (final loot in level.loot.where((l) => !l.guarded)) {
+        final kind = lootArt[loot.id]!.kind;
+        expect(tester.getTopLeft(inScene(_prop(kind))).dx, lootBox(loot).left, reason: loot.id);
+      }
     });
   });
 }

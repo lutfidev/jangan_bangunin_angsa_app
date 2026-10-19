@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'game/night_sim.dart';
-import 'game/tools.dart';
+import 'game/modifiers.dart';
 import 'routes.dart';
 import 'screens/briefing_screen.dart';
 import 'screens/caught_screen.dart';
@@ -50,10 +50,10 @@ class MainApp extends StatelessWidget {
   static final Map<String, Widget Function(Object? arguments)> _screens = {
     Routes.menu: (_) => const MainMenuScreen(),
     Routes.briefing: (_) => const BriefingScreen(),
-    Routes.gameplay: (tool) => GameplayScreen(tool: tool as Tool? ?? Tool.socks),
+    Routes.gameplay: (setup) => GameplayScreen(setup: setup as NightSetup? ?? const NightSetup()),
     Routes.planView: (_) => const PlanViewScreen(),
     Routes.chaosEscape: (_) => const ChaosEscapeScreen(),
-    Routes.pause: (tool) => PauseScreen(tool: tool as Tool? ?? Tool.socks),
+    Routes.pause: (setup) => PauseScreen(setup: setup as NightSetup? ?? const NightSetup()),
     Routes.settings: (_) => const SettingsScreen(),
     Routes.victory: (result) => VictoryScreen(result: result! as NightResult),
     Routes.caught: (result) => CaughtScreen(result: result! as NightResult),

@@ -100,7 +100,7 @@ Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
   await tester.pumpWidget(
     MaterialApp(
       onGenerateRoute: MainApp.route,
-      home: GameplayScreen(tool: s.tool, sim: s),
+      home: GameplayScreen(setup: s.setup, sim: s),
     ),
   );
   await tester.pump();

@@ -54,7 +54,21 @@ void main() {
 
   test('every loot has art centred on its x', () {
     for (final loot in Levels.night3.loot) {
-      expect(lootArt[loot.id]?.box.centerX, loot.x, reason: loot.id);
+      expect(lootBox(loot).centerX, loot.x, reason: loot.id);
+    }
+  });
+
+  test('every remix spot has art', () {
+    final level = Levels.night3;
+    for (final loot in level.loot) {
+      for (final x in [loot.x, ...?level.remixLoot[loot.id]]) {
+        expect(lootTops[loot.id]?[x], isNotNull, reason: '${loot.id} at $x');
+      }
+    }
+    for (final MapEntry(key: id, value: spots) in level.remixSpots.entries) {
+      for (final spotId in spots) {
+        expect(snapAnchors[spotId], isNotNull, reason: '$id on $spotId');
+      }
     }
   });
 

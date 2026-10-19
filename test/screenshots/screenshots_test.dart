@@ -80,6 +80,29 @@ void main() {
     await snap(tester, 'gameplay');
   });
 
+  testWidgets('gameplay_mirror', (tester) async {
+    // Mirror Night with a chain going, so its words show too.
+    final sim = NightSim(Levels.night3, setup: const NightSetup(mirror: true));
+    walkTo(sim, 62);
+    sim.poke('counterLeft');
+    await pumpGameplay(tester, sim);
+    await play(tester, 0.5);
+    await snap(tester, 'gameplay_mirror');
+  });
+
+  testWidgets('gameplay_remix', (tester) async {
+    // Toaster in the hall, chicken at the plank's left end, pot under the shelf.
+    final level = Levels.night3.rearranged(lootX: {'toaster': 735, 'chicken': 280}, objectSpots: {'pot': 'underShelf'});
+    await pumpGameplay(tester, NightSim(level));
+    await snap(tester, 'gameplay_remix');
+  });
+
+  testWidgets('gameplay_remix_kitchen', (tester) async {
+    final level = Levels.night3.rearranged(lootX: {'toaster': 60}, objectSpots: {'pot': 'underSideTable'});
+    await pumpGameplay(tester, NightSim(level));
+    await snap(tester, 'gameplay_remix_kitchen');
+  });
+
   testWidgets('gameplay_chain', (tester) async {
     final sim = NightSim(Levels.night3);
     walkTo(sim, 62);

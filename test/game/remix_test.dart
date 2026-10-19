@@ -46,7 +46,7 @@ void main() {
       chicken.add(loot['chicken']! as double);
       pot.add(objects['pot']! as String);
     }
-    expect(toaster, {218, 266, 424});
+    expect(toaster, {218, 60, 735});
     expect(chicken, {353, 280});
     expect(pot, {'counterPot', 'underShelf', 'underSideTable'});
   });

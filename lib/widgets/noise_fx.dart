@@ -154,7 +154,9 @@ class FxLayer extends StatelessWidget {
               b.at.dy - 52,
               Opacity(
                 opacity: b.opacity,
-                child: LinkBadge(b.link, color: linkColor(b.link), textColor: linkTextColor(b.link), size: 24),
+                child: Unmirror(
+                  child: LinkBadge(b.link, color: linkColor(b.link), textColor: linkTextColor(b.link), size: 24),
+                ),
               ),
             ),
           for (final w in fx.words)
@@ -163,9 +165,11 @@ class FxLayer extends StatelessWidget {
               w.at.dy - 80,
               Opacity(
                 opacity: w.opacity,
-                child: Transform.rotate(
-                  angle: deg(-6),
-                  child: OutlinedText(w.text, style: display(18, color: w.color, height: 1), stroke: 2),
+                child: Unmirror(
+                  child: Transform.rotate(
+                    angle: deg(-6),
+                    child: OutlinedText(w.text, style: display(18, color: w.color, height: 1), stroke: 2),
+                  ),
                 ),
               ),
             ),

@@ -42,7 +42,7 @@
     {"style": "chaos", "kind": "chain", "count": 5}
   ],
   "remix": {
-    "loot": {"toaster": [266, 424], "chicken": [280]},
+    "loot": {"toaster": [60, 735], "chicken": [280]},
     "objects": {"pot": ["underShelf", "underSideTable"]}
   }
 }

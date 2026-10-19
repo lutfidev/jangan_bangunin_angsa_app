@@ -119,7 +119,7 @@ void main() {
   group('the picked tool', () {
     Finder tile(String name) => find.byWidgetPredicate((w) => w is ChunkyButton && w.semanticLabel == name);
     Finder button(String label) => find.ancestor(of: find.text(label), matching: find.byType(ChunkyButton)).first;
-    Finder gameplayWith(Tool tool) => find.byWidgetPredicate((w) => w is GameplayScreen && w.tool == tool);
+    Finder gameplayWith(Tool tool) => find.byWidgetPredicate((w) => w is GameplayScreen && w.setup.tool == tool);
 
     Future<void> pumpOnRoutes(WidgetTester tester, Widget home) async {
       useStageSurface(tester);
