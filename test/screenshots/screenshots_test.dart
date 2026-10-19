@@ -246,6 +246,31 @@ void main() {
     await snap(tester, 'gameplay_crawl');
   });
 
+  testWidgets('gameplay_counter', (tester) async {
+    // New · Jump & climb: on the counter under the plank, both arrows lit.
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    climbTo(sim, 'counter');
+    walkTo(sim, 262);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_counter');
+  });
+
+  testWidgets('gameplay_jump', (tester) async {
+    // Top of a jump on the open floor.
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 500);
+    sim.jump();
+    tickUntil(sim, () => sim.playerY < 270, limit: 1);
+    var top = sim.playerY;
+    while (true) {
+      sim.tick(frame);
+      if (sim.playerY >= top) break;
+      top = sim.playerY;
+    }
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_jump');
+  });
+
   testWidgets('gameplay_cabinet', (tester) async {
     final sim = NightSim(Levels.night3)..setSneak(true);
     walkTo(sim, 148);
