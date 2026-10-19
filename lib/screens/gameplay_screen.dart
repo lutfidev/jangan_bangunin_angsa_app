@@ -571,7 +571,17 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           ),
 
           // Touch controls.
-          at(0, 286, Joystick(onChanged: (dir) => _sim.setMove(_mirror ? -dir : dir))),
+          at(
+            0,
+            286,
+            Joystick(
+              onChanged: (x, y) => _sim
+                ..setMove(_mirror ? -x : x)
+                ..setVertical(y),
+              hintUp: _sim.canMantle,
+              hintDown: _sim.canDrop,
+            ),
+          ),
           if (_aimDx != null) aimHint(),
           at(
             596,
