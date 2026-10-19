@@ -170,7 +170,9 @@ class NightSim {
       goose = GooseBrain(bedX: level.bedX, tuning: tuning),
       combo = Combo(tuning),
       _x = level.playerStart,
-      _toolLeft = tool == Tool.socks ? tuning.sockCount : 1;
+      _toolLeft = tool == Tool.socks ? tuning.sockCount : 1 {
+    _gooseSeen = goose.state;
+  }
 
   final Level level;
   final Tool tool;
@@ -197,7 +199,9 @@ class NightSim {
   final Map<int, List<LinkFired>> _chains = {};
   List<LinkFired> _wakeChain = const [];
   List<LinkFired>? _wakingChain;
-  late GooseState _gooseSeen = goose.state;
+  /// Her state as last reported; set at the start, not on first read, so
+  /// a change before the first report still counts.
+  late GooseState _gooseSeen;
   double _footClock = 0;
   double _squeakClock = 0;
   double? _caughtLeft;

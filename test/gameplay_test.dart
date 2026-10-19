@@ -4,6 +4,7 @@ import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
@@ -437,6 +438,57 @@ void main() {
           .widgetList(find.byWidgetPredicate((w) => w is Burglar || (w is Prop && w.kind == PropKind.chicken && w.size == 46)))
           .toList();
       expect(order.indexWhere((w) => w is Prop), greaterThan(order.indexWhere((w) => w is Burglar)));
+    });
+  });
+
+  group('heist HUD', () {
+    void earn(Set<PlayStyle> styles) => HeistLog.instance.record(sampleEscape(goalsMet: styles));
+
+    testWidgets('the GOAL pill starts on Ghost', (tester) async {
+      await pumpGameplay(tester);
+      expect(find.text('Never let her turn suspicious'), findsOneWidget);
+    });
+
+    testWidgets('the GOAL pill skips earned goals', (tester) async {
+      earn({PlayStyle.ghost});
+      await pumpGameplay(tester);
+      expect(find.text('Lure her out of bed · 0/2'), findsOneWidget);
+    });
+
+    testWidgets('the GOAL pill skips a failed Ghost', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.goose
+        ..hear(const Noise(x: 480, loudness: 1))
+        ..hear(const Noise(x: 480, loudness: 1));
+      sim.tick(frame);
+      expect(sim.seen, isTrue);
+      await pumpGameplay(tester, sim);
+      expect(find.text('Lure her out of bed · 0/2'), findsOneWidget);
+    });
+
+    testWidgets('with every sock earned the pill points at the exit', (tester) async {
+      earn(PlayStyle.values.toSet());
+      await pumpGameplay(tester);
+      expect(find.text('Make it to the exit'), findsOneWidget);
+    });
+
+    testWidgets('a combo shows the banner in place of the meter', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 600);
+      sim.setSneak(false);
+      walkTo(sim, 650);
+      walkTo(sim, 630);
+      walkTo(sim, 703);
+      sim.toggleHide();
+      tickUntil(sim, () => sim.combo.count >= 2);
+      await pumpGameplay(tester, sim);
+      // The outlined text draws its words more than once.
+      expect(find.descendant(of: find.byKey(GameplayScreen.comboKey), matching: find.text('CHAIN ×${sim.combo.count}!')), findsWidgets);
+      expect(find.descendant(of: find.byKey(GameplayScreen.comboKey), matching: find.textContaining('CHAOS COMBO +')), findsOneWidget);
+      expect(find.byType(AlertMeter), findsNothing);
+      await play(tester, 6);
+      expect(find.byKey(GameplayScreen.comboKey), findsNothing);
+      expect(find.byType(AlertMeter), findsOneWidget);
     });
   });
 }

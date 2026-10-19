@@ -42,13 +42,19 @@ NightSim _wokenByTheEgg() {
 }
 
 void main() {
-  // The briefing board shows the Trickster sock already earned.
-  setUp(() => HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.trickster})));
+  // The HUD board's GOAL pill is the lure goal, so Ghost is already earned.
+  setUp(() => HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.ghost})));
   tearDown(HeistLog.instance.clear);
 
   final screens = <String, Widget Function()>{
     'menu': () => const MainMenuScreen(),
-    'briefing': () => const BriefingScreen(),
+    'briefing': () {
+      // The briefing board has only the Trickster sock.
+      HeistLog.instance
+        ..clear()
+        ..record(sampleEscape(goalsMet: {PlayStyle.trickster}));
+      return const BriefingScreen();
+    },
     'plan_view': () => const PlanViewScreen(),
     'chaos_escape': () => const ChaosEscapeScreen(),
     'pause': () => const PauseScreen(),

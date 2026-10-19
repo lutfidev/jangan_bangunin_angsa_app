@@ -793,6 +793,16 @@ void main() {
   });
 
   group('heist', () {
+    test('the first stir of the night counts as seen', () {
+      final s = NightSim(night3());
+      s.goose
+        ..hear(const Noise(x: 480, loudness: 1))
+        ..hear(const Noise(x: 480, loudness: 1));
+      s.tick(frame);
+      expect(s.seen, isTrue);
+      expect(s.takeEvents().whereType<GooseChanged>().single.to, GooseState.suspicious);
+    });
+
     test('fired links feed the combo', () {
       final s = NightSim(Level.parse(minimalLevel(
         spots: [{'id': 'a', 'x': 10}, {'id': 'b', 'x': 20}],

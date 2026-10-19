@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../art/art.dart';
 import '../art/icons.dart';
 import '../game/goose_brain.dart';
+import '../game/heist.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
 import '../game/tools.dart';
@@ -25,6 +26,7 @@ import '../widgets/noise_fx.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
 import '../widgets/tool_button.dart';
+import 'heist_copy.dart';
 import 'night3_set.dart';
 import 'night_art.dart';
 import 'scene.dart';
@@ -52,6 +54,9 @@ class GameplayScreen extends StatefulWidget {
 
   /// The speed lines behind her while she runs.
   static const speedLinesKey = Key('gameplay-speed-lines');
+
+  /// The CHAIN ×N! banner of a live chaos combo.
+  static const comboKey = Key('gameplay-combo');
 
   @override
   State<GameplayScreen> createState() => _GameplayScreenState();
@@ -511,14 +516,18 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               ),
             ),
           ),
-          at(292, 14, AlertMeter(value: goose.meter.value)),
+          // A live combo takes the meter's place, as on the Chaos escape board.
+          if (_sim.combo.count >= 2 && _sim.comboLeft > 0)
+            at(290, 10, _comboBanner())
+          else
+            at(292, 14, AlertMeter(value: goose.meter.value)),
           if (chasing) at(600, 18, _ChasePill(left: goose.chaseLeft / _sim.tuning.chaseTime)),
           at(782, 12, RoundIconButton(onPressed: _pause, semanticLabel: 'Pause', child: const PauseBars())),
           at(
             14,
             70,
             Pill(
-              'Lure her out of bed · 0/2',
+              _goal(level),
               color: Palette.night,
               borderColor: Palette.slate,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -554,6 +563,42 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           ),
           at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
           at(742, 294, _interactButton(interaction)),
+        ],
+      ),
+    );
+  }
+
+  /// The GOAL pill: the first goal not yet earned, done or failed tonight.
+  /// Ghost is never done before the getaway, only failed.
+  String _goal(Level level) {
+    final earned = HeistLog.instance.earned(level.id);
+    for (final g in level.goals) {
+      final over = g.kind == GoalKind.neverSuspicious ? _sim.seen : _sim.met(g);
+      if (earned.contains(g.style) || over) continue;
+      return goalPill(g, _sim);
+    }
+    return 'Make it to the exit';
+  }
+
+  Widget _comboBanner() {
+    final combo = _sim.combo;
+    return Opacity(
+      // Fades out over the last 0.4s of the combo window, like the other effects.
+      opacity: math.min(1, _sim.comboLeft / 0.4),
+      child: Column(
+        key: GameplayScreen.comboKey,
+        children: [
+          Transform.rotate(
+            angle: deg(-3),
+            child: OutlinedText('CHAIN ×${combo.count}!', style: display(34, color: Palette.lamp, height: 1), drop: 4),
+          ),
+          const SizedBox(height: 6),
+          Pill(
+            'CHAOS COMBO +${thousands(combo.points)}',
+            color: Palette.alarmTomato,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            textStyle: ui(11, weight: FontWeight.w800, color: Palette.gooseWhite, letterSpacing: 1),
+          ),
         ],
       ),
     );
