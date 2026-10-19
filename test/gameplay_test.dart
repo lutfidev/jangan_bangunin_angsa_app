@@ -123,6 +123,7 @@ void main() {
 
   testWidgets('an escape records its socks', (tester) async {
     final sim = NightSim(Levels.night3)..setSneak(true);
+    sim.interact(); // the toaster: no sock without loot
     walkTo(sim, 768);
     sim.setMove(1);
     await pumpGameplay(tester, sim);

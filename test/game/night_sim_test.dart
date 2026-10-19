@@ -885,6 +885,14 @@ void main() {
       expect(s.result!.score, s.combo.total);
     });
 
+    test('walking out empty-handed meets no goals', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 770);
+      expect(s.outcome, Outcome.escaped);
+      expect(s.result!.goalsMet, isEmpty);
+      expect(s.result!.score, 0);
+    });
+
     test('an escape scores loot, links and goals', () {
       final s = NightSim(Level.fromJson({
         ...jsonDecode(minimalLevel(loot: [{'id': 'cup', 'x': 20}], goals: _night3Goals)) as Map<String, Object?>,

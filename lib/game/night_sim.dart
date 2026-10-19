@@ -158,7 +158,7 @@ class NightResult {
   /// The badge: how the night went.
   final PlayStyle style;
 
-  /// Heist goals met; only a getaway meets any.
+  /// Heist goals met; only a getaway with loot meets any.
   final Set<PlayStyle> goalsMet;
 }
 
@@ -298,8 +298,9 @@ class NightSim {
     final outcome = _outcome;
     if (outcome == null) return null;
     final escaped = outcome == Outcome.escaped;
+    // A heist needs a haul: walking out empty-handed earns no sock.
     final goalsMet = {
-      if (escaped)
+      if (escaped && _carried.isNotEmpty)
         for (final g in level.goals)
           if (met(g)) g.style,
     };
