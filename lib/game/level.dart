@@ -1,18 +1,20 @@
 import 'dart:convert';
 
+import 'geom.dart';
 import 'heist.dart';
 
 /// The six object types of the chain kit (Gameplay 2.0 board).
 enum ObjectType { tipper, amplifier, walker, roller, chimer, squeaker }
 
-/// A place on the floor line an object can sit. Snap spots glow and take
-/// portable objects.
+/// A place an object can sit. Snap spots glow and take portable objects.
 class Spot {
-  const Spot({required this.id, required this.x, this.snap = false});
+  const Spot({required this.id, required this.at, this.snap = false});
 
   final String id;
-  final double x;
+  final Vec at;
   final bool snap;
+
+  double get x => at.x;
 }
 
 class LevelObject {
@@ -35,8 +37,8 @@ class Link {
   final double delay;
 }
 
-/// A plank above the floor line, from [from] to [to]. The burglar gets on
-/// and off at either end.
+/// The crawl top's walkable stretch, as the 1-D sim knew it.
+// TODO(langkah 7): transitional, removed once NightSim runs on Body.
 class Crawlway {
   const Crawlway({required this.from, required this.to});
 
@@ -47,10 +49,13 @@ class Crawlway {
 }
 
 class Loot {
-  const Loot({required this.id, required this.x, this.guarded = false, this.squeaks = false, this.high = false});
+  const Loot({required this.id, required this.at, this.guarded = false, this.squeaks = false, this.high = false});
 
   final String id;
-  final double x;
+  final Vec at;
+
+  double get x => at.x;
+  double get y => at.y;
 
   /// The one loot per night she sleeps on.
   final bool guarded;
@@ -58,7 +63,8 @@ class Loot {
   /// Squeaks when carried at a walk.
   final bool squeaks;
 
-  /// Sits up on the crawlway: only reachable from there.
+  /// Sits on a crawl top.
+  // TODO(langkah 7): transitional, removed once NightSim runs on Body.
   final bool high;
 }
 
@@ -67,9 +73,11 @@ class Level {
   Level._({
     required this.id,
     required this.name,
+    required this.floorY,
+    required this.geometry,
     required this.playerStart,
-    required this.exitX,
-    required this.bedX,
+    required this.exit,
+    required this.bed,
     required this.hideSpots,
     required this.crawlway,
     required this.spots,
@@ -82,9 +90,46 @@ class Level {
   });
 
   factory Level.fromJson(Map<String, Object?> json) {
+    final id = _str(json, 'id');
+    if (json['version'] != 2) throw FormatException('version must be 2: $id');
+    final floorY = _num(json, 'floorY');
+
+    final solids = [
+      for (final s in _list(json, 'solids'))
+        Solid(_box(s, id), _surface(s)),
+      // The world's walls and ceiling.
+      Solid(Box.ltwh(-100, -400, 100, 790), Surface.wood),
+      Solid(Box.ltwh(_worldWidth, -400, 100, 790), Surface.wood),
+      Solid(Box.ltwh(0, -100, _worldWidth, 100), Surface.wood),
+    ];
+    final platforms = <Platform>[];
+    for (final p in _list(json, 'platforms')) {
+      final pid = _str(p, 'id');
+      final [from, to] = [for (final x in p['x'] as List) (x as num).toDouble()];
+      if (from >= to) throw FormatException('platform runs backwards: $pid');
+      platforms.add(Platform(
+        id: pid,
+        from: from,
+        to: to,
+        y: _num(p, 'y'),
+        surface: _surface(p),
+        crawl: p['crawl'] as bool? ?? false,
+      ));
+    }
+    final geometry = Geometry(solids: solids, platforms: platforms, floorY: floorY);
+
+    /// The point [raw], which has to rest on the floor or a furniture top.
+    Vec placed(Object? raw, String what) {
+      final [x, y] = [for (final n in raw! as List) (n as num).toDouble()];
+      final p = Vec(x, y);
+      if (!geometry.restsOnSurface(p)) throw FormatException('not on a surface: $what');
+      return p;
+    }
+
     final spots = <String, Spot>{};
     for (final s in _list(json, 'spots')) {
-      final spot = Spot(id: _str(s, 'id'), x: _num(s, 'x'), snap: s['snap'] as bool? ?? false);
+      final sid = _str(s, 'id');
+      final spot = Spot(id: sid, at: placed(s['at'], 'spot $sid'), snap: s['snap'] as bool? ?? false);
       if (spots.containsKey(spot.id)) throw FormatException('duplicate spot: ${spot.id}');
       spots[spot.id] = spot;
     }
@@ -120,23 +165,20 @@ class Level {
       checkSpot(link.to, 'link');
     }
 
-    final id = _str(json, 'id');
-    final crawl = json['crawlway'] as Map<String, Object?>?;
-    final crawlway = crawl == null ? null : Crawlway(from: _num(crawl, 'from'), to: _num(crawl, 'to'));
-    if (crawlway != null && crawlway.from >= crawlway.to) throw FormatException('crawlway runs backwards: $id');
+    final crawlTop = platforms.where((p) => p.crawl).firstOrNull;
+    final crawlway = crawlTop == null ? null : Crawlway(from: crawlTop.from + 6, to: crawlTop.to - 6);
 
     final loot = <Loot>[];
     for (final l in _list(json, 'loot')) {
+      final lid = _str(l, 'id');
+      final at = placed(l['at'], 'loot $lid');
       final item = Loot(
-        id: _str(l, 'id'),
-        x: _num(l, 'x'),
+        id: lid,
+        at: at,
         guarded: l['guarded'] as bool? ?? false,
         squeaks: l['squeaks'] as bool? ?? false,
-        high: l['high'] as bool? ?? false,
+        high: geometry.platformAt(at)?.crawl ?? false,
       );
-      if (item.high && !(crawlway?.covers(item.x) ?? false)) {
-        throw FormatException('high loot off the crawlway: ${item.id}');
-      }
       if (loot.any((x) => x.id == item.id)) throw FormatException('duplicate loot: ${item.id}');
       if (item.guarded && loot.any((x) => x.guarded)) {
         throw FormatException('more than one guarded loot: ${item.id}');
@@ -159,16 +201,12 @@ class Level {
     }
 
     final remix = json['remix'] as Map<String, Object?>? ?? const {};
-    final remixLoot = <String, List<double>>{};
-    for (final MapEntry(key: lootId, value: xs) in (remix['loot'] as Map<String, Object?>? ?? const {}).entries) {
+    final remixLoot = <String, List<Vec>>{};
+    for (final MapEntry(key: lootId, value: points) in (remix['loot'] as Map<String, Object?>? ?? const {}).entries) {
       final item = loot.where((l) => l.id == lootId).firstOrNull ??
           (throw FormatException('remix names unknown loot: $lootId'));
       if (item.guarded) throw FormatException('remix moves the guarded loot: $lootId');
-      final alternatives = [for (final x in xs as List) (x as num).toDouble()];
-      if (item.high && !alternatives.every((x) => crawlway?.covers(x) ?? false)) {
-        throw FormatException('high loot off the crawlway: $lootId');
-      }
-      remixLoot[lootId] = alternatives;
+      remixLoot[lootId] = [for (final p in points as List) placed(p, 'remix loot $lootId')];
     }
     final remixSpots = <String, List<String>>{};
     for (final MapEntry(key: objectId, value: ids) in (remix['objects'] as Map<String, Object?>? ?? const {}).entries) {
@@ -186,10 +224,14 @@ class Level {
     return Level._(
       id: id,
       name: _str(json, 'name'),
-      playerStart: _num(json, 'playerStart'),
-      exitX: _num(json, 'exitX'),
-      bedX: _num(json, 'bedX'),
-      hideSpots: [for (final x in json['hideSpots'] as List? ?? const []) (x as num).toDouble()],
+      floorY: floorY,
+      geometry: geometry,
+      playerStart: placed(json['playerStart'], 'playerStart $id'),
+      exit: placed(json['exit'], 'exit $id'),
+      bed: placed(json['bed'], 'bed $id'),
+      hideSpots: [
+        for (final (i, p) in (json['hideSpots'] as List? ?? const []).indexed) placed(p, 'hide $i'),
+      ],
       crawlway: crawlway,
       spots: spots,
       objects: objects,
@@ -205,10 +247,21 @@ class Level {
 
   final String id;
   final String name;
-  final double playerStart;
-  final double exitX;
-  final double bedX;
-  final List<double> hideSpots;
+
+  /// The floor line: where the goose walks and her ear zone sits.
+  final double floorY;
+
+  /// Floor, walls and furniture tops.
+  final Geometry geometry;
+  final Vec playerStart;
+  final Vec exit;
+  final Vec bed;
+  final List<Vec> hideSpots;
+
+  double get exitX => exit.x;
+  double get bedX => bed.x;
+
+  // TODO(langkah 7): transitional, removed once NightSim runs on Body.
   final Crawlway? crawlway;
   final Map<String, Spot> spots;
   final List<LevelObject> objects;
@@ -218,20 +271,22 @@ class Level {
   /// The night's heist goals, one per style.
   final List<HeistGoal> goals;
 
-  /// Nightly Remix: the other x each loot may start at, in file order.
-  final Map<String, List<double>> remixLoot;
+  /// Nightly Remix: the other places each loot may start at, in file order.
+  final Map<String, List<Vec>> remixLoot;
 
   /// Nightly Remix: the other snap spots each portable object may start on.
   final Map<String, List<String>> remixSpots;
 
-  /// This house with loot moved to [lootX] and objects started on
+  /// This house with loot moved to [lootAt] and objects started on
   /// [objectSpots], keyed by id. The caller keeps them on valid spots.
-  Level rearranged({Map<String, double> lootX = const {}, Map<String, String> objectSpots = const {}}) => Level._(
+  Level rearranged({Map<String, Vec> lootAt = const {}, Map<String, String> objectSpots = const {}}) => Level._(
     id: id,
     name: name,
+    floorY: floorY,
+    geometry: geometry,
     playerStart: playerStart,
-    exitX: exitX,
-    bedX: bedX,
+    exit: exit,
+    bed: bed,
     hideSpots: hideSpots,
     crawlway: crawlway,
     spots: spots,
@@ -244,8 +299,14 @@ class Level {
     links: links,
     loot: [
       for (final l in loot)
-        lootX.containsKey(l.id)
-            ? Loot(id: l.id, x: lootX[l.id]!, guarded: l.guarded, squeaks: l.squeaks, high: l.high)
+        lootAt.containsKey(l.id)
+            ? Loot(
+                id: l.id,
+                at: lootAt[l.id]!,
+                guarded: l.guarded,
+                squeaks: l.squeaks,
+                high: geometry.platformAt(lootAt[l.id]!)?.crawl ?? false,
+              )
             : l,
     ],
     goals: goals,
@@ -262,6 +323,20 @@ List<Map<String, Object?>> _list(Map<String, Object?> json, String key) =>
 
 String _str(Map<String, Object?> json, String key) =>
     json[key] as String? ?? (throw FormatException('missing "$key"'));
+
+const _worldWidth = 844.0;
+
+/// A `box: [left, top, width, height]` with some area.
+Box _box(Map<String, Object?> json, String levelId) {
+  final [l, t, w, h] = [for (final n in json['box'] as List) (n as num).toDouble()];
+  if (w <= 0 || h <= 0) throw FormatException('box has no area: $levelId');
+  return Box.ltwh(l, t, w, h);
+}
+
+Surface _surface(Map<String, Object?> json) {
+  final name = _str(json, 'surface');
+  return Surface.values.where((s) => s.name == name).firstOrNull ?? (throw FormatException('unknown surface: $name'));
+}
 
 double _num(Map<String, Object?> json, String key) =>
     (json[key] as num? ?? (throw FormatException('missing "$key"'))).toDouble();

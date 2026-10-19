@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
@@ -549,7 +550,7 @@ void main() {
     }
 
     testWidgets('a remixed night draws loot where the level put it', (tester) async {
-      await pumpGameplay(tester, NightSim(Levels.night3.rearranged(lootX: {'toaster': 60})));
+      await pumpGameplay(tester, NightSim(Levels.night3.rearranged(lootAt: {'toaster': const Vec(60, 270)})));
       expect(tester.getTopLeft(inScene(_prop(PropKind.toaster))).dx, 60 - 32);
     });
 

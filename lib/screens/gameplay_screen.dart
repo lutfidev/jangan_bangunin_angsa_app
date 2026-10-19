@@ -408,8 +408,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   // while he could hide at all.
                   for (final h in level.hideSpots)
                     if (!_sim.hidden && !_sim.up && _sim.held == null &&
-                        ((interaction is Hide && interaction.x == h) || goose.isAwake))
-                      hideTag(hideArt[h]!.tag),
+                        ((interaction is Hide && interaction.x == h.x) || goose.isAwake))
+                      hideTag(hideArt[h.x]!.tag),
                   at(
                     758,
                     108,
@@ -652,7 +652,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       : BurglarPose.sneak;
 
   static double _nearestHide(Level level, double x) =>
-      level.hideSpots.reduce((a, b) => (a - x).abs() <= (b - x).abs() ? a : b);
+      level.hideSpots.map((h) => h.x).reduce((a, b) => (a - x).abs() <= (b - x).abs() ? a : b);
 
   Widget _interactButton(Interaction? interaction) {
     void interact() {

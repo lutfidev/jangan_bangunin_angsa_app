@@ -240,3 +240,19 @@ class Body {
     return Landing(fall: landY - _highest, surface: surface!, at: Vec(_x, landY));
   }
 }
+
+/// How loud [landing] is: by how far he fell, then the surface (tile +1,
+/// carpet -1) and Sneak (-1), from 0 to 3. Null when nothing is heard: a
+/// short drop, or a footstep-quiet landing while sneaking.
+int? landingLoudness(Landing landing, {required bool sneak, required Tuning t}) {
+  final fall = landing.fall;
+  if (fall < t.landQuiet) return null;
+  final base = fall >= t.landLoud ? 3 : (fall >= t.landMedium ? 2 : 1);
+  final surface = switch (landing.surface) {
+    Surface.tile => 1,
+    Surface.carpet => -1,
+    Surface.wood => 0,
+  };
+  final loudness = (base + surface - (sneak ? 1 : 0)).clamp(0, 3);
+  return loudness == 0 && sneak ? null : loudness;
+}

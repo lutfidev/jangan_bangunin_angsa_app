@@ -13,11 +13,14 @@ enum _Walk { out, sniff, back }
 
 /// Gertrude. She lives on the floor line; [x] is where she is now.
 class GooseBrain {
-  GooseBrain({required this.bedX, required this.tuning, double meterGain = 1})
+  GooseBrain({required this.bedX, required this.floorY, required this.tuning, double meterGain = 1})
     : _x = bedX,
       meter = NoiseMeter(tuning, gain: meterGain);
 
   final double bedX;
+
+  /// The floor line she walks; her ear zone sits on it.
+  final double floorY;
   final Tuning tuning;
   final NoiseMeter meter;
 
@@ -77,7 +80,7 @@ class GooseBrain {
   /// [fromTool] when a tool made it directly.
   void hear(Noise n, {int chainLinks = 0, bool fromTool = false}) {
     _lastNoiseX = n.x;
-    final touches = n.touchesEar(_x, tuning);
+    final touches = n.touchesEar(_x, floorY, tuning);
     if (inBed) {
       if (touches) {
         _raise(n.loudness, fromTool: fromTool);

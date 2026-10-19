@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
@@ -98,13 +99,13 @@ void main() {
 
   testWidgets('gameplay_remix', (tester) async {
     // Chicken near the plank's left end, pot under the shelf.
-    final level = Levels.night3.rearranged(lootX: {'chicken': 300}, objectSpots: {'pot': 'underShelf'});
+    final level = Levels.night3.rearranged(lootAt: {'chicken': const Vec(300, 106)}, objectSpots: {'pot': 'underShelf'});
     await pumpGameplay(tester, NightSim(level));
     await snap(tester, 'gameplay_remix');
   });
 
   testWidgets('gameplay_remix_kitchen', (tester) async {
-    final level = Levels.night3.rearranged(lootX: {'toaster': 60}, objectSpots: {'pot': 'underSideTable'});
+    final level = Levels.night3.rearranged(lootAt: {'toaster': const Vec(60, 270)}, objectSpots: {'pot': 'underSideTable'});
     await pumpGameplay(tester, NightSim(level));
     await snap(tester, 'gameplay_remix_kitchen');
   });

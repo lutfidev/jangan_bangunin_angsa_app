@@ -289,4 +289,22 @@ void main() {
       expect(r.landings, hasLength(1));
     });
   });
+
+  test('landing loudness by fall, surface and Sneak', () {
+    const rows = [
+      (30.0, Surface.wood, false, null),
+      (84.0, Surface.wood, false, 1),
+      (84.0, Surface.wood, true, null),
+      (70.0, Surface.tile, false, 2),
+      (164.0, Surface.wood, false, 2),
+      (164.0, Surface.wood, true, 1),
+      (58.0, Surface.carpet, false, 0),
+      (58.0, Surface.carpet, true, null),
+      (250.0, Surface.tile, false, 3),
+    ];
+    for (final (fall, surface, sneak, loudness) in rows) {
+      final l = Landing(fall: fall, surface: surface, at: const Vec(0, 270));
+      expect(landingLoudness(l, sneak: sneak, t: t), loudness, reason: '$fall px on $surface, sneak $sneak');
+    }
+  });
 }

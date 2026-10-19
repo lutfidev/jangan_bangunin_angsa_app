@@ -1,14 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/remix.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
 
-/// Where tonight's movable pieces are: loot x by id, then each object's
+/// Where tonight's movable pieces are: loot position by id, then each object's
 /// spot. A list, so matchers compare it deeply.
 List<Map<String, Object>> layout(Level level) => [
-  {for (final l in level.loot) l.id: l.x},
+  {for (final l in level.loot) l.id: l.at},
   {for (final o in level.objects) o.id: o.spot},
 ];
 
@@ -40,15 +41,15 @@ void main() {
 
   test('every alternative shows up within a year', () {
     final level = night3();
-    final toaster = <double>{}, chicken = <double>{}, pot = <String>{};
+    final toaster = <Vec>{}, chicken = <Vec>{}, pot = <String>{};
     for (final seed in year2026()) {
       final [loot, objects] = layout(remixed(level, seed));
-      toaster.add(loot['toaster']! as double);
-      chicken.add(loot['chicken']! as double);
+      toaster.add(loot['toaster']! as Vec);
+      chicken.add(loot['chicken']! as Vec);
       pot.add(objects['pot']! as String);
     }
-    expect(toaster, {218, 60});
-    expect(chicken, {353, 300});
+    expect(toaster, {const Vec(218, 200), const Vec(60, 270)});
+    expect(chicken, {const Vec(353, 106), const Vec(300, 106)});
     expect(pot, {'counterPot', 'underShelf', 'underSideTable'});
   });
 
@@ -64,28 +65,34 @@ void main() {
     expect(layout(remixed(level, 20261019)), layout(level));
   });
 
-  test('a floor remix spot never shares reach with a hide spot', () {
+  test('a remix spot in reach from the floor never shares reach with a hide spot', () {
     // Mid-chase, Interact by a hide spot must hide, not grab.
     final level = night3();
-    final reach = const Tuning().reach;
-    for (final loot in level.loot.where((l) => !l.high)) {
-      for (final x in level.remixLoot[loot.id] ?? const <double>[]) {
+    const t = Tuning();
+    for (final loot in level.loot) {
+      for (final p in level.remixLoot[loot.id] ?? const <Vec>[]) {
+        if (p.y < level.floorY - t.armReach) continue;
         for (final h in level.hideSpots) {
-          expect((x - h).abs(), greaterThan(2 * reach), reason: '${loot.id} at $x, hide at $h');
+          expect((p.x - h.x).abs(), greaterThan(2 * t.reach), reason: '${loot.id} at $p, hide at $h');
         }
       }
     }
   });
 
-  test('a high remix spot leaves both crawlway ends free to climb down', () {
+  test('every loot spot, remixed or not, can be reached from something to stand on', () {
     final level = night3();
-    final reach = const Tuning().reach;
-    final crawl = level.crawlway!;
-    for (final loot in level.loot.where((l) => l.high)) {
-      for (final x in level.remixLoot[loot.id] ?? const <double>[]) {
-        for (final end in [crawl.from, crawl.to]) {
-          expect((x - end).abs(), greaterThan(reach), reason: '${loot.id} at $x, end at $end');
-        }
+    const t = Tuning();
+    final g = level.geometry;
+    for (final loot in level.loot) {
+      for (final p in [loot.at, ...?level.remixLoot[loot.id]]) {
+        expect(g.restsOnSurface(p), isTrue, reason: '${loot.id} at $p');
+        // Where he can stand under its x: the floor and every top there.
+        final stands = [
+          if (g.floorSurfaceAt(p.x) != null) g.floorY,
+          for (final pl in g.platforms)
+            if (pl.spans(p.x)) pl.y,
+        ];
+        expect(stands.any((feet) => p.y >= feet - t.armReach && p.y <= feet + 10), isTrue, reason: '${loot.id} at $p');
       }
     }
   });

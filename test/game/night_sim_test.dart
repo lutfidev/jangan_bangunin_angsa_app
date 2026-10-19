@@ -510,7 +510,7 @@ void main() {
         objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'o2', 'type': 'tipper', 'spot': 'b'}],
         links: [{'from': 'a', 'to': 'b'}],
       )) as Map<String, Object?>,
-      'playerStart': 500,
+      'playerStart': [500, 270],
     });
     final s = NightSim(level, setup: const NightSetup(tool: Tool.marbles));
     s.goose.wake(WakeCause.noise);
@@ -778,7 +778,7 @@ void main() {
 
     test('floor loot is out of reach from up there', () {
       final s = NightSim(Level.parse(minimalLevel(
-        crawlway: {'from': 0, 'to': 100},
+        platforms: [{'id': 'crawl', 'x': [0, 100], 'y': 200, 'surface': 'wood', 'crawl': true}],
         loot: [{'id': 'cup', 'x': 20}],
       )));
       expect(s.toggleClimb(), isTrue);
@@ -921,7 +921,7 @@ void main() {
     test('an escape scores loot, links and goals', () {
       final s = NightSim(Level.fromJson({
         ...jsonDecode(minimalLevel(loot: [{'id': 'cup', 'x': 20}], goals: _night3Goals)) as Map<String, Object?>,
-        'exitX': 50,
+        'exit': [50, 270],
       }));
       walkTo(s, 20);
       expect(s.grab('cup'), isTrue);

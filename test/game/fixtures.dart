@@ -8,31 +8,61 @@ import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 /// Night 3, read straight from the bundled asset.
 Level night3() => Level.parse(File('assets/levels/night3.json').readAsStringSync());
 
-/// A valid one-spot level as JSON, with any top-level key overridden.
+/// A valid one-spot level as JSON (format v2), with any top-level key
+/// overridden. One wood floor at y 270, no furniture unless [platforms].
+/// Spots, loot, hide spots and remix loot may give a bare `x`: they are put
+/// on the floor.
 String minimalLevel({
   List<Object?>? spots,
   List<Object?>? objects,
   List<Object?>? links,
   List<Object?>? loot,
   List<double>? hideSpots,
-  Map<String, Object?>? crawlway,
+  List<Object?>? platforms,
   List<Object?>? goals,
   Map<String, Object?>? remix,
+  Map<String, Object?> extra = const {},
 }) => jsonEncode({
+  'version': 2,
   'id': 'test',
   'name': 'Test',
-  'playerStart': 0,
-  'exitX': 800,
-  'bedX': 400,
-  'hideSpots': hideSpots ?? <double>[],
-  'crawlway': ?crawlway,
-  'spots': spots ?? [{'id': 'a', 'x': 10}],
+  'floorY': 270,
+  'solids': [
+    {'box': [0, 270, 844, 120], 'surface': 'wood'},
+  ],
+  'platforms': platforms ?? <Object?>[],
+  'playerStart': [0, 270],
+  'exit': [800, 270],
+  'bed': [400, 270],
+  'hideSpots': [for (final x in hideSpots ?? const <double>[]) [x, 270]],
+  'spots': [for (final s in spots ?? [{'id': 'a', 'x': 10}]) _onFloor(s)],
   'objects': objects ?? [{'id': 'o', 'type': 'tipper', 'spot': 'a'}],
   'links': links ?? <Object?>[],
-  'loot': loot ?? <Object?>[],
+  'loot': [for (final l in loot ?? const <Object?>[]) _onFloor(l)],
   'goals': ?goals,
-  'remix': ?remix,
+  'remix': ?_remixOnFloor(remix),
+  ...extra,
 });
+
+/// [item] with a bare `x` moved to `at: [x, 270]`.
+Object? _onFloor(Object? item) {
+  final m = Map.of(item! as Map<String, Object?>);
+  if (m.containsKey('x') && !m.containsKey('at')) m['at'] = [m.remove('x'), 270];
+  return m;
+}
+
+Map<String, Object?>? _remixOnFloor(Map<String, Object?>? remix) {
+  if (remix == null) return null;
+  final loot = remix['loot'] as Map<String, Object?>?;
+  return {
+    ...remix,
+    if (loot != null)
+      'loot': {
+        for (final MapEntry(:key, :value) in loot.entries)
+          key: [for (final p in value! as List) p is num ? [p, 270] : p],
+      },
+  };
+}
 
 const frame = 1 / 60;
 

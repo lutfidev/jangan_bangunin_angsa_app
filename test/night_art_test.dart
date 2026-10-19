@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
@@ -39,7 +40,7 @@ void main() {
   });
 
   test('every hide spot has art', () {
-    for (final x in Levels.night3.hideSpots) {
+    for (final Vec(:x) in Levels.night3.hideSpots) {
       expect(hideArt[x], isNotNull, reason: '$x');
     }
     expect(hideArt[148]!.crack, isNotNull);
@@ -61,7 +62,7 @@ void main() {
   test('every remix spot has art', () {
     final level = Levels.night3;
     for (final loot in level.loot) {
-      for (final x in [loot.x, ...?level.remixLoot[loot.id]]) {
+      for (final x in [loot.x, ...?level.remixLoot[loot.id]?.map((p) => p.x)]) {
         expect(lootTops[loot.id]?[x], isNotNull, reason: '${loot.id} at $x');
       }
     }
@@ -100,7 +101,7 @@ void main() {
   });
 
   test('every hide spot has its tag and peek', () {
-    expect(hideArt.keys, Levels.night3.hideSpots);
+    expect(hideArt.keys, Levels.night3.hideSpots.map((h) => h.x));
   });
 
   test('every snap spot has a glow and a pot box on its x', () {

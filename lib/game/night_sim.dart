@@ -1,4 +1,5 @@
 import 'chain.dart';
+import 'geom.dart';
 import 'goose_brain.dart';
 import 'heist.dart';
 import 'level.dart';
@@ -176,11 +177,12 @@ class NightSim {
     : chain = ChainRunner(level, tuning),
       goose = GooseBrain(
         bedX: level.bedX,
+        floorY: level.floorY,
         tuning: tuning,
         meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
       ),
       _combo = Combo(tuning),
-      _x = level.playerStart,
+      _x = level.playerStart.x,
       _toolLeft = setup.tool == Tool.socks ? tuning.sockCount : 1 {
     _gooseSeen = goose.state;
   }
@@ -466,7 +468,7 @@ class NightSim {
 
   double? _hideInReach() {
     double? best;
-    for (final h in level.hideSpots) {
+    for (final Vec(x: h) in level.hideSpots) {
       if ((h - _x).abs() <= tuning.reach && (best == null || (h - _x).abs() < (best - _x).abs())) best = h;
     }
     return best;
@@ -668,7 +670,7 @@ class NightSim {
   }
 
   void _hear(Noise noise, {LinkFired? link, Tool? tool}) {
-    _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, tuning), link: link, tool: tool));
+    _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, level.floorY, tuning), link: link, tool: tool));
     final wasAwake = goose.isAwake;
     goose.hear(noise, chainLinks: link?.link ?? 0, fromTool: tool != null);
     if (!wasAwake && goose.isAwake && link != null) {
