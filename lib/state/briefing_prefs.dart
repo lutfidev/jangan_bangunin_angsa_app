@@ -5,6 +5,7 @@ import '../game/remix.dart';
 import '../game/tools.dart';
 import '../game/unlocks.dart';
 import 'heist_log.dart';
+import 'json_fields.dart';
 
 /// What the briefing was last set to: the tool and the modifier switches.
 class BriefingPrefs extends ChangeNotifier {
@@ -37,6 +38,23 @@ class BriefingPrefs extends ChangeNotifier {
     mirror: _mirror && Unlock.mirror.openWith(socks),
     remixSeed: _remix ? remixSeed(today.year, today.month, today.day) : null,
   );
+
+  Map<String, Object?> toJson() => {
+    'tool': _tool.name,
+    'remix': _remix,
+    'lightSleeper': _lightSleeper,
+    'mirror': _mirror,
+  };
+
+  /// Takes the briefing picks of a save blob; a missing or odd field keeps
+  /// its value.
+  void restore(Map<String, Object?> json) {
+    _tool = jsonEnum(Tool.values, json['tool']) ?? _tool;
+    _remix = jsonBool(json, 'remix') ?? _remix;
+    _lightSleeper = jsonBool(json, 'lightSleeper') ?? _lightSleeper;
+    _mirror = jsonBool(json, 'mirror') ?? _mirror;
+    notifyListeners();
+  }
 
   /// The setup "Sneak in" plays right now.
   NightSetup tonight() => setup(socks: HeistLog.instance.totalSocks, today: DateTime.now());

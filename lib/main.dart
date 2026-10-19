@@ -17,6 +17,8 @@ import 'screens/settings_screen.dart';
 import 'screens/trophy_room_screen.dart';
 import 'screens/victory_screen.dart';
 import 'state/levels.dart';
+import 'state/save_game.dart';
+import 'state/save_store.dart';
 import 'theme/palette.dart';
 
 Future<void> main() async {
@@ -30,6 +32,7 @@ Future<void> main() async {
   ]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   await Levels.load(rootBundle);
+  await SaveGame.start(PrefsSaveStore());
   runApp(const MainApp());
 }
 
