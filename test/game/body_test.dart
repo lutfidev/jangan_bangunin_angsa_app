@@ -188,4 +188,105 @@ void main() {
       }
     });
   });
+
+  group('climbing', () {
+    /// Pushes up once (until the mantle ends) and lets go.
+    void pushUp(Body b) {
+      b.step(frame, move: 0, vertical: -1, sneak: false);
+      while (b.mantling) {
+        b.step(frame, move: 0, vertical: -1, sneak: false);
+      }
+      b.step(frame, move: 0, vertical: 0, sneak: false);
+    }
+
+    test('mantling onto the counter takes 0.4s and makes no landing', () {
+      final b = at(260, 270);
+      expect(b.canMantle, isTrue);
+      final r = run(b, 0.2, vertical: -1);
+      expect(b.mantling, isTrue);
+      expect(b.feet.x, 260);
+      expect(b.feet.y, inExclusiveRange(200, 270));
+      final rest = run(b, 0.25, vertical: -1);
+      expect(b.mantling, isFalse);
+      expect(b.standingOn?.id, 'counter');
+      expect(b.feet, const Vec(260, 200));
+      expect([...r.landings, ...rest.landings], isEmpty);
+    });
+
+    test('mantle reach: 94 px up from the counter, not 164 from the floor', () {
+      expect(at(260, 200).canMantle, isTrue);
+      expect(at(410, 270).canMantle, isFalse);
+      expect(at(500, 270).canMantle, isFalse);
+    });
+
+    test('the shelf ladder, one push per shelf', () {
+      final b = at(350, 270);
+      pushUp(b);
+      expect(b.standingOn?.id, 'shelfLow');
+      pushUp(b);
+      expect(b.standingOn?.id, 'shelfHigh');
+      pushUp(b);
+      expect(b.standingOn?.id, 'crawlPlank');
+    });
+
+    test('holding up climbs one level only', () {
+      final b = at(350, 270);
+      run(b, 3, vertical: -1);
+      expect(b.standingOn?.id, 'shelfLow');
+      expect(b.feet.y, 212);
+    });
+
+    test('holding up while walking climbs on arrival, once', () {
+      final b = at(300, 270);
+      expect(b.canMantle, isFalse);
+      run(b, 2, move: -1, vertical: -1);
+      expect(b.standingOn?.id, 'counter');
+    });
+
+    test('letting go mid-mantle still ends on top', () {
+      final b = at(260, 270);
+      run(b, 0.2, vertical: -1);
+      run(b, 0.5);
+      expect(b.standingOn?.id, 'counter');
+      expect(b.feet.y, 200);
+    });
+
+    test('dropping through the counter lands on the floor', () {
+      final b = at(150, 200);
+      expect(b.canDrop, isTrue);
+      final r = run(b, 1, vertical: 1);
+      expect(b.onFloor, isTrue);
+      expect(r.landings.single.fall, closeTo(70, 0.01));
+      expect(r.landings.single.surface, Surface.tile);
+    });
+
+    test('down on the floor does nothing', () {
+      final b = at(150, 270);
+      expect(b.canDrop, isFalse);
+      run(b, 1, vertical: 1);
+      expect(b.feet, const Vec(150, 270));
+    });
+
+    test('the crawl plank: crawl speed, no jumping, no mantling', () {
+      final b = at(300, 106);
+      expect(b.crawling, isTrue);
+      expect(b.canMantle, isFalse);
+      run(b, 1, move: 1, sneak: true);
+      expect(b.feet.x, closeTo(300 + t.crawlSpeed, 2));
+      b.pressJump();
+      final r = run(b, 0.5);
+      expect(r.top, 106);
+      expect(b.crawling, isTrue);
+    });
+
+    test('a held pot blocks jumping and mantling, not falling', () {
+      final b = at(260, 270)..pressJump();
+      run(b, 0.5, vertical: -1, canClimb: false);
+      expect(b.feet, const Vec(260, 270));
+      final c = at(270, 200);
+      final r = run(c, 1, move: 1, canClimb: false);
+      expect(c.onFloor, isTrue);
+      expect(r.landings, hasLength(1));
+    });
+  });
 }

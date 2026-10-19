@@ -36,6 +36,16 @@ class Body {
   double _coyote = 0;
   double _buffer = 0;
 
+  /// The top being mantled onto, where from, and for how long so far.
+  ({Platform onto, Vec from, double t})? _mantle;
+
+  /// A drop-through ignores this top until his feet are below it.
+  Platform? _dropping;
+
+  /// One push of the stick does one climb or drop; it has to come back to
+  /// the middle before the next.
+  bool _verticalSpent = false;
+
   Vec get feet => Vec(_x, _y);
   bool get grounded => _grounded;
 
@@ -46,29 +56,92 @@ class Body {
   /// +1 facing right, -1 facing left: the way he last moved.
   double get facing => _facing;
 
+  /// On a crawl top: too low to stand, so slow, silent and no jumping.
+  bool get crawling => standingOn?.crawl ?? false;
+
+  bool get mantling => _mantle != null;
+
+  /// Up on the stick would climb onto a top right now.
+  bool get canMantle => _grounded && !mantling && !crawling && _mantleTarget() != null;
+
+  /// Down on the stick would drop through the top he stands on.
+  bool get canDrop => standingOn != null && !mantling;
+
+  /// The nearest top above his feet that he can reach from here.
+  Platform? _mantleTarget() {
+    Platform? best;
+    for (final p in geometry.platforms) {
+      final up = _y - p.y;
+      if (!p.spans(_x) || up <= 0 || up > tuning.mantleReach) continue;
+      if (best == null || p.y > best.y) best = p;
+    }
+    return best;
+  }
+
   void pressJump() => _buffer = tuning.jumpBuffer;
 
   /// Advances [h] seconds with the stick at [move] (-1..1) and [vertical]
   /// (-1 up, +1 down). Returns the landing this step made, if any.
   Landing? step(double h, {required double move, required int vertical, required bool sneak, bool canClimb = true}) {
+    if (vertical == 0) _verticalSpent = false;
+    final mantle = _mantle;
+    if (mantle != null) {
+      _stepMantle(mantle, h);
+      return null;
+    }
+
     _buffer = math.max(0, _buffer - h);
     if (!_grounded) _coyote = math.max(0, _coyote - h);
 
-    if (_buffer > 0 && canClimb && (_grounded || _coyote > 0)) _jump();
+    if (_grounded && !_verticalSpent && vertical != 0) {
+      final onto = vertical < 0 && canClimb && !crawling ? _mantleTarget() : null;
+      if (onto != null) {
+        _verticalSpent = true;
+        _buffer = 0;
+        _mantle = (onto: onto, from: feet, t: 0);
+        return null;
+      }
+      final under = vertical > 0 ? standingOn : null;
+      if (under != null) {
+        _verticalSpent = true;
+        _dropping = under;
+        _leaveGround(coyote: 0);
+      }
+    }
+
+    if (_buffer > 0 && canClimb && !crawling && (_grounded || _coyote > 0)) _jump();
 
     if (move != 0) _facing = move.sign;
-    final speed = sneak ? tuning.sneakSpeed : tuning.walkSpeed;
+    final speed = crawling ? tuning.crawlSpeed : (sneak ? tuning.sneakSpeed : tuning.walkSpeed);
+    final wasCrawling = crawling;
     _moveX(move * speed * h);
 
-    if (_grounded && !_supported()) {
-      _grounded = false;
-      _standingOn = null;
-      _coyote = tuning.coyoteTime;
-      _highest = _y;
-      _vy = 0;
-    }
+    // Off a crawl top there was no room to jump from.
+    if (_grounded && !_supported()) _leaveGround(coyote: wasCrawling ? 0 : tuning.coyoteTime);
     if (_grounded) return null;
     return _fall(h);
+  }
+
+  void _stepMantle(({Platform onto, Vec from, double t}) m, double h) {
+    final t = m.t + h;
+    if (t >= tuning.mantleTime) {
+      _mantle = null;
+      _y = m.onto.y;
+      _vy = 0;
+      _grounded = true;
+      _standingOn = m.onto;
+      return;
+    }
+    _mantle = (onto: m.onto, from: m.from, t: t);
+    _y = m.from.y + (m.onto.y - m.from.y) * t / tuning.mantleTime;
+  }
+
+  void _leaveGround({required double coyote}) {
+    _grounded = false;
+    _standingOn = null;
+    _coyote = coyote;
+    _highest = _y;
+    _vy = 0;
   }
 
   void _jump() {
@@ -145,7 +218,9 @@ class Body {
         }
       }
     }
+    if (_dropping case final d? when from > d.y) _dropping = null;
     for (final p in geometry.platforms) {
+      if (p == _dropping) continue;
       if (p.y >= from && p.y <= to && p.spans(_x) && (landY == null || p.y < landY)) {
         landY = p.y;
         surface = p.surface;
