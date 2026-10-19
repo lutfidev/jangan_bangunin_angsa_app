@@ -4,16 +4,17 @@ import 'dart:math' as math;
 /// starter (Gameplay 2.0, "Pick one tool per night").
 enum Tool { socks, mouse, marbles, kazoo }
 
-/// A thrown sock in the air, lobbed from [fromX] to [toX].
+/// A thrown sock in the air, lobbed from his hand at ([fromX], [fromY]) to
+/// [toX] on the floor.
 class Flight {
-  Flight({required this.fromX, required this.toX, required this.duration, this.high = false});
+  Flight({required this.fromX, required this.fromY, required this.toX, required this.duration});
 
   final double fromX;
+
+  /// Where his hand was when he threw, even if he has moved since.
+  final double fromY;
   final double toX;
   final double duration;
-
-  /// Thrown from the crawlway: it leaves from up there even if he climbs down.
-  final bool high;
   double _t = 0;
 
   /// 0 when thrown, 1 once it lands.

@@ -33,8 +33,8 @@ NightResult _caughtBy(List<String> objects, {WakeCause cause = WakeCause.noise})
 }
 
 void main() {
-  test('the crawlway plank covers the level crawlway', () {
-    final crawl = Levels.night3.crawlway!;
+  test('the crawlway plank art covers the crawl top', () {
+    final crawl = Levels.night3.geometry.platforms.singleWhere((p) => p.crawl);
     expect(crawlwayArt.left, lessThanOrEqualTo(crawl.from));
     expect(crawlwayArt.right, greaterThanOrEqualTo(crawl.to));
   });

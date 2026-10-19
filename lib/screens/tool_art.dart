@@ -15,9 +15,6 @@ import 'scene.dart';
 /// Where a sock leaves Milo's hand, and the highest its arc may climb.
 const _handY = 212.0;
 
-/// His hand while he crawls the cabinet tops: as far above the plank as
-/// [_handY] is above the floor.
-const crawlHandY = _handY - (270 - crawlwayTop);
 const _handOut = 26.0;
 const _topY = 20.0;
 

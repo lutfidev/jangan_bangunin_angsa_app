@@ -416,8 +416,9 @@ void main() {
       expect(find.text('HIDE'), findsNothing);
     });
 
-    testWidgets('no HIDE tags while she is up and Milo is up on the crawlway', (tester) async {
-      final sim = sneakTo(260)..toggleClimb();
+    testWidgets('no HIDE tags while she is up and Milo is up on the counter', (tester) async {
+      final sim = sneakTo(260);
+      climbTo(sim, 'counter');
       sim.goose.wake(WakeCause.noise);
       await pumpGameplay(tester, sim);
       expect(find.text('HIDE'), findsNothing);
@@ -429,15 +430,6 @@ void main() {
       sim.goose.wake(WakeCause.noise);
       await pumpGameplay(tester, sim);
       expect(find.text('HIDE'), findsNothing);
-    });
-
-    testWidgets('CLIMB puts Milo on the crawlway, crawling', (tester) async {
-      final sim = await pumpGameplay(tester, sneakTo(260));
-      await tapInteract(tester, 'CLIMB');
-      expect(sim.up, isTrue);
-      expect(tester.widget<Burglar>(find.byType(Burglar)).pose, BurglarPose.crawl);
-      expect(tester.getTopLeft(find.byType(Burglar)).dy, 106 - 74);
-      expect(find.widgetWithText(ActionButton, 'DOWN'), findsOneWidget);
     });
 
     testWidgets('hands full and no snap spot in reach: a dim PLACE, not GRAB', (tester) async {
@@ -452,7 +444,7 @@ void main() {
 
     testWidgets('the chicken shows in front of Milo while he crawls up to it', (tester) async {
       final sim = sneakTo(260);
-      sim.toggleClimb();
+      climbTo(sim, 'crawlPlank');
       walkTo(sim, 353);
       await pumpGameplay(tester, sim);
       final order = tester

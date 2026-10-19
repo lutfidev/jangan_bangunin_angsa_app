@@ -84,3 +84,36 @@ void tickUntil(NightSim s, bool Function() done, {double limit = 30}) {
     s.tick(frame);
   }
 }
+
+/// Pushes the stick up once and waits for the mantle to finish.
+void pushUp(NightSim s) {
+  s
+    ..setVertical(-1)
+    ..tick(frame);
+  tickUntil(s, () => !s.mantling, limit: 2);
+  s
+    ..setVertical(0)
+    ..tick(frame);
+}
+
+/// Pushes the stick down once and waits to land.
+void pushDown(NightSim s) {
+  s
+    ..setVertical(1)
+    ..tick(frame);
+  tickUntil(s, () => s.grounded, limit: 2);
+  s
+    ..setVertical(0)
+    ..tick(frame);
+}
+
+/// Climbs Night 3's furniture onto [platformId]: from the floor at x 260
+/// by the counter (then up to the crawl plank), or at x 350 up the shelves.
+void climbTo(NightSim s, String platformId, {bool viaShelves = false}) {
+  walkTo(s, viaShelves || platformId.startsWith('shelf') ? 350 : 260);
+  while (s.standingOn?.id != platformId) {
+    final before = s.playerY;
+    pushUp(s);
+    if (s.playerY == before) fail('stuck below $platformId at ${s.playerX}, ${s.playerY}');
+  }
+}

@@ -196,7 +196,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     final chasing = goose.state == GooseState.chase || goose.state == GooseState.distracted;
     final honk = _fx.honk;
     final nudge = _freezeLeft > 0 && !GameSettings.instance.reduceShake ? 4.0 : 0.0;
-    final handY = _sim.up ? crawlHandY : 212.0;
+    final py = _sim.playerY;
+    final handY = py - _sim.tuning.handHeight;
 
     // System back pauses the night instead of throwing it away.
     return PopScope(
@@ -291,9 +292,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       height: lootBox(loot).size + 16,
                     ),
                   for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && !loot.guarded && !(loot.high && _sim.up)) _loot(loot),
+                    if (!carried.contains(loot.id) && !loot.guarded && !(_sim.crawling && _onCrawlTop(level, loot))) _loot(loot),
                   for (final loot in level.loot)
-                    if (loot.high && !carried.contains(loot.id)) chickenSparkle(loot.x),
+                    if (_onCrawlTop(level, loot) && !carried.contains(loot.id)) chickenSparkle(loot.x),
 
                   // Tools on the floor.
                   if (_sim.spillX case final x?) ...marbleSpill(x),
@@ -370,19 +371,19 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   else ...[
                     at(
                       px - 30,
-                      _sim.up ? crawlwayTop - 74 : 196,
+                      py - 74,
                       Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0),
                     ),
                     if (_sim.held case final held?)
                       at(px - 20, 168, Prop(objectArt[held]!.kind, size: 40)),
                     // Up there he'd hide the loot he crawls to; it goes in front.
                     for (final loot in level.loot)
-                      if (_sim.up && loot.high && !carried.contains(loot.id)) _loot(loot),
+                      if (_sim.crawling && _onCrawlTop(level, loot) && !carried.contains(loot.id)) _loot(loot),
                   ],
-                  if (_sneak && !goose.isAwake && !_sim.hidden && !_sim.up)
+                  if (_sneak && !goose.isAwake && !_sim.hidden && _sim.grounded && !_sim.crawling)
                     at(
                       px - 26,
-                      256,
+                      py - 14,
                       const InlineSvg(
                         '<path d="M8 14 Q4 8 8 2 M52 14 Q56 8 52 2" fill="none" stroke="#5CC9A7" stroke-width="2.5" stroke-linecap="round"/>',
                         width: 60,
@@ -407,7 +408,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   // HIDE tags: the one in reach, or all of them once she is up,
                   // while he could hide at all.
                   for (final h in level.hideSpots)
-                    if (!_sim.hidden && !_sim.up && _sim.held == null &&
+                    if (!_sim.hidden && _sim.onFloor && _sim.held == null &&
                         ((interaction is Hide && interaction.x == h.x) || goose.isAwake))
                       hideTag(hideArt[h.x]!.tag),
                   at(
@@ -422,7 +423,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                   // Socks in the air, and the one being aimed.
                   for (final f in _sim.flights)
-                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: f.high ? crawlHandY : 212)),
+                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: f.fromY)),
                   if (_aimDx case final dx?)
                     Positioned.fill(
                       child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)), handY: handY)),
@@ -641,7 +642,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     return at(box.left, box.top, Prop(lootArt[loot.id]!.kind, size: box.size));
   }
 
-  BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.up
+  /// Loot standing on a crawl top: sparkles, and is drawn in front of Milo
+  /// crawling up to it.
+  static bool _onCrawlTop(Level level, Loot loot) => level.geometry.platformAt(loot.at)?.crawl ?? false;
+
+  BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.crawling
       ? BurglarPose.crawl
       : _sim.held != null
       ? BurglarPose.carry
@@ -684,8 +689,6 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       PlaceObject() => ActionButton(label: 'PLACE', semanticLabel: 'Put the ${_sim.held} down', onPressed: interact),
       Hide() => ActionButton(label: 'HIDE', semanticLabel: 'Hide', onPressed: interact),
       Unhide() => ActionButton(label: 'OUT', semanticLabel: 'Come out of hiding', onPressed: interact),
-      Climb() => ActionButton(label: 'CLIMB', semanticLabel: 'Climb onto the cabinets', onPressed: interact),
-      ClimbDown() => ActionButton(label: 'DOWN', semanticLabel: 'Climb down', onPressed: interact),
       // Hands full: the only thing he could do is put it down.
       null when _sim.held != null => const Opacity(
         opacity: 0.6,

@@ -29,7 +29,6 @@ class Body {
   double _x;
   double _y;
   double _vy = 0;
-  double _facing = 1;
   bool _grounded = false;
   Platform? _standingOn;
   double _highest;
@@ -52,9 +51,6 @@ class Body {
   /// The furniture top he stands on; null on the floor or in the air.
   Platform? get standingOn => _grounded ? _standingOn : null;
   bool get onFloor => _grounded && _standingOn == null;
-
-  /// +1 facing right, -1 facing left: the way he last moved.
-  double get facing => _facing;
 
   /// On a crawl top: too low to stand, so slow, silent and no jumping.
   bool get crawling => standingOn?.crawl ?? false;
@@ -111,7 +107,6 @@ class Body {
 
     if (_buffer > 0 && canClimb && !crawling && (_grounded || _coyote > 0)) _jump();
 
-    if (move != 0) _facing = move.sign;
     final speed = crawling ? tuning.crawlSpeed : (sneak ? tuning.sneakSpeed : tuning.walkSpeed);
     final wasCrawling = crawling;
     _moveX(move * speed * h);
@@ -160,8 +155,16 @@ class Body {
     if (dx == 0) return;
     var nx = _x + dx;
     final half = tuning.bodyWidth / 2;
+    final was = _boxAt(_x, _y);
     for (final s in geometry.solids) {
       if (!_boxAt(nx, _y).overlaps(s.box)) continue;
+      if (was.overlaps(s.box)) {
+        // Already inside it (a level that starts him in a wall): he may
+        // only move out, away from its middle.
+        final middle = (s.box.left + s.box.right) / 2;
+        if ((nx - _x) * (_x - middle) < 0) nx = _x;
+        continue;
+      }
       nx = dx > 0 ? math.min(nx, s.box.left - half) : math.max(nx, s.box.right + half);
     }
     _x = nx;

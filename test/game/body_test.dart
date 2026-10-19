@@ -71,9 +71,14 @@ void main() {
       final s = at(236, 270);
       run(s, 1, move: 1, sneak: true);
       expect(s.feet.x, closeTo(236 + t.sneakSpeed, 2));
-      expect(s.facing, 1);
-      run(s, 0.1, move: -1);
-      expect(s.facing, -1);
+    });
+
+    test('starting inside a wall, he can walk out but not further in', () {
+      final b = at(0, 270);
+      run(b, 0.5, move: -1);
+      expect(b.feet.x, 0);
+      run(b, 0.5, move: 1);
+      expect(b.feet.x, closeTo(60, 2));
     });
 
     test('the world walls stop him', () {

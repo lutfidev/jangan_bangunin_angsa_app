@@ -37,19 +37,8 @@ class Link {
   final double delay;
 }
 
-/// The crawl top's walkable stretch, as the 1-D sim knew it.
-// TODO(langkah 7): transitional, removed once NightSim runs on Body.
-class Crawlway {
-  const Crawlway({required this.from, required this.to});
-
-  final double from;
-  final double to;
-
-  bool covers(double x) => from <= x && x <= to;
-}
-
 class Loot {
-  const Loot({required this.id, required this.at, this.guarded = false, this.squeaks = false, this.high = false});
+  const Loot({required this.id, required this.at, this.guarded = false, this.squeaks = false});
 
   final String id;
   final Vec at;
@@ -62,10 +51,6 @@ class Loot {
 
   /// Squeaks when carried at a walk.
   final bool squeaks;
-
-  /// Sits on a crawl top.
-  // TODO(langkah 7): transitional, removed once NightSim runs on Body.
-  final bool high;
 }
 
 /// One night's house: spots, objects, the chain graph and the loot.
@@ -79,7 +64,6 @@ class Level {
     required this.exit,
     required this.bed,
     required this.hideSpots,
-    required this.crawlway,
     required this.spots,
     required this.objects,
     required this.links,
@@ -165,9 +149,6 @@ class Level {
       checkSpot(link.to, 'link');
     }
 
-    final crawlTop = platforms.where((p) => p.crawl).firstOrNull;
-    final crawlway = crawlTop == null ? null : Crawlway(from: crawlTop.from + 6, to: crawlTop.to - 6);
-
     final loot = <Loot>[];
     for (final l in _list(json, 'loot')) {
       final lid = _str(l, 'id');
@@ -177,7 +158,6 @@ class Level {
         at: at,
         guarded: l['guarded'] as bool? ?? false,
         squeaks: l['squeaks'] as bool? ?? false,
-        high: geometry.platformAt(at)?.crawl ?? false,
       );
       if (loot.any((x) => x.id == item.id)) throw FormatException('duplicate loot: ${item.id}');
       if (item.guarded && loot.any((x) => x.guarded)) {
@@ -232,7 +212,6 @@ class Level {
       hideSpots: [
         for (final (i, p) in (json['hideSpots'] as List? ?? const []).indexed) placed(p, 'hide $i'),
       ],
-      crawlway: crawlway,
       spots: spots,
       objects: objects,
       links: links,
@@ -260,9 +239,6 @@ class Level {
 
   double get exitX => exit.x;
   double get bedX => bed.x;
-
-  // TODO(langkah 7): transitional, removed once NightSim runs on Body.
-  final Crawlway? crawlway;
   final Map<String, Spot> spots;
   final List<LevelObject> objects;
   final List<Link> links;
@@ -288,7 +264,6 @@ class Level {
     exit: exit,
     bed: bed,
     hideSpots: hideSpots,
-    crawlway: crawlway,
     spots: spots,
     objects: [
       for (final o in objects)
@@ -300,13 +275,7 @@ class Level {
     loot: [
       for (final l in loot)
         lootAt.containsKey(l.id)
-            ? Loot(
-                id: l.id,
-                at: lootAt[l.id]!,
-                guarded: l.guarded,
-                squeaks: l.squeaks,
-                high: geometry.platformAt(lootAt[l.id]!)?.crawl ?? false,
-              )
+            ? Loot(id: l.id, at: lootAt[l.id]!, guarded: l.guarded, squeaks: l.squeaks)
             : l,
     ],
     goals: goals,

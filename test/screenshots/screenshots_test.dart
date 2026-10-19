@@ -240,8 +240,7 @@ void main() {
 
   testWidgets('gameplay_crawl', (tester) async {
     final sim = NightSim(Levels.night3)..setSneak(true);
-    walkTo(sim, 260);
-    sim.toggleClimb();
+    climbTo(sim, 'crawlPlank');
     walkTo(sim, 353);
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_crawl');
