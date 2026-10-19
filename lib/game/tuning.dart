@@ -50,6 +50,7 @@ class Tuning {
     this.lootScore = 1000,
     this.guardedLootScore = 2500,
     this.goalScore = 1000,
+    this.lightSleeperGain = 1.5,
     this.maxStep = 1 / 60,
   });
 
@@ -169,6 +170,9 @@ class Tuning {
 
   /// Points per heist goal met on a getaway.
   final int goalScore;
+
+  /// Light Sleeper: every noise raises her meter this many times more.
+  final double lightSleeperGain;
 
   /// Longest simulation step; bigger ticks are split.
   final double maxStep;

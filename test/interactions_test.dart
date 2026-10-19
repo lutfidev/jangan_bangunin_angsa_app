@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
 import 'package:jangan_bangunin_angsa_app/routes.dart';
@@ -160,7 +161,7 @@ void main() {
     });
 
     testWidgets('Restart night from pause keeps it', (tester) async {
-      await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.mouse));
+      await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(tool: Tool.mouse)));
       await tester.tap(
         find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'),
         warnIfMissed: false,

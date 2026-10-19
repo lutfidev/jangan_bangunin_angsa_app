@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/briefing_screen.dart';
@@ -146,7 +147,7 @@ void main() {
   });
 
   testWidgets('gameplay_mouse', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.mouse)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.mouse))..setSneak(true);
     sim
       ..useTool()
       ..tick(0.8)
@@ -156,7 +157,7 @@ void main() {
   });
 
   testWidgets('gameplay_marbles', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.marbles))..setSneak(true);
     walkTo(sim, 561);
     tickUntil(sim, () => !sim.goose.rollingOver);
     sim.grab('egg');
@@ -170,7 +171,7 @@ void main() {
   });
 
   testWidgets('gameplay_slip', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.marbles))..setSneak(true);
     walkTo(sim, 561);
     tickUntil(sim, () => !sim.goose.rollingOver);
     sim.grab('egg');

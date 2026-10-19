@@ -10,6 +10,7 @@ import '../game/goose_brain.dart';
 import '../game/heist.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
+import '../game/modifiers.dart';
 import '../game/tools.dart';
 import '../game/noise_meter.dart';
 import '../routes.dart';
@@ -67,7 +68,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   /// motion instead of skipping the night ahead.
   static const _maxFrame = 0.1;
 
-  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? Levels.night3, tool: widget.tool);
+  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? Levels.night3, setup: NightSetup(tool: widget.tool));
   late final Ticker _ticker = createTicker(_onTick);
   late final AppLifecycleListener _lifecycle = AppLifecycleListener(onInactive: _pause);
   late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: spotAnchors, tuning: _sim.tuning);

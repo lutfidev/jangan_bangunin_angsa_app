@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -57,7 +58,7 @@ NightResult sampleCaught({
     ],
     wakeCause: cause,
     time: 42,
-    tool: tool,
+    setup: NightSetup(tool: tool),
   );
 }
 
@@ -77,7 +78,7 @@ NightResult sampleEscape({
   outcome: Outcome.escaped,
   loot: loot,
   time: time,
-  tool: tool,
+  setup: NightSetup(tool: tool),
   score: score,
   bestChain: bestChain,
   lures: lures,

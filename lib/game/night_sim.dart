@@ -2,6 +2,7 @@ import 'chain.dart';
 import 'goose_brain.dart';
 import 'heist.dart';
 import 'level.dart';
+import 'modifiers.dart';
 import 'noise.dart';
 import 'tools.dart';
 import 'tuning.dart';
@@ -124,7 +125,7 @@ class NightResult {
     this.wakeChain = const [],
     this.wakeCause,
     required this.time,
-    this.tool = Tool.socks,
+    this.setup = const NightSetup(),
     this.score = 0,
     this.bestChain = 0,
     this.lures = 0,
@@ -135,8 +136,10 @@ class NightResult {
   final Level level;
   final Outcome outcome;
 
-  /// The tool picked at the briefing, so a restart keeps it.
-  final Tool tool;
+  /// The briefing's tool and modifiers, so a restart keeps them.
+  final NightSetup setup;
+
+  Tool get tool => setup.tool;
 
   /// Loot ids carried out (or held when caught), in the order grabbed.
   final List<String> loot;
@@ -165,18 +168,26 @@ class NightResult {
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
 /// only by [tick].
 class NightSim {
-  NightSim(this.level, {this.tool = Tool.socks, this.tuning = const Tuning()})
+  NightSim(this.level, {this.setup = const NightSetup(), this.tuning = const Tuning()})
     : chain = ChainRunner(level, tuning),
-      goose = GooseBrain(bedX: level.bedX, tuning: tuning),
+      goose = GooseBrain(
+        bedX: level.bedX,
+        tuning: tuning,
+        meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
+      ),
       combo = Combo(tuning),
       _x = level.playerStart,
-      _toolLeft = tool == Tool.socks ? tuning.sockCount : 1 {
+      _toolLeft = setup.tool == Tool.socks ? tuning.sockCount : 1 {
     _gooseSeen = goose.state;
   }
 
   final Level level;
-  final Tool tool;
+
+  /// The briefing's tool and modifiers.
+  final NightSetup setup;
   final Tuning tuning;
+
+  Tool get tool => setup.tool;
   final ChainRunner chain;
   final GooseBrain goose;
 
@@ -318,7 +329,7 @@ class NightSim {
       wakeChain: _wakeChain,
       wakeCause: goose.wakeCause,
       time: _elapsed,
-      tool: tool,
+      setup: setup,
       score: score,
       bestChain: combo.best,
       lures: _lures,
@@ -652,7 +663,7 @@ class NightSim {
   void _hear(Noise noise, {LinkFired? link, Tool? tool}) {
     _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, tuning), link: link, tool: tool));
     final wasAwake = goose.isAwake;
-    goose.hear(noise, chainLinks: link?.link ?? 0);
+    goose.hear(noise, chainLinks: link?.link ?? 0, fromTool: tool != null);
     if (!wasAwake && goose.isAwake && link != null) {
       _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
@@ -406,7 +407,7 @@ void main() {
     });
 
     test('only with socks', () {
-      final s = NightSim(night3(), tool: Tool.mouse);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.mouse));
       expect(s.toolLeft, 1);
       expect(s.throwSock(62), isFalse);
     });
@@ -414,7 +415,7 @@ void main() {
 
   group('mouse', () {
     NightSim mouseAt(double x, {double facing = 1}) {
-      final s = NightSim(night3(), tool: Tool.mouse)..setSneak(true);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.mouse))..setSneak(true);
       walkTo(s, x);
       s
         ..setMove(facing)
@@ -444,7 +445,7 @@ void main() {
           spots: [{'id': 'a', 'x': 0}, {'id': 'b', 'x': 100}],
           objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'o2', 'type': 'tipper', 'spot': 'b'}],
         )),
-        tool: Tool.mouse,
+        setup: const NightSetup(tool: Tool.mouse),
       );
       s.useTool();
       tickUntil(s, () => s.chain.isSpent('o2'));
@@ -460,14 +461,14 @@ void main() {
     });
 
     test('it stops at the wall', () {
-      final s = NightSim(Level.parse(minimalLevel(spots: [{'id': 'a', 'x': 0}])), tool: Tool.mouse);
+      final s = NightSim(Level.parse(minimalLevel(spots: [{'id': 'a', 'x': 0}])), setup: const NightSetup(tool: Tool.mouse));
       s.useTool();
       tickUntil(s, () => s.mouse!.stopped, limit: 15);
       expect(s.mouse!.x, 844);
     });
 
     test('one mouse per night', () {
-      final s = NightSim(night3(), tool: Tool.mouse);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.mouse));
       expect(s.useTool(), isTrue);
       expect(s.useTool(), isFalse);
       expect(s.toolReady, isFalse);
@@ -476,14 +477,14 @@ void main() {
 
   group('marbles', () {
     test('not while she sleeps', () {
-      final s = NightSim(night3(), tool: Tool.marbles);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.marbles));
       expect(s.toolReady, isFalse);
       expect(s.useTool(), isFalse);
       expect(s.toolLeft, 1);
     });
 
     test('spilled behind Milo, she slips on them', () {
-      final s = NightSim(night3(), tool: Tool.marbles)..setSneak(true);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.marbles))..setSneak(true);
       walkTo(s, 561);
       tickUntil(s, () => !s.goose.rollingOver);
       s.grab('egg');
@@ -511,7 +512,7 @@ void main() {
       )) as Map<String, Object?>,
       'playerStart': 500,
     });
-    final s = NightSim(level, tool: Tool.marbles);
+    final s = NightSim(level, setup: const NightSetup(tool: Tool.marbles));
     s.goose.wake(WakeCause.noise);
     expect(s.useTool(), isTrue);
     expect(s.spillX, 476);
@@ -523,7 +524,7 @@ void main() {
 
   group('kazoo', () {
     test('a far toot moves her', () {
-      final s = NightSim(night3(), tool: Tool.kazoo)..setSneak(true);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.kazoo))..setSneak(true);
       walkTo(s, 62);
       s.takeEvents();
       expect(s.useTool(), isTrue);
@@ -535,13 +536,22 @@ void main() {
     });
 
     test('a close toot wakes her', () {
-      final s = NightSim(night3(), tool: Tool.kazoo);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.kazoo));
       s.useTool();
       expect(s.goose.isAwake, isTrue);
     });
 
+    test("a toot that wakes her is the tool's fault", () {
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.kazoo));
+      s.useTool();
+      expect(s.goose.wakeCause, WakeCause.tool);
+      tickUntil(s, () => s.outcome != null);
+      expect(s.result!.wakeCause, WakeCause.tool);
+      expect(s.result!.wakeChain, isEmpty);
+    });
+
     test('one toot per night', () {
-      final s = NightSim(night3(), tool: Tool.kazoo);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.kazoo));
       s.useTool();
       expect(s.useTool(), isFalse);
     });
@@ -581,7 +591,7 @@ void main() {
     });
 
     test('carries the tool', () {
-      final s = NightSim(night3(), tool: Tool.mouse)..setSneak(true);
+      final s = NightSim(night3(), setup: const NightSetup(tool: Tool.mouse))..setSneak(true);
       walkTo(s, 770);
       expect(s.result!.tool, Tool.mouse);
     });
@@ -705,7 +715,7 @@ void main() {
 
   group('crawlway', () {
     NightSim upAt(double x, {Tool tool = Tool.socks}) {
-      final s = NightSim(night3(), tool: tool)..setSneak(true);
+      final s = NightSim(night3(), setup: NightSetup(tool: tool))..setSneak(true);
       walkTo(s, 260);
       expect(s.toggleClimb(), isTrue);
       walkTo(s, x);
@@ -919,5 +929,23 @@ void main() {
     s.poke('a');
     s.tick(0.1);
     expect(s.interaction, isNot(isA<MoveObject>()));
+  });
+
+  test('light sleeper hears everything louder', () {
+    final light = NightSim(night3(), setup: const NightSetup(lightSleeper: true));
+    light.goose.meter.hear(1);
+    expect(light.goose.meter.value, 25 * const Tuning().lightSleeperGain);
+    final normal = NightSim(night3())..goose.meter.hear(1);
+    expect(normal.goose.meter.value, 25);
+  });
+
+  test('the result keeps the setup', () {
+    const setup = NightSetup(tool: Tool.mouse, mirror: true, remixSeed: 7);
+    final s = NightSim(night3(), setup: setup);
+    s.setSneak(true);
+    walkTo(s, night3().exitX);
+    tickUntil(s, () => s.result != null);
+    expect(s.result!.setup, setup);
+    expect(s.result!.tool, Tool.mouse);
   });
 }

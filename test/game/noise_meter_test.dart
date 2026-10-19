@@ -45,4 +45,14 @@ void main() {
     m.hear(0);
     expect(m.value, 14); // plain +4 again
   });
+
+  test('gain scales every noise', () {
+    final m = NoiseMeter(const Tuning(), gain: 1.5)..hear(1);
+    expect(m.value, 37.5);
+    m
+      ..reset()
+      ..drowsyLeft = 1
+      ..hear(1);
+    expect(m.value, 75); // ×2 drowsy, ×1.5 light sleeper
+  });
 }

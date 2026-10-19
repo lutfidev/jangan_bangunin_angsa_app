@@ -4,6 +4,7 @@ import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
@@ -346,7 +347,7 @@ void main() {
     });
 
     testWidgets('marbles stay dim while she sleeps', (tester) async {
-      final sim = await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.marbles));
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(tool: Tool.marbles)));
       expect(toolButton(tester).ready, isFalse);
       await tester.tap(find.byType(ToolButton), warnIfMissed: false);
       await play(tester, 0.05);
@@ -354,7 +355,7 @@ void main() {
     });
 
     testWidgets('a tap sets the mouse down', (tester) async {
-      final sim = await pumpGameplay(tester, NightSim(Levels.night3, tool: Tool.mouse));
+      final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(tool: Tool.mouse)));
       expect(toolButton(tester).ready, isTrue);
       await tester.tap(find.byType(ToolButton));
       await play(tester, 0.05);

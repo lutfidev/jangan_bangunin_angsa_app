@@ -4,6 +4,7 @@ import '../art/art.dart';
 import '../game/goose_brain.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
+import '../game/tools.dart';
 import '../theme/palette.dart';
 import 'scene.dart';
 
@@ -171,6 +172,8 @@ String wakeTip(NightResult r) {
   return switch (r.wakeCause) {
     WakeCause.footsteps => 'Tip: walking is loud. Sneak inside her ear zone.',
     WakeCause.grabbedGuarded => 'Tip: she sleeps on the egg. Wait for her roll-over, or lure her away first.',
+    WakeCause.tool when r.tool == Tool.kazoo => 'Tip: the kazoo is loud. Toot it far from her bed and she only sleepwalks.',
+    WakeCause.tool => 'Tip: a sock that misses still flops. Aim it at something outside her ear zone.',
     _ => 'Tip: the rubber chicken squeaks when you walk with it. Sneak.',
   };
 }
