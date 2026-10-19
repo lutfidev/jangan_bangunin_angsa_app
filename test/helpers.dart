@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -60,12 +61,29 @@ NightResult sampleCaught({
   );
 }
 
-/// A Night 3 getaway carrying [loot].
+/// A Night 3 getaway carrying [loot]; the rest defaults to the Level
+/// Complete board's example.
 NightResult sampleEscape({
   List<String> loot = const ['toaster', 'chicken', 'egg'],
   double time = 167,
   Tool tool = Tool.socks,
-}) => NightResult(level: Levels.night3, outcome: Outcome.escaped, loot: loot, time: time, tool: tool);
+  int score = 8450,
+  int bestChain = 6,
+  int lures = 2,
+  PlayStyle style = PlayStyle.trickster,
+  Set<PlayStyle> goalsMet = const {PlayStyle.trickster, PlayStyle.chaos},
+}) => NightResult(
+  level: Levels.night3,
+  outcome: Outcome.escaped,
+  loot: loot,
+  time: time,
+  tool: tool,
+  score: score,
+  bestChain: bestChain,
+  lures: lures,
+  style: style,
+  goalsMet: goalsMet,
+);
 
 /// Pumps 60fps frames for [seconds].
 Future<void> play(WidgetTester tester, double seconds) async {

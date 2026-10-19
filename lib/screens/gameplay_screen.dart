@@ -13,6 +13,7 @@ import '../game/tools.dart';
 import '../game/noise_meter.dart';
 import '../routes.dart';
 import '../state/game_settings.dart';
+import '../state/heist_log.dart';
 import '../state/levels.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
@@ -128,6 +129,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     if (result != null) {
       _done = true;
       _ticker.stop();
+      if (result.outcome == Outcome.escaped) HeistLog.instance.record(result);
       Navigator.pushReplacementNamed(
         context,
         result.outcome == Outcome.caught ? Routes.caught : Routes.victory,

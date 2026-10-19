@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
@@ -9,6 +10,7 @@ import 'package:jangan_bangunin_angsa_app/screens/gameplay_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/pause_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
@@ -26,6 +28,8 @@ Future<void> _tapPause(WidgetTester tester) =>
     tester.tap(find.byWidgetPredicate((w) => w is RoundIconButton && w.semanticLabel == 'Pause'), warnIfMissed: false);
 
 void main() {
+  tearDown(HeistLog.instance.clear);
+
   testWidgets('the joystick walks Milo right', (tester) async {
     await pumpGameplay(tester);
     final before = tester.getTopLeft(find.byType(Burglar)).dx;
@@ -114,6 +118,16 @@ void main() {
     expect(find.byType(VictoryScreen), findsOneWidget);
     expect(find.byType(GameplayScreen), findsNothing);
     expect(find.text('Mega Toaster'), findsOneWidget);
+  });
+
+  testWidgets('an escape records its socks', (tester) async {
+    final sim = NightSim(Levels.night3)..setSneak(true);
+    walkTo(sim, 768);
+    sim.setMove(1);
+    await pumpGameplay(tester, sim);
+    await play(tester, 0.6);
+    expect(find.byType(VictoryScreen), findsOneWidget);
+    expect(HeistLog.instance.earned('night3'), {PlayStyle.ghost});
   });
 
   testWidgets('the night ends once', (tester) async {

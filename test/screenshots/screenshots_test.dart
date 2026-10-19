@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
@@ -13,6 +14,7 @@ import 'package:jangan_bangunin_angsa_app/screens/plan_view_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/settings_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/trophy_room_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/stage.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
@@ -40,6 +42,10 @@ NightSim _wokenByTheEgg() {
 }
 
 void main() {
+  // The briefing board shows the Trickster sock already earned.
+  setUp(() => HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.trickster})));
+  tearDown(HeistLog.instance.clear);
+
   final screens = <String, Widget Function()>{
     'menu': () => const MainMenuScreen(),
     'briefing': () => const BriefingScreen(),
