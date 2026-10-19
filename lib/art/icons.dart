@@ -22,7 +22,10 @@ enum GameIcon {
   eye('<circle cx="12" cy="12" r="3"/><path d="M2 12 Q12 3 22 12 Q12 21 2 12 Z"/>'),
   grab(
     '<path d="M8 13 V5 A1.5 1.5 0 0 1 11 5 V11 M11 10 V3.5 A1.5 1.5 0 0 1 14 3.5 V11 M14 10 V5 A1.5 1.5 0 0 1 17 5 V12 M17 9 A1.5 1.5 0 0 1 20 9 V14 A7 7 0 0 1 13 21 H12 A6 6 0 0 1 6.5 17.5 L4 13 A1.5 1.5 0 0 1 6.5 11.5 L8 13"/>',
-  );
+  ),
+
+  /// A hop off the ground (New · Jump & climb board).
+  jump('<path d="M4 20 Q6 6 16 5 M12 2 L16 5 L13 9"/><path d="M3 21 H9" stroke-width="2"/>');
 
   const GameIcon(this.body);
 

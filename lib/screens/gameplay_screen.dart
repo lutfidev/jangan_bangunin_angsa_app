@@ -224,7 +224,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   if (!goose.isAwake)
                     at(
                       goose.x - 172,
-                      228,
+                      232,
                       band == MeterBand.suspicious || band == MeterBand.danger
                           ? const Opacity(
                               opacity: 0.7,
@@ -375,7 +375,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0),
                     ),
                     if (_sim.held case final held?)
-                      at(px - 20, 168, Prop(objectArt[held]!.kind, size: 40)),
+                      at(px - 20, py - 102, Prop(objectArt[held]!.kind, size: 40)),
                     // Up there he'd hide the loot he crawls to; it goes in front.
                     for (final loot in level.loot)
                       if (_sim.crawling && _onCrawlTop(level, loot) && !carried.contains(loot.id)) _loot(loot),
@@ -584,8 +584,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           ),
           if (_aimDx != null) aimHint(),
           at(
-            596,
-            316,
+            520,
+            318,
             ToolButton(
               tool: _sim.tool,
               left: _sim.toolLeft,
@@ -602,8 +602,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               onCancel: () => setState(() => _aimDx = null),
             ),
           ),
-          at(666, 306, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
-          at(742, 294, _interactButton(interaction)),
+          at(588, 312, SneakButton(on: _sneak, onPressed: () => setState(() => _sim.setSneak(_sneak = !_sneak)))),
+          at(662, 290, _interactButton(interaction)),
+          at(
+            752,
+            302,
+            JumpButton(
+              onPressed: _sim.jumpReady && _freezeLeft <= 0 && !_paused ? () => setState(_sim.jump) : null,
+            ),
+          ),
         ],
       ),
     );
@@ -777,6 +784,48 @@ class SneakButton extends StatelessWidget {
             style: ui(9, weight: FontWeight.w800, letterSpacing: 1, color: Palette.gooseWhite, height: 1.1),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The Jump button, under the right thumb (New · Jump & climb board). It
+/// jumps the moment it is touched, not when the finger lifts.
+class JumpButton extends StatelessWidget {
+  const JumpButton({super.key, required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final onPressed = this.onPressed;
+    return Semantics(
+      button: true,
+      enabled: onPressed != null,
+      label: 'Jump',
+      onTap: onPressed,
+      excludeSemantics: true,
+      child: Opacity(
+        opacity: onPressed == null ? 0.6 : 1,
+        child: Listener(
+          onPointerDown: onPressed == null ? null : (_) => onPressed(),
+          // The chunky button only draws the press; the jump went off above.
+          child: ChunkyButton(
+            onPressed: onPressed == null ? null : () {},
+            color: Palette.moonlight,
+            width: 78,
+            height: 78,
+            depth: 5,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 1,
+              children: [
+                const Glyph(GameIcon.jump, size: 28),
+                Text('JUMP', style: ui(11, weight: FontWeight.w800, letterSpacing: 1, height: 1.1)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

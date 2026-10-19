@@ -623,4 +623,114 @@ void main() {
       }
     });
   });
+
+  group('jump and climb', () {
+    JumpButton jumpButton(WidgetTester tester) => tester.widget<JumpButton>(find.byType(JumpButton));
+    double miloTop(WidgetTester tester) => tester.getTopLeft(find.byType(Burglar)).dy;
+
+    NightSim sneakTo(double x, {NightSetup setup = const NightSetup()}) {
+      final sim = NightSim(Levels.night3, setup: setup)..setSneak(true);
+      walkTo(sim, x);
+      return sim;
+    }
+
+    Future<void> pushStickUp(WidgetTester tester) async {
+      final g = await tester.startGesture(tester.getCenter(find.byType(Joystick)));
+      await g.moveBy(const Offset(0, -30));
+      await play(tester, 0.6);
+      await g.up();
+      await play(tester, 0.05);
+    }
+
+    testWidgets('the control band follows board B', (tester) async {
+      await pumpGameplay(tester);
+      expect(tester.getTopLeft(find.byType(ToolButton)), const Offset(520, 318));
+      expect(tester.getTopLeft(find.byType(SneakButton)), const Offset(588, 312));
+      expect(tester.getTopLeft(find.byType(ActionButton)), const Offset(662, 290));
+      expect(tester.getTopLeft(find.byType(JumpButton)), const Offset(752, 302));
+    });
+
+    testWidgets('JUMP jumps; at the start he lands on the counter', (tester) async {
+      final sim = await pumpGameplay(tester);
+      await tester.tap(find.byType(JumpButton));
+      await play(tester, 0.1);
+      expect(sim.grounded, isFalse);
+      await play(tester, 0.2);
+      expect(miloTop(tester), lessThan(156));
+      await play(tester, 0.6);
+      expect(sim.standingOn?.id, 'counter');
+      expect(miloTop(tester), 126);
+    });
+
+    testWidgets('JUMP is lit on the floor', (tester) async {
+      await pumpGameplay(tester);
+      expect(jumpButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('JUMP is dim while hidden', (tester) async {
+      await pumpGameplay(tester, sneakTo(148)..toggleHide());
+      expect(jumpButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('JUMP is dim while holding the pot', (tester) async {
+      final holding = sneakTo(113)..interact();
+      expect(holding.held, 'pot');
+      await pumpGameplay(tester, holding);
+      expect(jumpButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('JUMP is dim while crawling', (tester) async {
+      final crawling = sneakTo(236);
+      climbTo(crawling, 'crawlPlank');
+      await pumpGameplay(tester, crawling);
+      expect(jumpButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('JUMP does nothing during the freeze-frame', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 561);
+      tickUntil(sim, () => !sim.goose.rollingOver);
+      sim.grab('egg');
+      await pumpGameplay(tester, sim);
+      await tester.tap(find.byType(JumpButton));
+      await play(tester, 0.4);
+      expect(sim.playerY, 270);
+    });
+
+    testWidgets('in front of the counter the up arrow lights, and up climbs it', (tester) async {
+      final sim = await pumpGameplay(tester, sneakTo(260));
+      expect(find.byKey(Joystick.hintUpKey), findsOneWidget);
+      expect(find.byKey(Joystick.hintDownKey), findsNothing);
+      await pushStickUp(tester);
+      expect(sim.playerY, 200);
+      expect(miloTop(tester), 126);
+      expect(find.byKey(Joystick.hintDownKey), findsOneWidget);
+    });
+
+    testWidgets('up on the crawl plank Milo crawls; no CLIMB or DOWN anywhere', (tester) async {
+      final sim = sneakTo(236);
+      climbTo(sim, 'crawlPlank');
+      await pumpGameplay(tester, sim);
+      expect(tester.widget<Burglar>(find.byType(Burglar)).pose, BurglarPose.crawl);
+      expect(miloTop(tester), 106 - 74);
+      expect(find.text('CLIMB'), findsNothing);
+      expect(find.text('DOWN'), findsNothing);
+    });
+
+    testWidgets('the pot rides over his head up on the counter too', (tester) async {
+      final sim = sneakTo(236);
+      climbTo(sim, 'counter');
+      walkTo(sim, 113);
+      expect(sim.lift('pot'), isTrue);
+      await pumpGameplay(tester, sim);
+      expect(tester.getTopLeft(_prop(PropKind.pot)), const Offset(113 - 20, 200 - 102));
+    });
+
+    testWidgets('Mirror Night flips left and right, not up and down', (tester) async {
+      final sim = await pumpGameplay(tester, sneakTo(260, setup: const NightSetup(mirror: true)));
+      expect(find.byKey(Joystick.hintUpKey), findsOneWidget);
+      await pushStickUp(tester);
+      expect(sim.playerY, 200);
+    });
+  });
 }
