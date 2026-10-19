@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/heist.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
@@ -58,35 +60,33 @@ void main() {
     expect(find.text('Wind-up Mouse'), findsNothing);
   });
 
-  testWidgets('every trophy fits the trophy room detail card', (tester) async {
-    await pumpScreen(tester, const TrophyRoomScreen());
+  for (final (label, stolen) in [('stolen', true), ('locked', false)]) {
+    testWidgets('every $label trophy fits the trophy room detail card', (tester) async {
+      if (stolen) {
+        HeistLog.instance.record(sampleEscape(loot: ['toaster', 'chicken', 'egg'], goalsMet: PlayStyle.values.toSet()));
+      }
+      await pumpScreen(tester, const TrophyRoomScreen());
 
-    const names = [
-      'Golden Toilet Trophy',
-      'Oversized Toaster',
-      'Rubber Chicken',
-      'Suspicious Garden Gnome',
-      'Duck-Shaped Trophy',
-      'Locked',
-    ];
-    for (final name in names) {
-      await tester.tap(find.byWidgetPredicate(
-        (w) => w is ChunkyButton && w.semanticLabel == name,
-      ));
-      await tester.pump();
+      final tiles = find.byWidgetPredicate((w) => w is ChunkyButton && w.semanticLabel != 'Back to main menu');
+      expect(tiles, findsNWidgets(6));
+      for (var i = 0; i < 6; i++) {
+        final name = tester.widget<ChunkyButton>(tiles.at(i)).semanticLabel!;
+        await tester.tap(tiles.at(i));
+        await tester.pump();
 
-      // Overflow is only reported once per RenderFlex, so check the geometry:
-      // the card's last line must end inside the card's column.
-      final card = find.ancestor(of: find.text(name).last, matching: find.byType(Column)).first;
-      final lastLine = find.descendant(of: card, matching: find.byType(Text)).last;
-      expect(
-        tester.getRect(lastLine).bottom,
-        lessThanOrEqualTo(tester.getRect(card).bottom),
-        reason: name,
-      );
-    }
-    expect(tester.takeException(), isNull);
-  });
+        // Overflow is only reported once per RenderFlex, so check the geometry:
+        // the card's last line must end inside the card's column.
+        final card = find.ancestor(of: find.text(name).last, matching: find.byType(Column)).first;
+        final lastLine = find.descendant(of: card, matching: find.byType(Text)).last;
+        expect(
+          tester.getRect(lastLine).bottom,
+          lessThanOrEqualTo(tester.getRect(card).bottom),
+          reason: '$name (tile $i)',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   group('settings toggles write to GameSettings', () {
     final settings = GameSettings.instance;
