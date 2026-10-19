@@ -66,7 +66,13 @@ void main() {
       return VictoryScreen(result: sampleEscape());
     },
     'caught': () => CaughtScreen(result: sampleCaught()),
-    'trophy_room': () => const TrophyRoomScreen(),
+    'trophy_room': () {
+      // Two of Night 3's loot taken; the egg and the duck still to get.
+      HeistLog.instance
+        ..clear()
+        ..record(sampleEscape(loot: ['toaster', 'chicken'], goalsMet: {PlayStyle.ghost}));
+      return const TrophyRoomScreen();
+    },
   };
   for (final MapEntry(key: name, value: screen) in screens.entries) {
     testWidgets(name, (tester) async {
