@@ -99,6 +99,8 @@ void main() {
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 0, lures: 0, style: PlayStyle.ghost)));
     expect(find.text('Ghost'), findsOneWidget);
     expect(find.text('Not a peep'), findsOneWidget);
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 0, lures: 0, style: PlayStyle.ghost, seen: true)));
+    expect(find.text('Kept her guessing'), findsOneWidget);
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 1, lures: 3)));
     expect(find.text('Lured ×3'), findsOneWidget);
   });

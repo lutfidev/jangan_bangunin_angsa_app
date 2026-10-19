@@ -32,7 +32,7 @@ String goalPill(HeistGoal goal, NightSim sim) => switch (goal.kind) {
 /// The goal in the Victory recap line.
 String goalRecap(HeistGoal goal) => switch (goal.kind) {
   GoalKind.neverSuspicious => 'Never seen',
-  GoalKind.lure => goal.count == 2 ? 'Lured her out twice' : 'Lured her out ×${goal.count}',
+  GoalKind.lure => 'Lured her out ${_times(goal.count)}',
   GoalKind.chain => '${goal.count}+ link chain',
 };
 

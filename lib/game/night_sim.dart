@@ -131,6 +131,7 @@ class NightResult {
     this.lures = 0,
     this.style = PlayStyle.ghost,
     this.goalsMet = const {},
+    this.seen = false,
   });
 
   final Level level;
@@ -163,6 +164,9 @@ class NightResult {
 
   /// Heist goals met; only a getaway with loot meets any.
   final Set<PlayStyle> goalsMet;
+
+  /// She turned suspicious, or worse, at some point.
+  final bool seen;
 }
 
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
@@ -175,7 +179,7 @@ class NightSim {
         tuning: tuning,
         meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
       ),
-      combo = Combo(tuning),
+      _combo = Combo(tuning),
       _x = level.playerStart,
       _toolLeft = setup.tool == Tool.socks ? tuning.sockCount : 1 {
     _gooseSeen = goose.state;
@@ -191,8 +195,10 @@ class NightSim {
   final ChainRunner chain;
   final GooseBrain goose;
 
-  /// Tonight's chaos combo.
-  final Combo combo;
+  final Combo _combo;
+
+  /// Tonight's chaos combo, to read; only fired links feed it.
+  ComboView get combo => _combo;
 
   double _x;
   double _dir = 0;
@@ -335,6 +341,7 @@ class NightSim {
       lures: _lures,
       style: style,
       goalsMet: goalsMet,
+      seen: _seen,
     );
   }
 
@@ -570,7 +577,7 @@ class NightSim {
     chain.tick(h);
     for (final fired in chain.takeFired()) {
       (_chains[fired.chainId] ??= []).add(fired);
-      combo.link(_elapsed);
+      _combo.link(_elapsed);
       _hear(fired.noise, link: fired);
     }
 

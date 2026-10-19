@@ -73,6 +73,7 @@ NightResult sampleEscape({
   int lures = 2,
   PlayStyle style = PlayStyle.trickster,
   Set<PlayStyle> goalsMet = const {PlayStyle.trickster, PlayStyle.chaos},
+  bool seen = false,
 }) => NightResult(
   level: Levels.night3,
   outcome: Outcome.escaped,
@@ -84,6 +85,7 @@ NightResult sampleEscape({
   lures: lures,
   style: style,
   goalsMet: goalsMet,
+  seen: seen,
 );
 
 /// Pumps 60fps frames for [seconds].

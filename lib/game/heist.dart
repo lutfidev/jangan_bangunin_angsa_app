@@ -27,9 +27,18 @@ class HeistGoal {
   final int count;
 }
 
+/// A combo as the scene and the results read it.
+abstract interface class ComboView {
+  int get count;
+  int get points;
+  int get best;
+  int get total;
+  double leftAt(double now);
+}
+
 /// Chaos combo: "Every link fired within 3s adds ×1 to your score
 /// multiplier." Links from separate chains share one combo.
-class Combo {
+class Combo implements ComboView {
   Combo(this.tuning);
 
   final Tuning tuning;
@@ -42,15 +51,19 @@ class Combo {
 
   /// Links in the current combo; also its multiplier, up to
   /// [Tuning.comboMaxMultiplier].
+  @override
   int get count => _count;
 
   /// Points the current combo has scored so far.
+  @override
   int get points => _points;
 
   /// The longest combo tonight.
+  @override
   int get best => _best;
 
   /// Points from every link tonight.
+  @override
   int get total => _total;
 
   /// A link fired at [now]: it scores [Tuning.linkScore] times the multiplier.
@@ -69,6 +82,7 @@ class Combo {
   }
 
   /// Seconds until the current combo runs out; 0 once it has.
+  @override
   double leftAt(double now) {
     final last = _last;
     return last == null ? 0 : math.max(0, tuning.comboWindow - (now - last));

@@ -829,6 +829,21 @@ void main() {
       expect(s.takeEvents().whereType<GooseChanged>().single.to, GooseState.suspicious);
     });
 
+    test('the result says whether she was seen', () {
+      final quiet = NightSim(night3())..setSneak(true);
+      walkTo(quiet, night3().exitX);
+      tickUntil(quiet, () => quiet.result != null);
+      expect(quiet.result!.seen, isFalse);
+
+      final seen = NightSim(night3())..setSneak(true);
+      seen.goose
+        ..hear(const Noise(x: 480, loudness: 1))
+        ..hear(const Noise(x: 480, loudness: 1));
+      walkTo(seen, night3().exitX);
+      tickUntil(seen, () => seen.result != null);
+      expect(seen.result!.seen, isTrue);
+    });
+
     test('fired links feed the combo', () {
       final s = NightSim(Level.parse(minimalLevel(
         spots: [{'id': 'a', 'x': 10}, {'id': 'b', 'x': 20}],

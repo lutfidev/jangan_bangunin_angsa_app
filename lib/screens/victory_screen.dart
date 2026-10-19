@@ -32,11 +32,12 @@ class VictoryScreen extends StatelessWidget {
     return 'Morning. The ${lootArt[id]!.name} is gone.';
   }
 
-  /// Under the badge: the best combo, else the lures, else nothing at all.
+  /// Under the badge: the best combo, else the lures, else how close she
+  /// came to noticing.
   String get _styleLine {
     if (result.bestChain >= 2) return 'Best chain ×${result.bestChain}';
     if (result.lures > 0) return 'Lured ×${result.lures}';
-    return 'Not a peep';
+    return result.seen ? 'Kept her guessing' : 'Not a peep';
   }
 
   /// Goals met tonight first, then the rest, each in level order.
