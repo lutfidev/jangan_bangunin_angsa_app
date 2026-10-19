@@ -250,4 +250,15 @@ void main() {
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_combo');
   });
+
+  testWidgets('gameplay_combo_asleep', (tester) async {
+    // Glass → pot lures her, then the books: a 3-link combo while she sleeps.
+    final sim = NightSim(Levels.night3);
+    sim.poke('counterLeft');
+    tickUntil(sim, () => sim.combo.count >= 2);
+    sim.poke('shelfBooks');
+    tickUntil(sim, () => sim.combo.count >= 3);
+    await pumpGameplay(tester, sim);
+    await snap(tester, 'gameplay_combo_asleep');
+  });
 }

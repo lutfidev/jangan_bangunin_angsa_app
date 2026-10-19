@@ -488,6 +488,29 @@ void main() {
       expect(find.text('Make it to the exit'), findsOneWidget);
     });
 
+    testWidgets('a two-link chain while she sleeps keeps the meter, no banner', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.poke('counterLeft'); // glass → pot
+      tickUntil(sim, () => sim.combo.count >= 2);
+      expect(sim.goose.isAwake, isFalse);
+      await pumpGameplay(tester, sim);
+      expect(find.byType(AlertMeter), findsOneWidget);
+      expect(find.byKey(GameplayScreen.comboKey), findsNothing);
+    });
+
+    testWidgets('a bigger combo while she sleeps shows beside the meter', (tester) async {
+      final sim = NightSim(Levels.night3);
+      sim.poke('counterLeft'); // glass → pot
+      tickUntil(sim, () => sim.combo.count >= 2);
+      sim.poke('shelfBooks');
+      tickUntil(sim, () => sim.combo.count >= 3);
+      expect(sim.goose.isAwake, isFalse);
+      await pumpGameplay(tester, sim);
+      expect(find.byType(AlertMeter), findsOneWidget);
+      expect(find.byKey(GameplayScreen.comboKey), findsOneWidget);
+      expect(tester.getTopLeft(find.byKey(GameplayScreen.comboKey)).dx, greaterThan(552));
+    });
+
     testWidgets('a combo shows the banner in place of the meter', (tester) async {
       final sim = NightSim(Levels.night3)..setSneak(true);
       walkTo(sim, 600);
@@ -496,7 +519,7 @@ void main() {
       walkTo(sim, 630);
       walkTo(sim, 703);
       sim.toggleHide();
-      tickUntil(sim, () => sim.combo.count >= 2);
+      tickUntil(sim, () => sim.combo.count >= 2 && sim.goose.isAwake);
       await pumpGameplay(tester, sim);
       // The outlined text draws its words more than once.
       expect(find.descendant(of: find.byKey(GameplayScreen.comboKey), matching: find.text('CHAIN ×${sim.combo.count}!')), findsWidgets);

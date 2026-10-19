@@ -519,11 +519,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               ),
             ),
           ),
-          // A live combo takes the meter's place, as on the Chaos escape board.
-          if (_sim.combo.count >= 2 && _sim.comboLeft > 0)
+          // Once she is up, a live combo takes the meter's place, as on the
+          // Chaos escape board. Asleep, the meter is the stealth feedback: it
+          // stays, and only a 3+ combo shows, in the free space beside it.
+          if (goose.isAwake && _comboLive(2))
             at(290, 10, _comboBanner())
-          else
+          else ...[
             at(292, 14, AlertMeter(value: goose.meter.value)),
+            if (!goose.isAwake && _comboLive(3)) at(566, 10, _comboBanner()),
+          ],
           if (chasing) at(600, 18, _ChasePill(left: goose.chaseLeft / _sim.tuning.chaseTime)),
           at(782, 12, RoundIconButton(onPressed: _pause, semanticLabel: 'Pause', child: const PauseBars())),
           at(
@@ -582,6 +586,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     }
     return 'Make it to the exit';
   }
+
+  bool _comboLive(int links) => _sim.combo.count >= links && _sim.comboLeft > 0;
 
   Widget _comboBanner() {
     final combo = _sim.combo;
