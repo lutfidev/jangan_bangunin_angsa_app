@@ -59,7 +59,11 @@ void main() {
     'chaos_escape': () => const ChaosEscapeScreen(),
     'pause': () => const PauseScreen(),
     'settings': () => const SettingsScreen(),
-    'victory': () => VictoryScreen(result: sampleEscape()),
+    'victory': () {
+      // Board D: no sock from an earlier run, so the recap reads like the board.
+      HeistLog.instance.clear();
+      return VictoryScreen(result: sampleEscape());
+    },
     'caught': () => CaughtScreen(result: sampleCaught()),
     'trophy_room': () => const TrophyRoomScreen(),
   };

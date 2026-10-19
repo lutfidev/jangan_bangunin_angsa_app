@@ -47,22 +47,27 @@ class VictoryScreen extends StatelessWidget {
       if (!result.goalsMet.contains(g.style)) (g, false),
   ];
 
-  /// After the goals: where the next sock is.
-  String get _hint {
+  /// After the goals: where the next sock is, counting socks [earned] on
+  /// earlier runs.
+  String _hint(Set<PlayStyle> earned) {
     final missing = [for (final (g, met) in _goalsMetFirst) if (!met) g];
     if (missing.isEmpty) return 'every sock tonight!';
-    final name = styleLook(missing.first.style).name;
-    return missing.length == 1 ? 'try a $name run for the last sock.' : 'try a $name run for another sock.';
+    final unearned = [for (final g in missing) if (!earned.contains(g.style)) g];
+    if (unearned.isEmpty) return 'every sock collected!';
+    final name = styleLook(unearned.first.style).name;
+    return unearned.length == 1 ? 'try a $name run for the last sock.' : 'try a $name run for another sock.';
   }
 
   /// "✓ Lured her out twice · ✓ 5+ link chain · ✗ Never seen — try a Ghost
   /// run for the last sock." The ticks are drawn; the font has no glyph.
-  Widget _recap() {
+  Widget _recap(Set<PlayStyle> earned) {
+    if (result.level.goals.isEmpty) return const SizedBox.shrink();
+    final hint = _hint(earned);
     final style = ui(12, weight: FontWeight.w600, color: Palette.paleBlue);
     final goals = _goalsMetFirst;
     final spoken = [for (final (g, met) in goals) '${met ? '✓' : '✗'} ${goalRecap(g)}'].join(' · ');
     return Semantics(
-      label: '$spoken — $_hint',
+      label: '$spoken — $hint',
       child: ExcludeSemantics(
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -79,7 +84,7 @@ class VictoryScreen extends StatelessWidget {
                   ),
                   TextSpan(text: ' ${goalRecap(g)}'),
                 ],
-                TextSpan(text: goals.isEmpty ? '' : ' — $_hint'),
+                TextSpan(text: ' — $hint'),
               ],
             ),
             softWrap: false,
@@ -185,7 +190,7 @@ class VictoryScreen extends StatelessWidget {
                     children: [
                       Text('HEIST GOALS', style: hudLabel(size: 10, spacing: 1.4)),
                       Semantics(
-                        label: 'Heist goals ${result.goalsMet.length} of ${goals.length} socks',
+                        label: 'Heist goals ${{...result.goalsMet, ...earnedBefore}.length} of ${goals.length} socks',
                         child: Row(
                           spacing: 2,
                           children: [
@@ -211,7 +216,7 @@ class VictoryScreen extends StatelessWidget {
           290,
           SizedBox(
             width: 440,
-            child: _recap(),
+            child: _recap(earnedBefore),
           ),
         ),
         at(

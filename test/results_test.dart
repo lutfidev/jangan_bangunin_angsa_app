@@ -107,7 +107,7 @@ void main() {
     await pumpScreen(tester, VictoryScreen(result: sampleEscape()));
     final fills = tester.widgetList<SockGlyph>(find.byType(SockGlyph)).map((s) => s.fill);
     expect(fills, [Palette.calmMint, Palette.lamp, Palette.lamp]);
-    expect(find.bySemanticsLabel('Heist goals 2 of 3 socks'), findsOneWidget);
+    expect(find.bySemanticsLabel('Heist goals 3 of 3 socks'), findsOneWidget);
   });
 
   testWidgets('Victory with no goals', (tester) async {
@@ -115,6 +115,19 @@ void main() {
     await pumpScreen(tester, VictoryScreen(result: result));
     expect(tester.takeException(), isNull);
     expect(find.byType(SockGlyph), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('—')), findsNothing);
+  });
+
+  testWidgets('the hint counts socks earned on earlier runs', (tester) async {
+    HeistLog.instance.record(sampleEscape(goalsMet: {PlayStyle.ghost}));
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape()));
+    expect(find.bySemanticsLabel(RegExp(r'✗ Never seen — every sock collected!$')), findsOneWidget);
+
+    HeistLog.instance
+      ..clear()
+      ..record(sampleEscape(goalsMet: {PlayStyle.trickster}));
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(goalsMet: {PlayStyle.chaos})));
+    expect(find.bySemanticsLabel(RegExp(r'— try a Ghost run for the last sock\.$')), findsOneWidget);
   });
 
   testWidgets('a long score stays on one line', (tester) async {
