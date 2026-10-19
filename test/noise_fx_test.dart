@@ -92,6 +92,15 @@ void main() {
     expect(fx.words.single.color, Palette.alarmTomato);
   });
 
+  test("Milo's noises ring at his height, up on the furniture too", () {
+    take(const NoiseMade(Noise(x: 300, y: 106, loudness: 3), touchedEar: false, tool: Tool.kazoo));
+    expect(fx.rings.single.center, const Offset(300, 106 - 50));
+    take(const NoiseMade(Noise(x: 150, y: 200, loudness: 0), touchedEar: false));
+    expect(fx.rings.last.center, const Offset(150, 200 - 8));
+    take(const NoiseMade(Noise(x: 150, y: 270, loudness: 1), touchedEar: false));
+    expect(fx.rings.last.center, const Offset(150, 220));
+  });
+
   test('a slip says so', () {
     take(const GooseSlipped(480));
     expect(fx.words.single.text, 'SLIP!');
