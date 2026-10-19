@@ -15,7 +15,8 @@ import 'save_store.dart';
 ///
 /// The blob: `{"v": 1, "socks": {...}, "pilfered": {...}, "settings":
 /// {...}, "briefing": {...}}`. A field that is missing or the wrong shape
-/// keeps its default; a store that fails is ignored.
+/// keeps its default. A save that can't be read or restored is left alone
+/// for the session; a store that can't be written is ignored.
 abstract final class SaveGame {
   static SaveStore? _store;
   static bool _pending = false;
@@ -27,12 +28,21 @@ abstract final class SaveGame {
     try {
       data = await store.read();
     } catch (e) {
-      debugPrint('SaveGame: could not read the save ($e)');
+      // The save may still be there: play from defaults, but never write
+      // over it this session.
+      debugPrint('SaveGame: could not read the save, not saving ($e)');
+      return;
     }
     final json = _decode(data);
-    HeistLog.instance.restore(json);
-    GameSettings.instance.restore(jsonMap(json['settings']));
-    BriefingPrefs.instance.restore(jsonMap(json['briefing']));
+    try {
+      HeistLog.instance.restore(json);
+      GameSettings.instance.restore(jsonMap(json['settings']));
+      BriefingPrefs.instance.restore(jsonMap(json['briefing']));
+    } catch (e) {
+      // Kept as it is for a build that can read it; not saving.
+      debugPrint('SaveGame: could not restore the save, not saving ($e)');
+      return;
+    }
 
     _store = store;
     for (final s in _sources) {

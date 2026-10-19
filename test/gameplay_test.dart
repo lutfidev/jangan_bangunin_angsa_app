@@ -549,8 +549,8 @@ void main() {
     }
 
     testWidgets('a remixed night draws loot where the level put it', (tester) async {
-      await pumpGameplay(tester, NightSim(Levels.night3.rearranged(lootX: {'toaster': 735})));
-      expect(tester.getTopLeft(inScene(_prop(PropKind.toaster))).dx, 735 - 32);
+      await pumpGameplay(tester, NightSim(Levels.night3.rearranged(lootX: {'toaster': 60})));
+      expect(tester.getTopLeft(inScene(_prop(PropKind.toaster))).dx, 60 - 32);
     });
 
     testWidgets('mirror draws the house flipped', (tester) async {

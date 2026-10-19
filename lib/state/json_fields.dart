@@ -11,7 +11,7 @@ bool? jsonBool(Map<String, Object?> json, String key) => switch (json[key]) {
 
 /// An int (a whole double is fine), clamped to [min]..[max].
 int? jsonInt(Map<String, Object?> json, String key, {required int min, required int max}) => switch (json[key]) {
-  final num n when n == n.roundToDouble() => n.toInt().clamp(min, max),
+  final num n when n.isFinite && n == n.roundToDouble() => n.toInt().clamp(min, max),
   _ => null,
 };
 

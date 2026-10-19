@@ -32,8 +32,8 @@ const lootArt = <String, ({PropKind kind, String name, double size})>{
 /// Every x a loot may stand at (its own and its Nightly Remix spots), and
 /// the top of its art there: on the counter, the floor or the plank.
 final lootTops = <String, Map<double, double>>{
-  'toaster': {218: 146, 60: 206, 735: 206},
-  'chicken': {353: 70, 280: 70},
+  'toaster': {218: 146, 60: 206},
+  'chicken': {353: 70, 300: 70},
   'egg': {561: 206},
 };
 

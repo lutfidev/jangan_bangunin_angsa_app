@@ -97,8 +97,8 @@ void main() {
   });
 
   testWidgets('gameplay_remix', (tester) async {
-    // Toaster in the hall, chicken at the plank's left end, pot under the shelf.
-    final level = Levels.night3.rearranged(lootX: {'toaster': 735, 'chicken': 280}, objectSpots: {'pot': 'underShelf'});
+    // Chicken near the plank's left end, pot under the shelf.
+    final level = Levels.night3.rearranged(lootX: {'chicken': 300}, objectSpots: {'pot': 'underShelf'});
     await pumpGameplay(tester, NightSim(level));
     await snap(tester, 'gameplay_remix');
   });

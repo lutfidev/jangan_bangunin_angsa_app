@@ -20,6 +20,14 @@ class _BrokenStore implements SaveStore {
   Future<void> write(String data) => Future.error(StateError('no disk'));
 }
 
+/// A store whose read fails but whose write would work.
+class _UnreadableStore extends MemorySaveStore {
+  _UnreadableStore() : super('{"socks": {"night3": ["ghost"]}}');
+
+  @override
+  Future<String?> read() => Future.error(StateError('busy'));
+}
+
 /// Forgets the in-memory state, as a fresh app launch would.
 void _relaunch() {
   HeistLog.instance.clear();
@@ -83,7 +91,13 @@ void main() {
   });
 
   group('bad saves load as defaults', () {
-    for (final data in ['not json', '[]', '"v"', '{"socks": [1], "settings": 3, "briefing": null}']) {
+    for (final data in [
+      'not json',
+      '[]',
+      '"v"',
+      '{"socks": [1], "settings": 3, "briefing": null}',
+      '{"settings": {"sfx": 1e999, "music": -1e999}}',
+    ]) {
       test(data, () async {
         await SaveGame.start(MemorySaveStore(data));
         expect(HeistLog.instance.totalSocks, 0);
@@ -119,6 +133,15 @@ void main() {
     await pumpEventQueue();
     expect(store.writes, 1);
     expect((jsonDecode(store.data!) as Map)['settings']['sfx'], 60);
+  });
+
+  test('a save that could not be read is never overwritten', () async {
+    // A read that fails (not a bad blob) may hide real progress: keep it.
+    final store = _UnreadableStore();
+    await SaveGame.start(store);
+    GameSettings.instance.sfx = 20;
+    await pumpEventQueue();
+    expect(store.writes, 0);
   });
 
   test('a broken store does not stop the game', () async {

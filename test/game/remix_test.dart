@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/remix.dart';
+import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
 
@@ -46,8 +47,8 @@ void main() {
       chicken.add(loot['chicken']! as double);
       pot.add(objects['pot']! as String);
     }
-    expect(toaster, {218, 60, 735});
-    expect(chicken, {353, 280});
+    expect(toaster, {218, 60});
+    expect(chicken, {353, 300});
     expect(pot, {'counterPot', 'underShelf', 'underSideTable'});
   });
 
@@ -61,5 +62,31 @@ void main() {
   test('a level without remix entries comes back unchanged', () {
     final level = Level.parse(minimalLevel());
     expect(layout(remixed(level, 20261019)), layout(level));
+  });
+
+  test('a floor remix spot never shares reach with a hide spot', () {
+    // Mid-chase, Interact by a hide spot must hide, not grab.
+    final level = night3();
+    final reach = const Tuning().reach;
+    for (final loot in level.loot.where((l) => !l.high)) {
+      for (final x in level.remixLoot[loot.id] ?? const <double>[]) {
+        for (final h in level.hideSpots) {
+          expect((x - h).abs(), greaterThan(2 * reach), reason: '${loot.id} at $x, hide at $h');
+        }
+      }
+    }
+  });
+
+  test('a high remix spot leaves both crawlway ends free to climb down', () {
+    final level = night3();
+    final reach = const Tuning().reach;
+    final crawl = level.crawlway!;
+    for (final loot in level.loot.where((l) => l.high)) {
+      for (final x in level.remixLoot[loot.id] ?? const <double>[]) {
+        for (final end in [crawl.from, crawl.to]) {
+          expect((x - end).abs(), greaterThan(reach), reason: '${loot.id} at $x, end at $end');
+        }
+      }
+    }
   });
 }

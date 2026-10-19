@@ -120,7 +120,7 @@ void main() {
 
   test('parses remix alternatives', () {
     final level = night3();
-    expect(level.remixLoot, {'toaster': [60, 735], 'chicken': [280]});
+    expect(level.remixLoot, {'toaster': [60], 'chicken': [300]});
     expect(level.remixSpots, {'pot': ['underShelf', 'underSideTable']});
   });
 
