@@ -40,7 +40,8 @@ class Combo {
   int _total = 0;
   double? _last;
 
-  /// Links in the current combo; also its multiplier.
+  /// Links in the current combo; also its multiplier, up to
+  /// [Tuning.comboMaxMultiplier].
   int get count => _count;
 
   /// Points the current combo has scored so far.
@@ -60,7 +61,7 @@ class Combo {
       _points = 0;
     }
     _count++;
-    final score = tuning.linkScore * _count;
+    final score = tuning.linkScore * math.min<int>(_count, tuning.comboMaxMultiplier);
     _points += score;
     _total += score;
     _best = math.max(_best, _count);

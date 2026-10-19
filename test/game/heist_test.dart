@@ -30,4 +30,14 @@ void main() {
     expect(c.leftAt(2.5), 2.5);
     expect(c.leftAt(6), 0);
   });
+
+  test('the multiplier stops at ×10, the combo keeps counting', () {
+    final c = Combo(const Tuning());
+    for (var i = 0; i < 15; i++) {
+      c.link(i * 0.5);
+    }
+    expect(c.count, 15);
+    expect(c.best, 15);
+    expect(c.total, 120 * (55 + 10 * 5));
+  });
 }

@@ -167,7 +167,11 @@ class VictoryScreen extends StatelessWidget {
                   _StatCard(
                     children: [
                       Text('SCORE', style: hudLabel(size: 10, spacing: 1.4)),
-                      Text(thousands(result.score), style: display(21, color: Palette.lamp, height: 1.2)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(thousands(result.score), style: display(21, color: Palette.lamp, height: 1.2), maxLines: 1),
+                      ),
                     ],
                   ),
                   _StatCard(

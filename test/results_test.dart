@@ -116,4 +116,11 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(SockGlyph), findsNothing);
   });
+
+  testWidgets('a long score stays on one line', (tester) async {
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(score: 24615400)));
+    expect(tester.getSize(find.text('24,615,400')).height, lessThan(30));
+    expect(tester.getBottomLeft(find.text('STYLE')).dy, lessThan(290));
+    expect(tester.takeException(), isNull);
+  });
 }
