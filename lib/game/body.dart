@@ -95,6 +95,9 @@ class Body {
         _verticalSpent = true;
         _buffer = 0;
         _mantle = (onto: onto, from: feet, t: 0);
+        // On his way up he is on neither the floor nor the top.
+        _grounded = false;
+        _standingOn = null;
         return null;
       }
       final under = vertical > 0 ? standingOn : null;

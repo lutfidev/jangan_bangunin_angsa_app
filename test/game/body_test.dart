@@ -248,6 +248,15 @@ void main() {
       expect(b.standingOn?.id, 'counter');
     });
 
+    test('mid-mantle he is neither on the floor nor on the top yet', () {
+      final b = at(260, 270);
+      run(b, 0.05, vertical: -1);
+      expect(b.mantling, isTrue);
+      expect(b.grounded, isFalse);
+      expect(b.onFloor, isFalse);
+      expect(b.standingOn, isNull);
+    });
+
     test('letting go mid-mantle still ends on top', () {
       final b = at(260, 270);
       run(b, 0.2, vertical: -1);

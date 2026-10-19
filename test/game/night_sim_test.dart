@@ -925,6 +925,17 @@ void main() {
       expect(s.toggleHide(), isFalse);
     });
 
+    test('no hiding halfway up a mantle', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 148);
+      s
+        ..setVertical(-1)
+        ..tick(frame);
+      expect(s.mantling, isTrue);
+      expect(s.interaction, isNull);
+      expect(s.toggleHide(), isFalse);
+    });
+
     test('up and down do nothing while hidden', () {
       final s = NightSim(night3())..setSneak(true);
       walkTo(s, 148);
