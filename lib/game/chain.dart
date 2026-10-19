@@ -66,13 +66,18 @@ class ChainRunner {
     _schedule(_now, spotId, inLoudness: 1, chainId: chainId, link: 1);
   }
 
+  /// Whether [lift] would pick [objectId] up now.
+  bool canLift(String objectId) {
+    final object = _objects[objectId];
+    if (object == null || !object.portable || _spent.contains(objectId) || _held.contains(objectId)) return false;
+    return !_pending.any((p) => p.ringing == objectId);
+  }
+
   /// Rearrange: pick a portable object up off its spot. Hits already on
   /// their way to that spot find it empty. A chimer waiting to ring can't
   /// be picked up.
   bool lift(String objectId) {
-    final object = _objects[objectId];
-    if (object == null || !object.portable || _spent.contains(objectId) || _held.contains(objectId)) return false;
-    if (_pending.any((p) => p.ringing == objectId)) return false;
+    if (!canLift(objectId)) return false;
     _objectAt.remove(spotOf(objectId));
     _held.add(objectId);
     return true;

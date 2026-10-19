@@ -90,6 +90,9 @@ Widget chickenSparkle() => at(
 /// loose plank is a lighter colour".
 Widget loosePlank() => box(622, 271, 36, 9, const Color(0xFFA8735A), border: 2);
 
+/// Where the crawlway plank is drawn; it covers the level's crawlway.
+const crawlwayArt = (left: 244.0, right: 426.0);
+
 /// The cabinet-top crawlway: a plank from the counter's end to the top of
 /// the bookshelf, with a bracket under its free left end.
 List<Widget> crawlway() => [
@@ -102,7 +105,7 @@ List<Widget> crawlway() => [
       height: 20,
     ),
   ),
-  box(244, crawlwayTop, 182, 10, Palette.wood, border: 3, radius: 3),
+  box(crawlwayArt.left, crawlwayTop, crawlwayArt.right - crawlwayArt.left, 10, Palette.wood, border: 3, radius: 3),
 ];
 
 /// The coat rack in the hall (Chaos escape board), a hide spot.
@@ -138,9 +141,9 @@ Widget hideTag(Offset at_) => at(
 /// Milo tucked into the hide spot at [x]: only his masked eyes show. The
 /// kitchen cabinet door stands open a crack around them.
 List<Widget> hidingMilo(double x) {
-  final peek = hideArt[x]!.peek;
+  final (:peek, :crack, tag: _) = hideArt[x]!;
   return [
-    if (x == 148) box(146, 215, 43, 48, Palette.ink),
+    if (crack != null) box(crack.left, crack.top, crack.width, crack.height, Palette.ink),
     at(
       peek.dx,
       peek.dy,

@@ -316,6 +316,22 @@ void main() {
     List<NoiseMade> flops(List<SimEvent> events) =>
         events.whereType<NoiseMade>().where((n) => n.tool == Tool.socks).toList();
 
+    test('a sock thrown from the crawlway stays high', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 250);
+      expect(s.toggleClimb(), isTrue);
+      expect(s.throwSock(500), isTrue);
+      expect(s.flights.single.high, isTrue);
+      expect(s.toggleClimb(), isTrue); // down again mid-flight
+      expect(s.flights.single.high, isTrue);
+    });
+
+    test('a sock thrown from the floor is not high', () {
+      final s = NightSim(night3());
+      expect(s.throwSock(62), isTrue);
+      expect(s.flights.single.high, isFalse);
+    });
+
     test('a sock at the glass starts a chain when it lands', () {
       final s = NightSim(night3());
       expect(s.throwSock(62), isTrue);
@@ -884,5 +900,16 @@ void main() {
       expect(r.score, 1000 + 1000);
       expect(r.bestChain, 0);
     });
+  });
+
+  test('a portable chimer waiting to ring is not offered to move', () {
+    final s = NightSim(Level.parse(minimalLevel(
+      spots: [{'id': 'a', 'x': 10, 'snap': true}],
+      objects: [{'id': 'clock', 'type': 'chimer', 'spot': 'a', 'portable': true}],
+    )));
+    expect(s.interaction, isA<MoveObject>());
+    s.poke('a');
+    s.tick(0.1);
+    expect(s.interaction, isNot(isA<MoveObject>()));
   });
 }

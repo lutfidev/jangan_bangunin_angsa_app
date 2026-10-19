@@ -370,7 +370,7 @@ class NightSim {
   bool throwSock(double aimX) {
     if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden || _held != null) return false;
     _toolLeft--;
-    _flights.add(Flight(fromX: _x, toX: throwLanding(aimX), duration: tuning.throwFlightTime));
+    _flights.add(Flight(fromX: _x, toX: throwLanding(aimX), duration: tuning.throwFlightTime, high: _up));
     return true;
   }
 
@@ -409,7 +409,7 @@ class NightSim {
 
     final portable = _nearestSpot((s) {
       final id = chain.objectAt(s.id);
-      return id != null && !chain.isSpent(id) && level.objects.any((o) => o.id == id && o.portable);
+      return id != null && chain.canLift(id);
     });
     if (portable != null) return MoveObject(portable.id, chain.objectAt(portable.id)!);
 

@@ -387,9 +387,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     // The other verbs show on the button only, like Plan View's MOVE POT.
                     _ => const SizedBox.shrink(),
                   },
-                  // HIDE tags: the one in reach, or all of them once she is up.
+                  // HIDE tags: the one in reach, or all of them once she is up,
+                  // while he could hide at all.
                   for (final h in level.hideSpots)
-                    if (!_sim.hidden && ((interaction is Hide && interaction.x == h) || goose.isAwake))
+                    if (!_sim.hidden && !_sim.up && _sim.held == null &&
+                        ((interaction is Hide && interaction.x == h) || goose.isAwake))
                       hideTag(hideArt[h]!.tag),
                   at(
                     758,
@@ -402,7 +404,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   ),
 
                   // Socks in the air, and the one being aimed.
-                  for (final f in _sim.flights) flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: handY)),
+                  for (final f in _sim.flights)
+                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: f.high ? crawlHandY : 212)),
                   if (_aimDx case final dx?)
                     Positioned.fill(
                       child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)), handY: handY)),

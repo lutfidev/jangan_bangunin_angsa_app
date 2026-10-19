@@ -170,6 +170,22 @@ void main() {
     expect(r.lift('clock'), isFalse);
     expect(r.isHeld('clock'), isFalse);
   });
+
+  test('canLift refuses a chimer waiting to ring, then allows it', () {
+    final level = Level.parse(minimalLevel(
+      spots: [{'id': 'a', 'x': 10, 'snap': true}],
+      objects: [{'id': 'clock', 'type': 'chimer', 'spot': 'a', 'portable': true}],
+    ));
+    final r = ChainRunner(level, const Tuning());
+    expect(r.canLift('clock'), isTrue);
+    r.poke('a');
+    r.tick(0.1);
+    expect(r.canLift('clock'), isFalse);
+    r.tick(1);
+    expect(r.canLift('clock'), isTrue);
+    expect(r.isHeld('clock'), isFalse);
+  });
+
 }
 
 final _portableClock = minimalLevel(

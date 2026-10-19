@@ -410,6 +410,21 @@ void main() {
       expect(find.text('HIDE'), findsNothing);
     });
 
+    testWidgets('no HIDE tags while she is up and Milo is up on the crawlway', (tester) async {
+      final sim = sneakTo(260)..toggleClimb();
+      sim.goose.wake(WakeCause.noise);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HIDE'), findsNothing);
+    });
+
+    testWidgets('no HIDE tags while she is up and Milo holds the pot', (tester) async {
+      final sim = sneakTo(113);
+      expect(sim.lift('pot'), isTrue);
+      sim.goose.wake(WakeCause.noise);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HIDE'), findsNothing);
+    });
+
     testWidgets('CLIMB puts Milo on the crawlway, crawling', (tester) async {
       final sim = await pumpGameplay(tester, sneakTo(260));
       await tapInteract(tester, 'CLIMB');
