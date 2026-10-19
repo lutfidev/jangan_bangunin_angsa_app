@@ -140,7 +140,7 @@ void main() {
       await pumpOnRoutes(tester, const BriefingScreen());
       await tester.tap(tile('Kazoo (locked)'));
       await tester.pump();
-      expect(find.text('Earn 6 socks to unlock. One loud toot right where you stand.'), findsOneWidget);
+      expect(find.text('Earn 2 socks to unlock. One loud toot right where you stand.'), findsOneWidget);
       expect(tester.widget<ChunkyButton>(button('Sneak in')).onPressed, isNull);
       final dim = find.ancestor(of: button('Sneak in'), matching: find.byType(Opacity));
       expect(tester.widget<Opacity>(dim.first).opacity, 0.6);

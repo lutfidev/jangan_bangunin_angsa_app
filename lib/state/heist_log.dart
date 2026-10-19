@@ -15,6 +15,9 @@ class HeistLog extends ChangeNotifier {
   /// The goal styles earned on [levelId] so far.
   Set<PlayStyle> earned(String levelId) => Set.unmodifiable(_earned[levelId] ?? const <PlayStyle>{});
 
+  /// Socks earned over every night.
+  int get totalSocks => _earned.values.fold(0, (n, socks) => n + socks.length);
+
   /// Adds the socks a finished night earned; a caught night earns none.
   void record(NightResult result) {
     final socks = _earned.putIfAbsent(result.level.id, () => {});

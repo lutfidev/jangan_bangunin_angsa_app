@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../art/art.dart';
 import '../art/icons.dart';
 import '../game/heist.dart';
-import '../game/modifiers.dart';
 import '../game/tools.dart';
+import '../game/unlocks.dart';
 import '../routes.dart';
+import '../state/briefing_prefs.dart';
 import '../state/heist_log.dart';
 import '../state/levels.dart';
 import '../theme/palette.dart';
@@ -20,29 +21,41 @@ import 'scene.dart';
 
 typedef _Tool = ({Tool tool, PropKind kind, String name, String style, Color color, String desc, bool locked});
 
-const List<_Tool> _tools = [
-  (tool: Tool.socks, kind: PropKind.sock, name: 'Spare Socks ×3', style: 'TRICKSTER', color: Palette.lamp, desc: 'Hold Tool, drag to aim, release to throw. Hits whatever it lands on.', locked: false),
-  (tool: Tool.mouse, kind: PropKind.mouse, name: 'Wind-up Mouse', style: 'TRICKSTER', color: Palette.lamp, desc: 'Set it down facing a direction. It walks until it bumps something.', locked: false),
-  (tool: Tool.marbles, kind: PropKind.marbles, name: 'Bag of Marbles', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Spill behind you mid-chase. Gertrude slips and loses 2 seconds.', locked: false),
-  (tool: Tool.kazoo, kind: PropKind.kazoo, name: 'Kazoo (locked)', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Earn 6 socks to unlock. One loud toot right where you stand.', locked: true),
-];
+/// The four tools with [socks] earned; the kazoo waits for [Unlock.kazoo].
+List<_Tool> _tools(int socks) {
+  final kazoo = Unlock.kazoo.openWith(socks);
+  return [
+    (tool: Tool.socks, kind: PropKind.sock, name: 'Spare Socks ×3', style: 'TRICKSTER', color: Palette.lamp, desc: 'Hold Tool, drag to aim, release to throw. Hits whatever it lands on.', locked: false),
+    (tool: Tool.mouse, kind: PropKind.mouse, name: 'Wind-up Mouse', style: 'TRICKSTER', color: Palette.lamp, desc: 'Set it down facing a direction. It walks until it bumps something.', locked: false),
+    (tool: Tool.marbles, kind: PropKind.marbles, name: 'Bag of Marbles', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Spill behind you mid-chase. Gertrude slips and loses 2 seconds.', locked: false),
+    kazoo
+        ? (tool: Tool.kazoo, kind: PropKind.kazoo, name: 'Kazoo', style: 'CHAOS', color: Palette.alarmTomato, desc: "One loud toot right where you stand. Wakes her if she's close.", locked: false)
+        : (tool: Tool.kazoo, kind: PropKind.kazoo, name: 'Kazoo (locked)', style: 'CHAOS', color: Palette.alarmTomato, desc: 'Earn ${Unlock.kazoo.socks} socks to unlock. One loud toot right where you stand.', locked: true),
+  ];
+}
 
-/// Night briefing: heist goals, pick one tool, toggle modifiers.
-class BriefingScreen extends StatefulWidget {
+/// A modifier's switch label: its sock price shows until it is paid.
+String _modLabel(String name, Unlock unlock, int socks) =>
+    unlock.openWith(socks) ? name : '$name (${unlock.socks} sock${unlock.socks == 1 ? '' : 's'})';
+
+/// Night briefing: heist goals, pick one tool, toggle modifiers. Picks are
+/// kept in [BriefingPrefs]; socks earned open the locked ones.
+class BriefingScreen extends StatelessWidget {
   const BriefingScreen({super.key});
 
   @override
-  State<BriefingScreen> createState() => _BriefingScreenState();
-}
-
-class _BriefingScreenState extends State<BriefingScreen> {
-  int _tool = 0;
-  bool _remix = true;
-  bool _lightSleeper = false;
-
-  @override
   Widget build(BuildContext context) {
-    final selected = _tools[_tool];
+    final prefs = BriefingPrefs.instance;
+    return ListenableBuilder(
+      listenable: Listenable.merge([prefs, HeistLog.instance]),
+      builder: (context, _) => _build(context, prefs),
+    );
+  }
+
+  Widget _build(BuildContext context, BriefingPrefs prefs) {
+    final socks = HeistLog.instance.totalSocks;
+    final tools = _tools(socks);
+    final selected = tools.firstWhere((t) => t.tool == prefs.tool);
     final level = Levels.night3;
     final earned = HeistLog.instance.earned(level.id);
     return Stage(
@@ -119,11 +132,11 @@ class _BriefingScreenState extends State<BriefingScreen> {
                 Row(
                   spacing: 8,
                   children: [
-                    for (var i = 0; i < _tools.length; i++)
+                    for (final tool in tools)
                       Expanded(child: _ToolTile(
-                        tool: _tools[i],
-                        selected: i == _tool,
-                        onPressed: () => setState(() => _tool = i),
+                        tool: tool,
+                        selected: tool.tool == prefs.tool,
+                        onPressed: () => prefs.tool = tool.tool,
                       )),
                   ],
                 ),
@@ -174,15 +187,19 @@ class _BriefingScreenState extends State<BriefingScreen> {
                 Text('MODIFIERS', style: hudLabel()),
                 _ModifierButton(
                   label: 'Nightly Remix',
-                  value: _remix,
-                  onChanged: (v) => setState(() => _remix = v),
+                  value: prefs.remix,
+                  onChanged: (v) => prefs.remix = v,
                 ),
                 _ModifierButton(
-                  label: 'Light Sleeper',
-                  value: _lightSleeper,
-                  onChanged: (v) => setState(() => _lightSleeper = v),
+                  label: _modLabel('Light Sleeper', Unlock.lightSleeper, socks),
+                  value: prefs.lightSleeper && Unlock.lightSleeper.openWith(socks),
+                  onChanged: Unlock.lightSleeper.openWith(socks) ? (v) => prefs.lightSleeper = v : null,
                 ),
-                const _ModifierButton(label: 'Mirror (9 socks)', value: false),
+                _ModifierButton(
+                  label: _modLabel('Mirror', Unlock.mirror, socks),
+                  value: prefs.mirror && Unlock.mirror.openWith(socks),
+                  onChanged: Unlock.mirror.openWith(socks) ? (v) => prefs.mirror = v : null,
+                ),
               ],
             ),
           ),
@@ -197,7 +214,7 @@ class _BriefingScreenState extends State<BriefingScreen> {
             child: ChunkyButton.primary(
               onPressed: selected.locked
                   ? null
-                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: NightSetup(tool: selected.tool)),
+                  : () => Navigator.pushReplacementNamed(context, Routes.gameplay, arguments: prefs.tonight()),
               label: 'Sneak in',
               trailingIcon: GameIcon.arrow,
               iconSize: 18,
@@ -318,13 +335,20 @@ class _ModifierButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            spacing: 6,
             children: [
-              Text(
-                label,
-                style: ui(
-                  12,
-                  weight: FontWeight.w800,
-                  color: locked ? const Color(0xFF6E6A90) : Palette.gooseWhite,
+              // A label with its sock price shrinks to fit.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: ui(
+                      12,
+                      weight: FontWeight.w800,
+                      color: locked ? const Color(0xFF6E6A90) : Palette.gooseWhite,
+                    ),
+                  ),
                 ),
               ),
               ToggleSwitch(value: value, compact: true, offColor: Palette.slate),
