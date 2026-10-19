@@ -52,3 +52,6 @@ app.*.map.json
 /docs/
 /.claude/
 /.superpowers/
+
+# Diffs flutter_test writes when a golden fails.
+test/screenshots/failures/
