@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/briefing_screen.dart';
@@ -65,7 +66,13 @@ void main() {
       return VictoryScreen(result: sampleEscape());
     },
     'caught': () => CaughtScreen(result: sampleCaught()),
-    'trophy_room': () => const TrophyRoomScreen(),
+    'trophy_room': () {
+      // Two of Night 3's loot taken; the egg and the duck still to get.
+      HeistLog.instance
+        ..clear()
+        ..record(sampleEscape(loot: ['toaster', 'chicken'], goalsMet: {PlayStyle.ghost}));
+      return const TrophyRoomScreen();
+    },
   };
   for (final MapEntry(key: name, value: screen) in screens.entries) {
     testWidgets(name, (tester) async {
@@ -77,6 +84,29 @@ void main() {
   testWidgets('gameplay', (tester) async {
     await pumpGameplay(tester);
     await snap(tester, 'gameplay');
+  });
+
+  testWidgets('gameplay_mirror', (tester) async {
+    // Mirror Night with a chain going, so its words show too.
+    final sim = NightSim(Levels.night3, setup: const NightSetup(mirror: true));
+    walkTo(sim, 62);
+    sim.poke('counterLeft');
+    await pumpGameplay(tester, sim);
+    await play(tester, 0.5);
+    await snap(tester, 'gameplay_mirror');
+  });
+
+  testWidgets('gameplay_remix', (tester) async {
+    // Chicken near the plank's left end, pot under the shelf.
+    final level = Levels.night3.rearranged(lootX: {'chicken': 300}, objectSpots: {'pot': 'underShelf'});
+    await pumpGameplay(tester, NightSim(level));
+    await snap(tester, 'gameplay_remix');
+  });
+
+  testWidgets('gameplay_remix_kitchen', (tester) async {
+    final level = Levels.night3.rearranged(lootX: {'toaster': 60}, objectSpots: {'pot': 'underSideTable'});
+    await pumpGameplay(tester, NightSim(level));
+    await snap(tester, 'gameplay_remix_kitchen');
   });
 
   testWidgets('gameplay_chain', (tester) async {
@@ -146,7 +176,7 @@ void main() {
   });
 
   testWidgets('gameplay_mouse', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.mouse)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.mouse))..setSneak(true);
     sim
       ..useTool()
       ..tick(0.8)
@@ -156,7 +186,7 @@ void main() {
   });
 
   testWidgets('gameplay_marbles', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.marbles))..setSneak(true);
     walkTo(sim, 561);
     tickUntil(sim, () => !sim.goose.rollingOver);
     sim.grab('egg');
@@ -170,7 +200,7 @@ void main() {
   });
 
   testWidgets('gameplay_slip', (tester) async {
-    final sim = NightSim(Levels.night3, tool: Tool.marbles)..setSneak(true);
+    final sim = NightSim(Levels.night3, setup: const NightSetup(tool: Tool.marbles))..setSneak(true);
     walkTo(sim, 561);
     tickUntil(sim, () => !sim.goose.rollingOver);
     sim.grab('egg');

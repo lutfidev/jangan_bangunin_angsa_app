@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -57,7 +58,7 @@ NightResult sampleCaught({
     ],
     wakeCause: cause,
     time: 42,
-    tool: tool,
+    setup: NightSetup(tool: tool),
   );
 }
 
@@ -72,17 +73,19 @@ NightResult sampleEscape({
   int lures = 2,
   PlayStyle style = PlayStyle.trickster,
   Set<PlayStyle> goalsMet = const {PlayStyle.trickster, PlayStyle.chaos},
+  bool seen = false,
 }) => NightResult(
   level: Levels.night3,
   outcome: Outcome.escaped,
   loot: loot,
   time: time,
-  tool: tool,
+  setup: NightSetup(tool: tool),
   score: score,
   bestChain: bestChain,
   lures: lures,
   style: style,
   goalsMet: goalsMet,
+  seen: seen,
 );
 
 /// Pumps 60fps frames for [seconds].
@@ -99,7 +102,7 @@ Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
   await tester.pumpWidget(
     MaterialApp(
       onGenerateRoute: MainApp.route,
-      home: GameplayScreen(tool: s.tool, sim: s),
+      home: GameplayScreen(setup: s.setup, sim: s),
     ),
   );
   await tester.pump();

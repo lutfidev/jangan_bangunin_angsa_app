@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:jangan_bangunin_angsa_app/state/briefing_prefs.dart';
+import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
+import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/theme/type.dart';
 
@@ -22,6 +25,13 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await GoogleFonts.pendingFonts();
 
   await Levels.load(rootBundle);
+
+  // The app's state singletons start every test fresh.
+  tearDown(() {
+    HeistLog.instance.clear();
+    BriefingPrefs.instance.reset();
+    GameSettings.instance.reset();
+  });
 
   await testMain();
 }

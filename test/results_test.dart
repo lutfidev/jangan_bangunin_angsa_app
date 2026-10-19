@@ -4,6 +4,7 @@ import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
+import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/victory_screen.dart';
 import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
@@ -42,6 +43,18 @@ void main() {
     await pumpScreen(tester, CaughtScreen(result: sampleCaught(chain: [], cause: WakeCause.grabbedGuarded)));
     expect(recap(tester), [PropKind.egg]);
     expect(find.textContaining('roll-over'), findsOneWidget);
+  });
+
+  testWidgets('a kazoo wake shows the kazoo and its tip', (tester) async {
+    await pumpScreen(tester, CaughtScreen(result: sampleCaught(chain: [], cause: WakeCause.tool, tool: Tool.kazoo)));
+    expect(recap(tester), [PropKind.kazoo]);
+    expect(find.textContaining('kazoo is loud'), findsOneWidget);
+  });
+
+  testWidgets('a missed sock wake shows the sock and its tip', (tester) async {
+    await pumpScreen(tester, CaughtScreen(result: sampleCaught(chain: [], cause: WakeCause.tool)));
+    expect(recap(tester), [PropKind.sock]);
+    expect(find.textContaining('sock that misses'), findsOneWidget);
   });
 
   testWidgets('a six-link chain fits', (tester) async {
@@ -86,6 +99,8 @@ void main() {
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 0, lures: 0, style: PlayStyle.ghost)));
     expect(find.text('Ghost'), findsOneWidget);
     expect(find.text('Not a peep'), findsOneWidget);
+    await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 0, lures: 0, style: PlayStyle.ghost, seen: true)));
+    expect(find.text('Kept her guessing'), findsOneWidget);
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(bestChain: 1, lures: 3)));
     expect(find.text('Lured ×3'), findsOneWidget);
   });

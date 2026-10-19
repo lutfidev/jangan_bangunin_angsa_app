@@ -58,6 +58,14 @@ class ToolButton extends StatefulWidget {
     Tool.kazoo => 'kazoo',
   };
 
+  /// The prop that draws [tool].
+  static PropKind propOf(Tool tool) => switch (tool) {
+    Tool.socks => PropKind.sock,
+    Tool.mouse => PropKind.mouse,
+    Tool.marbles => PropKind.marbles,
+    Tool.kazoo => PropKind.kazoo,
+  };
+
   @override
   State<ToolButton> createState() => _ToolButtonState();
 }
@@ -117,11 +125,7 @@ class _ToolButtonState extends State<ToolButton> {
                 if (_throws)
                   const SockGlyph(fill: Palette.lamp)
                 else
-                  Prop(switch (widget.tool) {
-                    Tool.mouse => PropKind.mouse,
-                    Tool.marbles => PropKind.marbles,
-                    _ => PropKind.kazoo,
-                  }, size: 28),
+                  Prop(ToolButton.propOf(widget.tool), size: 28),
                 Text('TOOL', style: ui(9, weight: FontWeight.w800, letterSpacing: 1, height: 1.1)),
               ],
             ),

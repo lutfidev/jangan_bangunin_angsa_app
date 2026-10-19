@@ -25,7 +25,8 @@ void main() {
 
   test('recap copy', () {
     expect(goals().map(goalRecap), ['Never seen', 'Lured her out twice', '5+ link chain']);
-    expect(goalRecap(const HeistGoal(style: PlayStyle.trickster, kind: GoalKind.lure, count: 3)), 'Lured her out ×3');
+    expect(goalRecap(const HeistGoal(style: PlayStyle.trickster, kind: GoalKind.lure, count: 3)), 'Lured her out 3 times');
+    expect(goalRecap(const HeistGoal(style: PlayStyle.trickster, kind: GoalKind.lure)), 'Lured her out once');
   });
 
   test('HUD pill copy', () {

@@ -10,8 +10,9 @@ import '../game/goose_brain.dart';
 import '../game/heist.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
-import '../game/tools.dart';
+import '../game/modifiers.dart';
 import '../game/noise_meter.dart';
+import '../game/remix.dart';
 import '../routes.dart';
 import '../state/game_settings.dart';
 import '../state/heist_log.dart';
@@ -35,13 +36,13 @@ import 'tool_art.dart';
 /// Landscape gameplay over Night 3, The Midnight Kitchen, driven by a
 /// [NightSim] that ticks once per frame.
 class GameplayScreen extends StatefulWidget {
-  const GameplayScreen({super.key, this.level, this.tool = Tool.socks, @visibleForTesting this.sim});
+  const GameplayScreen({super.key, this.level, this.setup = const NightSetup(), @visibleForTesting this.sim});
 
-  /// Defaults to [Levels.night3].
+  /// Defaults to [Levels.night3], remixed when [setup] has a remix seed.
   final Level? level;
 
-  /// The tool picked at the briefing. An injected [sim] brings its own.
-  final Tool tool;
+  /// The briefing's tool and modifiers. An injected [sim] brings its own.
+  final NightSetup setup;
 
   /// A night already under way, for tests.
   final NightSim? sim;
@@ -67,7 +68,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   /// motion instead of skipping the night ahead.
   static const _maxFrame = 0.1;
 
-  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? Levels.night3, tool: widget.tool);
+  late final NightSim _sim = widget.sim ?? NightSim(widget.level ?? _house(widget.setup), setup: widget.setup);
+
+  /// Mirror Night: the room is drawn flipped, and so are the controls.
+  bool get _mirror => _sim.setup.mirror;
+
+  static Level _house(NightSetup setup) => switch (setup.remixSeed) {
+    final seed? => remixed(Levels.night3, seed),
+    null => Levels.night3,
+  };
   late final Ticker _ticker = createTicker(_onTick);
   late final AppLifecycleListener _lifecycle = AppLifecycleListener(onInactive: _pause);
   late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: spotAnchors, tuning: _sim.tuning);
@@ -151,13 +160,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     setState(() => _aimDx = null);
     _ticker.stop();
     _last = null;
-    await Navigator.pushNamed(context, Routes.pause, arguments: _sim.tool);
+    await Navigator.pushNamed(context, Routes.pause, arguments: _sim.setup);
     _paused = false;
     if (mounted && !_done) _ticker.start();
   }
 
-  /// Where the aimed sock would come down: 4 artboard px per px of drag.
-  double _aimX(double dx) => _sim.throwLanding(_sim.playerX + dx * 4);
+  /// Where the aimed sock would come down: 4 artboard px per px of drag,
+  /// the way the finger went on screen.
+  double _aimX(double dx) => _sim.throwLanding(_sim.playerX + (_mirror ? -dx : dx) * 4);
 
   void _aimStart() {
     // A freeze-frame freezes the player too.
@@ -198,7 +208,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
         background: Palette.duskWall,
         children: [
           Positioned.fill(
-            child: Transform.translate(
+            child: MirrorScope(
+              mirrored: _mirror,
+              child: Transform.flip(
+                flipX: _mirror,
+                child: Transform.translate(
               key: GameplayScreen.sceneKey,
               offset: Offset(nudge, 0),
               child: Stack(
@@ -270,15 +284,16 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   // Loot still in the house, and what Interact would do.
                   if (interaction case GrabLoot(:final loot))
                     at(
-                      lootArt[loot.id]!.box.left - 14,
-                      lootArt[loot.id]!.box.top - 14,
+                      lootBox(loot).left - 14,
+                      lootBox(loot).top - 14,
                       const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
-                      width: lootArt[loot.id]!.box.size + 28,
-                      height: lootArt[loot.id]!.box.size + 16,
+                      width: lootBox(loot).size + 28,
+                      height: lootBox(loot).size + 16,
                     ),
                   for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && !loot.guarded && !(loot.high && _sim.up)) _loot(loot.id),
-                  if (!carried.contains('chicken')) chickenSparkle(),
+                    if (!carried.contains(loot.id) && !loot.guarded && !(loot.high && _sim.up)) _loot(loot),
+                  for (final loot in level.loot)
+                    if (loot.high && !carried.contains(loot.id)) chickenSparkle(loot.x),
 
                   // Tools on the floor.
                   if (_sim.spillX case final x?) ...marbleSpill(x),
@@ -308,12 +323,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       ),
                     ),
                   for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && loot.guarded) _loot(loot.id),
+                    if (!carried.contains(loot.id) && loot.guarded) _loot(loot),
                   night3Nest(),
                   ...switch (goose.state) {
-                    GooseState.asleep || GooseState.drowsy => [at(goose.x - 56, 160, const Snores(reversed: true))],
+                    GooseState.asleep || GooseState.drowsy => [
+                      at(goose.x - 56, 160, const Unmirror(child: Snores(reversed: true))),
+                    ],
                     GooseState.stirring => [
-                      at(goose.x - 56, 166, Text('z…?', style: display(18, color: Palette.moonlight))),
+                      at(goose.x - 56, 166, Unmirror(child: Text('z…?', style: display(18, color: Palette.moonlight)))),
                     ],
                     GooseState.suspicious || GooseState.lostYou => [
                       at(
@@ -328,7 +345,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             shape: BoxShape.circle,
                             border: inkBorder(),
                           ),
-                          child: Text('?', style: display(20, height: 1)),
+                          child: Unmirror(child: Text('?', style: display(20, height: 1))),
                         ),
                       ),
                     ],
@@ -360,7 +377,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       at(px - 20, 168, Prop(objectArt[held]!.kind, size: 40)),
                     // Up there he'd hide the loot he crawls to; it goes in front.
                     for (final loot in level.loot)
-                      if (_sim.up && loot.high && !carried.contains(loot.id)) _loot(loot.id),
+                      if (_sim.up && loot.high && !carried.contains(loot.id)) _loot(loot),
                   ],
                   if (_sneak && !goose.isAwake && !_sim.hidden && !_sim.up)
                     at(
@@ -375,14 +392,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                   switch (interaction) {
                     GrabLoot(:final loot) => at(
-                      lootArt[loot.id]!.box.left - 4,
-                      lootArt[loot.id]!.box.top - 46,
-                      const PromptBubble('Grab'),
+                      lootBox(loot).left - 4,
+                      lootBox(loot).top - 46,
+                      const Unmirror(child: PromptBubble('Grab')),
                     ),
                     Wind(:final spotId) => at(
                       spotAnchors[spotId]!.dx - 32,
                       spotAnchors[spotId]!.dy - 64,
-                      const PromptBubble('Wind'),
+                      const Unmirror(child: PromptBubble('Wind')),
                     ),
                     // The other verbs show on the button only, like Plan View's MOVE POT.
                     _ => const SizedBox.shrink(),
@@ -433,9 +450,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       honk.at.dy - 90,
                       Opacity(
                         opacity: honk.opacity,
-                        child: Transform.rotate(
-                          angle: deg(-8),
-                          child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+                        child: Unmirror(
+                          child: Transform.rotate(
+                            angle: deg(-8),
+                            child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
+                          ),
                         ),
                       ),
                     ),
@@ -444,17 +463,19 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     at(
                       goose.x - 60,
                       102,
-                      Pill(
-                        'DISTRACTED · ${goose.distractLeft.ceil()}s',
-                        color: Palette.lamp,
-                        borderWidth: 3,
-                        padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
-                        textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
-                        leading: const InlineSvg(
-                          '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
-                          '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
-                          width: 24,
-                          height: 24,
+                      Unmirror(
+                        child: Pill(
+                          'DISTRACTED · ${goose.distractLeft.ceil()}s',
+                          color: Palette.lamp,
+                          borderWidth: 3,
+                          padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+                          textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
+                          leading: const InlineSvg(
+                            '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
+                            '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
+                            width: 24,
+                            height: 24,
+                          ),
                         ),
                       ),
                     ),
@@ -480,6 +501,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       height: 286,
                     ),
                 ],
+              ),
+                ),
               ),
             ),
           ),
@@ -547,7 +570,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           ),
 
           // Touch controls.
-          at(0, 286, Joystick(onChanged: _sim.setMove)),
+          at(0, 286, Joystick(onChanged: (dir) => _sim.setMove(_mirror ? -dir : dir))),
           if (_aimDx != null) aimHint(),
           at(
             596,
@@ -613,9 +636,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     );
   }
 
-  Widget _loot(String id) {
-    final art = lootArt[id]!;
-    return at(art.box.left, art.box.top, Prop(art.kind, size: art.box.size));
+  Widget _loot(Loot loot) {
+    final box = lootBox(loot);
+    return at(box.left, box.top, Prop(lootArt[loot.id]!.kind, size: box.size));
   }
 
   BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.up

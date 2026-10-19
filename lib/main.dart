@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'game/night_sim.dart';
-import 'game/tools.dart';
+import 'game/modifiers.dart';
 import 'routes.dart';
 import 'screens/briefing_screen.dart';
 import 'screens/caught_screen.dart';
@@ -17,6 +17,8 @@ import 'screens/settings_screen.dart';
 import 'screens/trophy_room_screen.dart';
 import 'screens/victory_screen.dart';
 import 'state/levels.dart';
+import 'state/save_game.dart';
+import 'state/save_store.dart';
 import 'theme/palette.dart';
 
 Future<void> main() async {
@@ -30,6 +32,7 @@ Future<void> main() async {
   ]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   await Levels.load(rootBundle);
+  await SaveGame.start(PrefsSaveStore());
   runApp(const MainApp());
 }
 
@@ -50,10 +53,10 @@ class MainApp extends StatelessWidget {
   static final Map<String, Widget Function(Object? arguments)> _screens = {
     Routes.menu: (_) => const MainMenuScreen(),
     Routes.briefing: (_) => const BriefingScreen(),
-    Routes.gameplay: (tool) => GameplayScreen(tool: tool as Tool? ?? Tool.socks),
+    Routes.gameplay: (setup) => GameplayScreen(setup: setup as NightSetup? ?? const NightSetup()),
     Routes.planView: (_) => const PlanViewScreen(),
     Routes.chaosEscape: (_) => const ChaosEscapeScreen(),
-    Routes.pause: (tool) => PauseScreen(tool: tool as Tool? ?? Tool.socks),
+    Routes.pause: (setup) => PauseScreen(setup: setup as NightSetup? ?? const NightSetup()),
     Routes.settings: (_) => const SettingsScreen(),
     Routes.victory: (result) => VictoryScreen(result: result! as NightResult),
     Routes.caught: (result) => CaughtScreen(result: result! as NightResult),

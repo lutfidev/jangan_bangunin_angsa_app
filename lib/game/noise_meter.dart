@@ -8,9 +8,12 @@ enum MeterBand { snoozing, stirring, suspicious, danger, awake }
 /// How close Gertrude is to waking, 0..100. The caller decides whether a
 /// noise reached her ear zone; the meter only counts what it is told.
 class NoiseMeter {
-  NoiseMeter(this.tuning);
+  NoiseMeter(this.tuning, {this.gain = 1});
 
   final Tuning tuning;
+
+  /// Every noise counts this many times over (Light Sleeper).
+  final double gain;
 
   double _value = 0;
   double _quiet = 0;
@@ -30,13 +33,13 @@ class NoiseMeter {
 
   /// A noise of [loudness] 0..3 that touched the ear zone.
   void hear(int loudness) {
-    final gain = switch (loudness) {
+    final step = switch (loudness) {
       0 => tuning.meterStep,
       1 => tuning.meterSmall,
       2 => tuning.meterMedium,
       _ => tuning.meterLoud,
     };
-    _value = math.min(100, _value + gain * (drowsyLeft > 0 ? tuning.drowsyGain : 1));
+    _value = math.min(100, _value + step * gain * (drowsyLeft > 0 ? tuning.drowsyGain : 1));
     _quiet = 0;
   }
 

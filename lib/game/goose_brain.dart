@@ -5,13 +5,17 @@ import 'tuning.dart';
 /// Goose brain v2: five states on the asleep side, four on the awake side.
 enum GooseState { asleep, stirring, suspicious, sleepwalk, drowsy, awake, chase, distracted, lostYou }
 
-enum WakeCause { noise, footsteps, grabbedGuarded }
+/// What woke her. [tool]: a noise a tool made itself (a sock that missed,
+/// the kazoo), not a chain it started.
+enum WakeCause { noise, footsteps, grabbedGuarded, tool }
 
 enum _Walk { out, sniff, back }
 
 /// Gertrude. She lives on the floor line; [x] is where she is now.
 class GooseBrain {
-  GooseBrain({required this.bedX, required this.tuning}) : _x = bedX, meter = NoiseMeter(tuning);
+  GooseBrain({required this.bedX, required this.tuning, double meterGain = 1})
+    : _x = bedX,
+      meter = NoiseMeter(tuning, gain: meterGain);
 
   final double bedX;
   final Tuning tuning;
@@ -69,13 +73,14 @@ class GooseBrain {
     if (_state == GooseState.chase || _state == GooseState.distracted) _slipLeft = tuning.slipTime;
   }
 
-  /// A noise went off. [chainLinks] is its link number when a chain made it.
-  void hear(Noise n, {int chainLinks = 0}) {
+  /// A noise went off. [chainLinks] is its link number when a chain made it;
+  /// [fromTool] when a tool made it directly.
+  void hear(Noise n, {int chainLinks = 0, bool fromTool = false}) {
     _lastNoiseX = n.x;
     final touches = n.touchesEar(_x, tuning);
     if (inBed) {
       if (touches) {
-        _raise(n.loudness);
+        _raise(n.loudness, fromTool: fromTool);
       } else if (n.loudness >= 2) {
         // A loud noise far from her bed doesn't wake her — it moves her.
         _state = GooseState.sleepwalk;
@@ -84,9 +89,9 @@ class GooseBrain {
       }
     } else if (_state == GooseState.sleepwalk) {
       if (n.loudness >= 2 && (touches || sniffing)) {
-        wake(WakeCause.noise);
+        wake(fromTool ? WakeCause.tool : WakeCause.noise);
       } else if (touches) {
-        _raise(n.loudness);
+        _raise(n.loudness, fromTool: fromTool);
       }
     } else if (chainLinks >= 2 && (_state == GooseState.chase || _state == GooseState.distracted)) {
       _state = GooseState.distracted;
@@ -162,10 +167,10 @@ class GooseBrain {
     }
   }
 
-  void _raise(int loudness) {
+  void _raise(int loudness, {bool fromTool = false}) {
     meter.hear(loudness);
     if (meter.value >= 100) {
-      wake(loudness == 0 ? WakeCause.footsteps : WakeCause.noise);
+      wake(fromTool ? WakeCause.tool : loudness == 0 ? WakeCause.footsteps : WakeCause.noise);
     } else if (inBed) {
       _settleInBed();
     }

@@ -11,6 +11,7 @@ import '../widgets/chunky_button.dart';
 import '../widgets/hud.dart';
 import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
+import '../widgets/tool_button.dart';
 import 'night_art.dart';
 import 'scene.dart';
 
@@ -134,7 +135,7 @@ class CaughtScreen extends StatelessWidget {
             spacing: 12,
             children: [
               ChunkyButton.primary(
-                onPressed: () => Routes.restartNight(context, result.tool),
+                onPressed: () => Routes.restartNight(context, result.setup),
                 label: 'Retry',
                 icon: GameIcon.retry,
                 height: 62,
@@ -167,6 +168,7 @@ class CaughtScreen extends StatelessWidget {
     final Widget cause = switch (result.wakeCause) {
       WakeCause.footsteps => const Burglar(width: 26),
       WakeCause.grabbedGuarded => Prop(lootArt[level.loot.firstWhere((l) => l.guarded).id]!.kind, size: 32),
+      WakeCause.tool => Prop(ToolButton.propOf(result.tool), size: 32),
       _ => Prop(lootArt[level.loot.firstWhere((l) => l.squeaks).id]!.kind, size: 32),
     };
     return [_ChainTile(cause), const _ChainArrow(Palette.alarmTomato)];

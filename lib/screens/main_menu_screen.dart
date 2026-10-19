@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../art/art.dart';
 import '../art/icons.dart';
 import '../routes.dart';
+import '../state/briefing_prefs.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
@@ -177,7 +178,7 @@ class MainMenuScreen extends StatelessWidget {
                 spacing: 10,
                 children: [
                   ChunkyButton.secondary(
-                    onPressed: () => Navigator.pushNamed(context, Routes.gameplay),
+                    onPressed: () => Navigator.pushNamed(context, Routes.gameplay, arguments: BriefingPrefs.instance.tonight()),
                     label: 'Nights',
                     icon: GameIcon.moon,
                     iconStroke: 2.5,

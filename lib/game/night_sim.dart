@@ -2,6 +2,7 @@ import 'chain.dart';
 import 'goose_brain.dart';
 import 'heist.dart';
 import 'level.dart';
+import 'modifiers.dart';
 import 'noise.dart';
 import 'tools.dart';
 import 'tuning.dart';
@@ -124,19 +125,22 @@ class NightResult {
     this.wakeChain = const [],
     this.wakeCause,
     required this.time,
-    this.tool = Tool.socks,
+    this.setup = const NightSetup(),
     this.score = 0,
     this.bestChain = 0,
     this.lures = 0,
     this.style = PlayStyle.ghost,
     this.goalsMet = const {},
+    this.seen = false,
   });
 
   final Level level;
   final Outcome outcome;
 
-  /// The tool picked at the briefing, so a restart keeps it.
-  final Tool tool;
+  /// The briefing's tool and modifiers, so a restart keeps them.
+  final NightSetup setup;
+
+  Tool get tool => setup.tool;
 
   /// Loot ids carried out (or held when caught), in the order grabbed.
   final List<String> loot;
@@ -160,28 +164,41 @@ class NightResult {
 
   /// Heist goals met; only a getaway with loot meets any.
   final Set<PlayStyle> goalsMet;
+
+  /// She turned suspicious, or worse, at some point.
+  final bool seen;
 }
 
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
 /// only by [tick].
 class NightSim {
-  NightSim(this.level, {this.tool = Tool.socks, this.tuning = const Tuning()})
+  NightSim(this.level, {this.setup = const NightSetup(), this.tuning = const Tuning()})
     : chain = ChainRunner(level, tuning),
-      goose = GooseBrain(bedX: level.bedX, tuning: tuning),
-      combo = Combo(tuning),
+      goose = GooseBrain(
+        bedX: level.bedX,
+        tuning: tuning,
+        meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
+      ),
+      _combo = Combo(tuning),
       _x = level.playerStart,
-      _toolLeft = tool == Tool.socks ? tuning.sockCount : 1 {
+      _toolLeft = setup.tool == Tool.socks ? tuning.sockCount : 1 {
     _gooseSeen = goose.state;
   }
 
   final Level level;
-  final Tool tool;
+
+  /// The briefing's tool and modifiers.
+  final NightSetup setup;
   final Tuning tuning;
+
+  Tool get tool => setup.tool;
   final ChainRunner chain;
   final GooseBrain goose;
 
-  /// Tonight's chaos combo.
-  final Combo combo;
+  final Combo _combo;
+
+  /// Tonight's chaos combo, to read; only fired links feed it.
+  ComboView get combo => _combo;
 
   double _x;
   double _dir = 0;
@@ -318,12 +335,13 @@ class NightSim {
       wakeChain: _wakeChain,
       wakeCause: goose.wakeCause,
       time: _elapsed,
-      tool: tool,
+      setup: setup,
       score: score,
       bestChain: combo.best,
       lures: _lures,
       style: style,
       goalsMet: goalsMet,
+      seen: _seen,
     );
   }
 
@@ -559,7 +577,7 @@ class NightSim {
     chain.tick(h);
     for (final fired in chain.takeFired()) {
       (_chains[fired.chainId] ??= []).add(fired);
-      combo.link(_elapsed);
+      _combo.link(_elapsed);
       _hear(fired.noise, link: fired);
     }
 
@@ -652,7 +670,7 @@ class NightSim {
   void _hear(Noise noise, {LinkFired? link, Tool? tool}) {
     _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, tuning), link: link, tool: tool));
     final wasAwake = goose.isAwake;
-    goose.hear(noise, chainLinks: link?.link ?? 0);
+    goose.hear(noise, chainLinks: link?.link ?? 0, fromTool: tool != null);
     if (!wasAwake && goose.isAwake && link != null) {
       _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }

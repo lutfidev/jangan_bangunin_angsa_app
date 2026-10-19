@@ -4,6 +4,7 @@ import '../art/art.dart';
 import '../game/goose_brain.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
+import '../game/tools.dart';
 import '../theme/palette.dart';
 import 'scene.dart';
 
@@ -21,12 +22,26 @@ class ArtBox {
   double get centerX => left + size / 2;
 }
 
-/// Loot on the floor line, centred on its sim x.
-const lootArt = <String, ({PropKind kind, String name, ArtBox box})>{
-  'toaster': (kind: PropKind.toaster, name: 'Mega Toaster', box: ArtBox(186, 146, 64)),
-  'chicken': (kind: PropKind.chicken, name: 'Rubber Chicken', box: ArtBox(330, 70, 46)),
-  'egg': (kind: PropKind.egg, name: 'Golden Egg', box: ArtBox(544, 206, 34)),
+/// Loot art, drawn centred on its sim x.
+const lootArt = <String, ({PropKind kind, String name, double size})>{
+  'toaster': (kind: PropKind.toaster, name: 'Mega Toaster', size: 64),
+  'chicken': (kind: PropKind.chicken, name: 'Rubber Chicken', size: 46),
+  'egg': (kind: PropKind.egg, name: 'Golden Egg', size: 34),
 };
+
+/// Every x a loot may stand at (its own and its Nightly Remix spots), and
+/// the top of its art there: on the counter, the floor or the plank.
+final lootTops = <String, Map<double, double>>{
+  'toaster': {218: 146, 60: 206},
+  'chicken': {353: 70, 300: 70},
+  'egg': {561: 206},
+};
+
+/// Where [loot] is drawn.
+ArtBox lootBox(Loot loot) {
+  final size = lootArt[loot.id]!.size;
+  return ArtBox(loot.x - size / 2, lootTops[loot.id]![loot.x]!, size);
+}
 
 /// Chain objects drawn as props. Books and the plank belong to the set.
 const objectArt = <String, ({PropKind kind, ArtBox box})>{
@@ -171,6 +186,8 @@ String wakeTip(NightResult r) {
   return switch (r.wakeCause) {
     WakeCause.footsteps => 'Tip: walking is loud. Sneak inside her ear zone.',
     WakeCause.grabbedGuarded => 'Tip: she sleeps on the egg. Wait for her roll-over, or lure her away first.',
+    WakeCause.tool when r.tool == Tool.kazoo => 'Tip: the kazoo is loud. Toot it far from her bed and she only sleepwalks.',
+    WakeCause.tool => 'Tip: a sock that misses still flops. Aim it at something outside her ear zone.',
     _ => 'Tip: the rubber chicken squeaks when you walk with it. Sneak.',
   };
 }
