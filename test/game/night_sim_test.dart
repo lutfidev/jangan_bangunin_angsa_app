@@ -788,7 +788,7 @@ void main() {
       expect(s.takeEvents().whereType<NoiseMade>(), isEmpty);
     });
 
-    test('the chicken is only reachable from the plank', () {
+    test('the chicken is reachable from the plank and the top shelf, not lower', () {
       final floor = NightSim(night3())..setSneak(true);
       walkTo(floor, 353);
       expect(floor.interaction, isNot(isA<GrabLoot>()));
@@ -797,6 +797,9 @@ void main() {
       climbTo(counter, 'counter');
       walkTo(counter, 278);
       expect(counter.grab('chicken'), isFalse);
+      final shelf = NightSim(night3())..setSneak(true);
+      climbTo(shelf, 'shelfHigh');
+      expect((shelf.interaction as GrabLoot).loot.id, 'chicken');
       final s = plankAt(353);
       expect((s.interaction as GrabLoot).loot.id, 'chicken');
       expect(s.grab('chicken'), isTrue);
