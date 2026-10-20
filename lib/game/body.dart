@@ -179,13 +179,17 @@ class Body {
     return _solidTopAt(_x, _y) != null;
   }
 
-  /// A solid whose top is at [y] under [x].
+  /// A solid whose top is at [y] under any part of his body at [x]: the
+  /// same overlap that lands him on it in [_fall].
   Solid? _solidTopAt(double x, double y) {
     for (final s in geometry.solids) {
-      if (s.box.top == y && s.box.left <= x && x <= s.box.right) return s;
+      if (s.box.top == y && _over(s.box, x)) return s;
     }
     return null;
   }
+
+  /// Whether his body at [x] is over part of [box], edges not counted.
+  bool _over(Box box, double x) => box.left < x + tuning.bodyWidth / 2 && x - tuning.bodyWidth / 2 < box.right;
 
   Landing? _fall(double h) {
     // Average of the speeds at both ends: exact under constant gravity, so
@@ -194,13 +198,12 @@ class Body {
     final from = _y;
     var to = _y + (_vy + vy) / 2 * h;
     _vy = vy;
-    final half = tuning.bodyWidth / 2;
 
     if (_vy < 0) {
       // Head into a ceiling.
       for (final s in geometry.solids) {
         final hitsHead = s.box.bottom <= from - tuning.bodyHeight && s.box.bottom > to - tuning.bodyHeight;
-        if (hitsHead && s.box.left < _x + half && _x - half < s.box.right) {
+        if (hitsHead && _over(s.box, _x)) {
           to = s.box.bottom + tuning.bodyHeight;
           _vy = 0;
         }
@@ -216,7 +219,7 @@ class Body {
     Platform? platform;
     for (final s in geometry.solids) {
       final top = s.box.top;
-      if (top >= from && top <= to && s.box.left < _x + half && _x - half < s.box.right) {
+      if (top >= from && top <= to && _over(s.box, _x)) {
         if (landY == null || top < landY) {
           landY = top;
           surface = s.surface;

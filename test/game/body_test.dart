@@ -91,6 +91,35 @@ void main() {
     });
   });
 
+  group('raised solids', () {
+    // A 40 px crate on the wood floor, 500..540.
+    Body onCrate(double x) => Body(
+      Geometry(
+        floorY: 270,
+        solids: [...world().solids, const Solid(Box(500, 230, 540, 270), Surface.wood)],
+        platforms: const [],
+      ),
+      Vec(x, 230),
+      t,
+    );
+
+    test('he stands on the edge of a crate while his body is over it', () {
+      final b = onCrate(548);
+      expect(b.grounded, isTrue);
+      final r = run(b, 1);
+      expect(r.landings, isEmpty);
+      expect(b.feet, const Vec(548, 230));
+    });
+
+    test('walking off the edge lands once, on the floor', () {
+      final b = onCrate(520);
+      final r = run(b, 1, move: 1, sneak: true);
+      expect(r.landings, hasLength(1));
+      expect(r.landings.single.fall, 40);
+      expect(r.landings.single.at.x, greaterThan(554));
+    });
+  });
+
   group('jump', () {
     test('a jump tops out about 84 px up and lands back down', () {
       final b = at(500, 270)..pressJump();
