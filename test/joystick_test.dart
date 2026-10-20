@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/joystick.dart';
 
 import 'helpers.dart';
 
 void main() {
-  late List<(double, int)> values;
+  late List<(double, double)> values;
 
   Future<TestGesture> press(WidgetTester tester, {bool hintUp = false, bool hintDown = false}) async {
     values = [];
@@ -33,7 +34,7 @@ void main() {
     final g = await press(tester);
     await g.moveBy(const Offset(30, 0));
     await tester.pump();
-    expect(values.last, (1.0, 0));
+    expect(values.last, (1.0, 0.0));
     expect(knob(tester), const Offset(54 + 24, 28));
   });
 
@@ -48,7 +49,7 @@ void main() {
     final g = await press(tester);
     await g.moveBy(const Offset(-12, 0));
     await tester.pump();
-    expect(values.last, (-0.5, 0));
+    expect(values.last, (-0.5, 0.0));
   });
 
   testWidgets('release reports zero and recentres the knob', (tester) async {
@@ -57,7 +58,7 @@ void main() {
     await tester.pump();
     await g.up();
     await tester.pump();
-    expect(values.last, (0.0, 0));
+    expect(values.last, (0.0, 0.0));
     expect(knob(tester), const Offset(54, 28));
   });
 
@@ -67,29 +68,29 @@ void main() {
     await tester.pump();
     await g.cancel();
     await tester.pump();
-    expect(values.last, (0.0, 0));
+    expect(values.last, (0.0, 0.0));
   });
 
-  testWidgets('a drag up past half travel is up, and moves the knob up', (tester) async {
+  testWidgets('a drag up reports up, and moves the knob up', (tester) async {
     final g = await press(tester);
     await g.moveBy(const Offset(0, -30));
     await tester.pump();
-    expect(values.last, (0.0, -1));
+    expect(values.last, (0.0, -1.0));
     expect(knob(tester), const Offset(54, 4));
   });
 
-  testWidgets('a drag down past half travel is down', (tester) async {
+  testWidgets('a drag down reports down', (tester) async {
     final g = await press(tester);
     await g.moveBy(const Offset(0, 30));
     await tester.pump();
-    expect(values.last, (0.0, 1));
+    expect(values.last, (0.0, 1.0));
   });
 
-  testWidgets('a small vertical push is ignored', (tester) async {
+  testWidgets('a small vertical push reports how far', (tester) async {
     final g = await press(tester);
-    await g.moveBy(const Offset(0, -10));
+    await g.moveBy(const Offset(0, -12));
     await tester.pump();
-    expect(values, isEmpty);
+    expect(values.last, (0.0, -0.5));
   });
 
   testWidgets('walking on a slant does not climb', (tester) async {
@@ -97,7 +98,7 @@ void main() {
     await g.moveBy(const Offset(30, -10));
     await tester.pump();
     expect(values.last.$1, greaterThan(0.9));
-    expect(values.last.$2, 0);
+    expect(values.last.$2.abs(), lessThan(const Tuning().verticalThreshold));
     final k = knob(tester) - const Offset(54, 28);
     expect(k.distance, closeTo(24, 0.01));
   });

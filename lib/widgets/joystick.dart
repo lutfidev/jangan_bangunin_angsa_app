@@ -4,8 +4,8 @@ import '../screens/scene.dart';
 import '../theme/palette.dart';
 
 /// The left-thumb stick. Left and right walk: [onChanged] gets x from -1
-/// (left) to 1 (right), 0 at rest. Up and down climb and drop: y is -1 or
-/// +1 only past half the knob's travel, so walking on a slant never climbs.
+/// (left) to 1 (right), 0 at rest. Up and down climb and drop: y from -1
+/// (up) to 1 (down); the sim decides how far counts as a push.
 ///
 /// The whole 280×104 left end of the control band takes the touch, and the
 /// knob follows the finger from wherever it landed. [hintUp] and [hintDown]
@@ -13,7 +13,7 @@ import '../theme/palette.dart';
 class Joystick extends StatefulWidget {
   const Joystick({super.key, required this.onChanged, this.hintUp = false, this.hintDown = false});
 
-  final void Function(double x, int y) onChanged;
+  final void Function(double x, double y) onChanged;
   final bool hintUp;
   final bool hintDown;
 
@@ -34,7 +34,7 @@ class _JoystickState extends State<Joystick> {
   Offset _down = Offset.zero;
   Offset _offset = Offset.zero;
   double _x = 0;
-  int _y = 0;
+  double _y = 0;
 
   void _start(PointerDownEvent e) {
     if (_pointer != null) return;
@@ -58,7 +58,7 @@ class _JoystickState extends State<Joystick> {
     setState(() => _offset = offset);
     final raw = offset.dx / _travel;
     final x = raw.abs() < _deadZone ? 0.0 : raw;
-    final y = offset.dy < -_travel / 2 ? -1 : (offset.dy > _travel / 2 ? 1 : 0);
+    final y = offset.dy / _travel;
     if (x == _x && y == _y) return;
     _x = x;
     _y = y;

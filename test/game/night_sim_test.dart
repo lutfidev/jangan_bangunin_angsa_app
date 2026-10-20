@@ -928,6 +928,21 @@ void main() {
       expect(s.toggleHide(), isFalse);
     });
 
+    test('the stick climbs only past Tuning.verticalThreshold', () {
+      NightSim pushedUp(double y, {Tuning tuning = const Tuning()}) {
+        final s = NightSim(night3(), tuning: tuning)..setSneak(true);
+        walkTo(s, 148);
+        s
+          ..setVertical(y)
+          ..tick(frame);
+        return s;
+      }
+
+      expect(pushedUp(-0.4).mantling, isFalse);
+      expect(pushedUp(-0.6).mantling, isTrue);
+      expect(pushedUp(-0.4, tuning: const Tuning(verticalThreshold: 0.3)).mantling, isTrue);
+    });
+
     test('no hiding halfway up a mantle', () {
       final s = NightSim(night3())..setSneak(true);
       walkTo(s, 148);

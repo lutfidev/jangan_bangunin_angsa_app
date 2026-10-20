@@ -371,8 +371,11 @@ class NightSim {
     if (_dir != 0) _facing = _dir.sign;
   }
 
-  /// Joystick up (-1) or down (+1): one climb or drop per push.
-  void setVertical(int dir) => _vertical = dir.clamp(-1, 1);
+  /// Joystick y, -1 (up) to 1 (down). It counts only past
+  /// [Tuning.verticalThreshold], so walking on a slant never climbs; one
+  /// climb or drop per push.
+  void setVertical(double dir) =>
+      _vertical = dir < -tuning.verticalThreshold ? -1 : (dir > tuning.verticalThreshold ? 1 : 0);
 
   /// The Jump button: jumps now, or on landing if pressed just before.
   void jump() {
