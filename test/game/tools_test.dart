@@ -3,7 +3,7 @@ import 'package:jangan_bangunin_angsa_app/game/tools.dart';
 
 void main() {
   test('a flight lands after its duration', () {
-    final f = Flight(fromX: 0, toX: 100, duration: 0.5);
+    final f = Flight(fromX: 0, fromY: 212, toX: 100, duration: 0.5);
     f.advance(0.25);
     expect(f.progress, 0.5);
     expect(f.landed, isFalse);

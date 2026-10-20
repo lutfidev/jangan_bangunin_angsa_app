@@ -1,20 +1,36 @@
 {
+  "version": 2,
   "id": "night3",
   "name": "The Midnight Kitchen",
-  "playerStart": 236,
-  "exitX": 770,
-  "bedX": 502,
-  "hideSpots": [148, 703],
-  "crawlway": {"from": 250, "to": 420},
+  "width": 844,
+  "floorY": 270,
+  "solids": [
+    {"box": [0, 270, 300, 120], "surface": "tile"},
+    {"box": [300, 270, 110, 120], "surface": "wood"},
+    {"box": [410, 270, 190, 120], "surface": "carpet"},
+    {"box": [600, 270, 244, 120], "surface": "wood"}
+  ],
+  "platforms": [
+    {"id": "counter", "x": [18, 280], "y": 200, "surface": "tile"},
+    {"id": "crawlPlank", "x": [244, 426], "y": 106, "surface": "wood", "crawl": true},
+    {"id": "shelfLow", "x": [316, 392], "y": 212, "surface": "wood"},
+    {"id": "shelfHigh", "x": [316, 392], "y": 160, "surface": "wood"},
+    {"id": "sideTable", "x": [594, 634], "y": 236, "surface": "wood"},
+    {"id": "hallTable", "x": [708, 752], "y": 236, "surface": "wood"}
+  ],
+  "playerStart": [236, 270],
+  "exit": [770, 270],
+  "bed": [502, 270],
+  "hideSpots": [[148, 270], [703, 270]],
   "spots": [
-    {"id": "counterLeft", "x": 62},
-    {"id": "counterPot", "x": 113, "snap": true},
-    {"id": "shelfBooks", "x": 340},
-    {"id": "underShelf", "x": 372, "snap": true},
-    {"id": "underSideTable", "x": 596, "snap": true},
-    {"id": "sideTable", "x": 614},
-    {"id": "plank", "x": 640},
-    {"id": "clockStand", "x": 667}
+    {"id": "counterLeft", "at": [62, 200]},
+    {"id": "counterPot", "at": [113, 200], "snap": true},
+    {"id": "shelfBooks", "at": [340, 160]},
+    {"id": "underShelf", "at": [372, 270], "snap": true},
+    {"id": "underSideTable", "at": [596, 270], "snap": true},
+    {"id": "sideTable", "at": [614, 236]},
+    {"id": "plank", "at": [640, 270]},
+    {"id": "clockStand", "at": [667, 270]}
   ],
   "objects": [
     {"id": "glass", "type": "tipper", "spot": "counterLeft"},
@@ -32,9 +48,9 @@
     {"from": "plank", "to": "clockStand"}
   ],
   "loot": [
-    {"id": "toaster", "x": 218},
-    {"id": "chicken", "x": 353, "squeaks": true, "high": true},
-    {"id": "egg", "x": 561, "guarded": true}
+    {"id": "toaster", "at": [218, 200]},
+    {"id": "chicken", "at": [353, 106], "squeaks": true},
+    {"id": "egg", "at": [561, 270], "guarded": true}
   ],
   "goals": [
     {"style": "ghost", "kind": "neverSuspicious"},
@@ -42,7 +58,7 @@
     {"style": "chaos", "kind": "chain", "count": 5}
   ],
   "remix": {
-    "loot": {"toaster": [60], "chicken": [300]},
+    "loot": {"toaster": [[60, 270]], "chicken": [[300, 106]]},
     "objects": {"pot": ["underShelf", "underSideTable"]}
   }
 }

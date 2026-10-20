@@ -12,13 +12,13 @@ Level remixed(Level level, int seed) {
   // One choice per entry: index 0 is where it already is.
   final loot = [
     for (final l in level.loot)
-      if (level.remixLoot[l.id] case final xs?) (l.id, [l.x, ...xs]),
+      if (level.remixLoot[l.id] case final points?) (l.id, [l.at, ...points]),
   ];
   final objects = [
     for (final o in level.objects)
       if (level.remixSpots[o.id] case final ids?) (o.id, [o.spot, ...ids]),
   ];
-  final radices = [for (final (_, xs) in loot) xs.length, for (final (_, ids) in objects) ids.length];
+  final radices = [for (final (_, points) in loot) points.length, for (final (_, ids) in objects) ids.length];
   final layouts = radices.fold(1, (n, r) => n * r);
   if (layouts <= 1) return level;
 
@@ -31,7 +31,7 @@ Level remixed(Level level, int seed) {
   }
 
   return level.rearranged(
-    lootX: {for (final (i, (id, xs)) in loot.indexed) id: xs[digits[i]]},
+    lootAt: {for (final (i, (id, points)) in loot.indexed) id: points[digits[i]]},
     objectSpots: {for (final (i, (id, ids)) in objects.indexed) id: ids[digits[loot.length + i]]},
   );
 }

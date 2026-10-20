@@ -25,9 +25,12 @@ const _honkLife = 1.0;
 /// Effects fade out over their last this-many seconds.
 const _fade = 0.4;
 
-/// Where Milo's footsteps and squeaks go off, and Gertrude's head.
-const _feetY = 262.0;
-const _handsY = 220.0;
+/// How far above Milo's feet his footsteps and his other noises (squeaks,
+/// landings, the kazoo) go off: 262 and 220 on the 270 floor.
+const _feetUp = 8.0;
+const _handsUp = 50.0;
+
+/// Gertrude's head, and where she slips.
 const _headY = 210.0;
 const _slipY = 200.0;
 
@@ -100,7 +103,7 @@ class NoiseFx {
     switch (e) {
       case NoiseMade(:final noise, :final link, :final tool):
         final at = link == null
-            ? Offset(noise.x, noise.loudness == 0 ? _feetY : _handsY)
+            ? Offset(noise.x, (noise.y ?? level.floorY) - (noise.loudness == 0 ? _feetUp : _handsUp))
             : anchors[link.spotId]!;
         rings.add(RingFx(at, noise.radius(tuning), math.max(noise.loudness, 1), threatColor(noise.loudness)));
         switch (tool) {

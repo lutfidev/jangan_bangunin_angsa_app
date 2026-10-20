@@ -4,7 +4,6 @@
 /// Distances are artboard px along the floor line, times are seconds.
 class Tuning {
   const Tuning({
-    this.worldWidth = 844,
     this.ringRadius = 36,
     this.footstepRadius = 18,
     this.earHalfWidth = 172,
@@ -52,10 +51,24 @@ class Tuning {
     this.goalScore = 1000,
     this.lightSleeperGain = 1.5,
     this.maxStep = 1 / 60,
+    this.gravity = 1800,
+    this.jumpSpeed = 550,
+    this.maxFallSpeed = 900,
+    this.coyoteTime = 0.10,
+    this.jumpBuffer = 0.12,
+    this.mantleTime = 0.4,
+    this.mantleReach = 100,
+    this.bodyWidth = 28,
+    this.bodyHeight = 64,
+    this.landQuiet = 40,
+    this.landMedium = 120,
+    this.landLoud = 200,
+    this.gooseReach = 80,
+    this.armReach = 80,
+    this.handHeight = 58,
+    this.earHalfHeight = 38,
+    this.verticalThreshold = 0.5,
   });
-
-  /// Length of the floor line: the 844px width of the gameplay board.
-  final double worldWidth;
 
   /// Radius per ring; a noise draws one ring per loudness step.
   final double ringRadius;
@@ -176,4 +189,50 @@ class Tuning {
 
   /// Longest simulation step; bigger ticks are split.
   final double maxStep;
+
+  /// Px/s² pulling Milo down.
+  final double gravity;
+
+  /// Take-off speed of a jump: tops out about 84 px up, onto the counter
+  /// (70) but not the crawl plank (164).
+  final double jumpSpeed;
+  final double maxFallSpeed;
+
+  /// A jump still works this long after walking off an edge.
+  final double coyoteTime;
+
+  /// A jump pressed this long before landing goes off on landing.
+  final double jumpBuffer;
+
+  /// House spec: "mantle diam 0.4s".
+  final double mantleTime;
+
+  /// The highest furniture top above his feet he can mantle onto.
+  final double mantleReach;
+
+  /// Milo's collision box, feet at its bottom centre.
+  final double bodyWidth;
+  final double bodyHeight;
+
+  /// Landing loudness by fall height: under [landQuiet] silent, then 1,
+  /// from [landMedium] 2, from [landLoud] 3; before surface and Sneak.
+  final double landQuiet;
+  final double landMedium;
+  final double landLoud;
+
+  /// How high above the floor her neck reaches: higher up he is out of her
+  /// reach, as if hidden.
+  final double gooseReach;
+
+  /// How far above his feet he can reach to grab, lift or wind something.
+  final double armReach;
+
+  /// His throwing hand above his feet: 212 on the 270 floor (Plan View).
+  final double handHeight;
+
+  /// Half the dashed ear zone's height (76 px tall on the gameplay board).
+  final double earHalfHeight;
+
+  /// The stick counts up or down past this fraction of its travel.
+  final double verticalThreshold;
 }

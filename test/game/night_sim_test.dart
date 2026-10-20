@@ -177,15 +177,28 @@ void main() {
     expect(s.goose.isAwake, isTrue);
   });
 
-  test('the burglar stays on the floor line', () {
-    final s = NightSim(night3(), tuning: const Tuning(worldWidth: 500))..setMove(-1);
+  test('the walls stop the burglar', () {
+    final s = NightSim(night3())..setMove(-1);
     s.tick(10);
-    expect(s.playerX, 0);
+    expect(s.playerX, const Tuning().bodyWidth / 2);
+    expect(s.playerY, 270);
     s
       ..setSneak(true)
       ..setMove(1)
       ..tick(20);
-    expect(s.playerX, 500);
+    expect(s.outcome, Outcome.escaped);
+  });
+
+  test('caught mid-jump, he still comes down', () {
+    final s = NightSim(night3())..setSneak(true);
+    walkTo(s, 300);
+    s.goose.wake(WakeCause.noise);
+    tickUntil(s, () => (s.goose.x - s.playerX).abs() <= 30, limit: 15);
+    s.jump();
+    tickUntil(s, () => s.takeEvents().whereType<CaughtStarted>().isNotEmpty, limit: 2);
+    expect(s.grounded, isFalse);
+    s.tick(1);
+    expect(s.playerY, 270);
   });
 
   test('hiding needs a hide spot in reach, and holds the burglar still', () {
@@ -240,12 +253,14 @@ void main() {
 
   test('carrying the squeaky chicken at a walk squeaks', () {
     final s = NightSim(night3())..setSneak(true);
-    walkTo(s, 260);
-    s.toggleClimb();
+    climbTo(s, 'crawlPlank', viaShelves: true);
     walkTo(s, 353);
     expect(s.grab('chicken'), isTrue);
-    walkTo(s, 420);
-    s.toggleClimb();
+    walkTo(s, 350);
+    pushDown(s);
+    pushDown(s);
+    pushDown(s);
+    expect(s.onFloor, isTrue);
     s.takeEvents();
     s
       ..setSneak(false)
@@ -317,20 +332,19 @@ void main() {
     List<NoiseMade> flops(List<SimEvent> events) =>
         events.whereType<NoiseMade>().where((n) => n.tool == Tool.socks).toList();
 
-    test('a sock thrown from the crawlway stays high', () {
+    test('a sock leaves from his hand, up on the plank too', () {
       final s = NightSim(night3())..setSneak(true);
-      walkTo(s, 250);
-      expect(s.toggleClimb(), isTrue);
+      climbTo(s, 'crawlPlank');
       expect(s.throwSock(500), isTrue);
-      expect(s.flights.single.high, isTrue);
-      expect(s.toggleClimb(), isTrue); // down again mid-flight
-      expect(s.flights.single.high, isTrue);
+      expect(s.flights.single.fromY, 106 - 58);
+      pushDown(s); // down again mid-flight
+      expect(s.flights.single.fromY, 106 - 58);
     });
 
-    test('a sock thrown from the floor is not high', () {
+    test('a sock thrown from the floor leaves at hand height', () {
       final s = NightSim(night3());
       expect(s.throwSock(62), isTrue);
-      expect(s.flights.single.high, isFalse);
+      expect(s.flights.single.fromY, 212);
     });
 
     test('a sock at the glass starts a chain when it lands', () {
@@ -510,7 +524,7 @@ void main() {
         objects: [{'id': 'o', 'type': 'tipper', 'spot': 'a'}, {'id': 'o2', 'type': 'tipper', 'spot': 'b'}],
         links: [{'from': 'a', 'to': 'b'}],
       )) as Map<String, Object?>,
-      'playerStart': 500,
+      'playerStart': [500, 270],
     });
     final s = NightSim(level, setup: const NightSetup(tool: Tool.marbles));
     s.goose.wake(WakeCause.noise);
@@ -713,52 +727,60 @@ void main() {
     });
   });
 
-  group('crawlway', () {
-    NightSim upAt(double x, {Tool tool = Tool.socks}) {
+  group('body', () {
+    NightSim plankAt(double x, {Tool tool = Tool.socks}) {
       final s = NightSim(night3(), setup: NightSetup(tool: tool))..setSneak(true);
-      walkTo(s, 260);
-      expect(s.toggleClimb(), isTrue);
+      climbTo(s, 'crawlPlank');
       walkTo(s, x);
       return s;
     }
 
-    test('climb at an end, crawl, come down at the other', () {
-      final s = NightSim(night3())..setSneak(true);
-      walkTo(s, 260);
-      expect(s.interaction, isA<Climb>());
-      s.interact();
-      expect(s.up, isTrue);
+    Iterable<NoiseMade> heard(NightSim s) => s.takeEvents().whereType<NoiseMade>().where((n) => n.touchedEar);
+
+    test('up by the counter onto the crawl plank, crawling', () {
+      final s = plankAt(300);
+      expect(s.crawling, isTrue);
+      expect(s.playerY, 106);
       final from = s.playerX;
       s.setMove(1);
       s.tick(1);
       expect(s.playerX, closeTo(from + const Tuning().crawlSpeed, 2));
-      walkTo(s, 420);
-      expect(s.interaction, isA<ClimbDown>());
-      s.interact();
-      expect(s.up, isFalse);
     });
 
-    test('no climbing away from the ends', () {
+    test('up the shelves with Sneak, unheard', () {
       final s = NightSim(night3())..setSneak(true);
-      walkTo(s, 340);
-      expect(s.toggleClimb(), isFalse);
-      final up = upAt(340);
-      expect(up.toggleClimb(), isFalse);
-      expect(up.up, isTrue);
+      walkTo(s, 350);
+      s.takeEvents();
+      climbTo(s, 'crawlPlank', viaShelves: true);
+      expect(s.crawling, isTrue);
+      expect(heard(s), isEmpty);
     });
 
-    test('the crawlway clamps movement', () {
-      final s = upAt(300);
-      s.setMove(1);
-      s.tick(10);
-      expect(s.playerX, 420);
-      s.setMove(-1);
-      s.tick(10);
-      expect(s.playerX, 250);
+    test('down the shelves with Sneak, unheard', () {
+      final s = NightSim(night3())..setSneak(true);
+      climbTo(s, 'crawlPlank', viaShelves: true);
+      s.takeEvents();
+      pushDown(s);
+      expect(s.standingOn?.id, 'shelfHigh');
+      pushDown(s);
+      expect(s.standingOn?.id, 'shelfLow');
+      pushDown(s);
+      expect(s.onFloor, isTrue);
+      expect(heard(s), isEmpty);
+    });
+
+    test('dropping off the bare end of the plank thumps in her ears', () {
+      final s = plankAt(410)..setSneak(false);
+      s.takeEvents();
+      pushDown(s);
+      expect(s.onFloor, isTrue);
+      final thump = heard(s).single;
+      expect(thump.noise.loudness, 2);
+      expect(thump.noise.y, 270);
     });
 
     test('crawling is silent', () {
-      final s = upAt(300)
+      final s = plankAt(300)
         ..setSneak(false)
         ..takeEvents()
         ..setMove(1);
@@ -766,55 +788,180 @@ void main() {
       expect(s.takeEvents().whereType<NoiseMade>(), isEmpty);
     });
 
-    test('the chicken is only reachable from the crawlway', () {
+    test('the chicken is reachable from the plank and the top shelf, not lower', () {
       final floor = NightSim(night3())..setSneak(true);
       walkTo(floor, 353);
       expect(floor.interaction, isNot(isA<GrabLoot>()));
       expect(floor.grab('chicken'), isFalse);
-      final s = upAt(353);
+      final counter = NightSim(night3())..setSneak(true);
+      climbTo(counter, 'counter');
+      walkTo(counter, 278);
+      expect(counter.grab('chicken'), isFalse);
+      final shelf = NightSim(night3())..setSneak(true);
+      climbTo(shelf, 'shelfHigh');
+      expect((shelf.interaction as GrabLoot).loot.id, 'chicken');
+      final s = plankAt(353);
       expect((s.interaction as GrabLoot).loot.id, 'chicken');
       expect(s.grab('chicken'), isTrue);
     });
 
-    test('floor loot is out of reach from up there', () {
+    test('floor loot is out of reach from a high top', () {
       final s = NightSim(Level.parse(minimalLevel(
-        crawlway: {'from': 0, 'to': 100},
+        platforms: [{'id': 'shelf', 'x': [0, 100], 'y': 106, 'surface': 'wood'}],
         loot: [{'id': 'cup', 'x': 20}],
+        extra: {'playerStart': [20, 106]},
       )));
-      expect(s.toggleClimb(), isTrue);
-      expect(s.interaction, isA<ClimbDown>());
+      expect(s.interaction, isNull);
       expect(s.grab('cup'), isFalse);
     });
 
-    test('she cannot catch him up there', () {
-      final s = upAt(380);
+    test('she cannot catch him on the plank', () {
+      final s = plankAt(380);
       s.goose.wake(WakeCause.noise);
       s.tick(6);
       expect(s.outcome, isNull);
       expect(s.goose.state, GooseState.lostYou);
     });
 
-    test('climbing down next to her gets you caught', () {
-      final s = upAt(420);
-      s.goose.hear(const Noise(x: 420, loudness: 3));
+    test('on the counter he is in her reach', () {
+      final s = NightSim(night3())..setSneak(true);
+      climbTo(s, 'counter');
+      walkTo(s, 270);
+      s.goose.hear(const Noise(x: 270, loudness: 3));
+      tickUntil(s, () => s.outcome != null, limit: 15);
+      expect(s.outcome, Outcome.caught);
+    });
+
+    test('her neck reaches 80 px up', () {
+      NightSim standingAt(double y) {
+        final s = NightSim(Level.parse(minimalLevel(
+          platforms: [{'id': 'top', 'x': [300, 500], 'y': y, 'surface': 'wood'}],
+          extra: {'playerStart': [420, y]},
+        )));
+        s.goose.wake(WakeCause.noise);
+        tickUntil(s, () => s.outcome != null || s.goose.state == GooseState.lostYou, limit: 15);
+        return s;
+      }
+
+      expect(standingAt(270 - 75).outcome, Outcome.caught);
+      expect(standingAt(270 - 85).outcome, isNull);
+    });
+
+    test('dropping down next to her gets you caught', () {
+      final s = plankAt(410);
+      s.goose.hear(const Noise(x: 410, loudness: 3));
       tickUntil(s, () => (s.goose.x - s.playerX).abs() <= 30, limit: 10);
-      expect(s.toggleClimb(), isTrue);
+      pushDown(s);
       tickUntil(s, () => s.outcome != null, limit: 5);
       expect(s.outcome, Outcome.caught);
     });
 
-    test('tools up there: no mouse, socks fly', () {
-      expect(upAt(300, tool: Tool.mouse).toolReady, isFalse);
-      expect(upAt(300).throwSock(62), isTrue);
+    test('tools on the plank: no mouse, no marbles, socks fly', () {
+      expect(plankAt(300, tool: Tool.mouse).toolReady, isFalse);
+      final marbles = plankAt(300, tool: Tool.marbles);
+      marbles.goose.wake(WakeCause.noise);
+      expect(marbles.toolReady, isFalse);
+      expect(plankAt(300).throwSock(62), isTrue);
     });
 
-    test('no climbing with the pot', () {
+    test('no jumping or climbing with the pot, but he can still fall with it', () {
       final s = NightSim(night3())..setSneak(true);
       walkTo(s, 113);
-      s.interact();
-      walkTo(s, 260);
-      expect(s.toggleClimb(), isFalse);
+      expect(s.interact(), isA<MoveObject>());
+      expect(s.jumpReady, isFalse);
+      expect(s.canMantle, isFalse);
+      s.jump();
+      s.setVertical(-1);
+      s.tick(1);
+      expect(s.playerY, 270);
+
+      final c = NightSim(night3())..setSneak(true);
+      climbTo(c, 'counter');
+      walkTo(c, 113);
+      expect(c.lift('pot'), isTrue);
+      c.takeEvents();
+      walkTo(c, 279);
+      c.setMove(1);
+      tickUntil(c, () => c.onFloor, limit: 2);
+      expect(c.held, 'pot');
+      expect(c.takeEvents().whereType<NoiseMade>().where((n) => n.noise.loudness >= 1), isNotEmpty);
+    });
+
+    test('a jump on the wood floor lands with a small noise; with Sneak, none', () {
+      NightSim jumpAt700({required bool sneak}) {
+        final s = NightSim(night3())..setSneak(true);
+        walkTo(s, 700);
+        s
+          ..setSneak(sneak)
+          ..takeEvents()
+          ..jump();
+        tickUntil(s, () => s.playerY < 270, limit: 1);
+        tickUntil(s, () => s.grounded, limit: 2);
+        return s;
+      }
+
+      final loud = jumpAt700(sneak: false).takeEvents().whereType<NoiseMade>().single;
+      expect(loud.noise.loudness, 1);
+      expect(jumpAt700(sneak: true).takeEvents().whereType<NoiseMade>(), isEmpty);
+    });
+
+    test('jumping over the loose plank does not step on it', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 600);
+      s
+        ..setSneak(false)
+        ..takeEvents()
+        ..setMove(1)
+        ..jump();
+      tickUntil(s, () => s.playerY < 270, limit: 1);
+      tickUntil(s, () => s.grounded, limit: 2);
+      s.setMove(0);
+      expect(s.playerX, greaterThan(640));
+      expect(s.takeEvents().whereType<NoiseMade>().where((n) => n.link?.objectId == 'plank'), isEmpty);
+    });
+
+    test('hiding is only from the floor', () {
+      final s = NightSim(night3())..setSneak(true);
+      climbTo(s, 'counter');
+      walkTo(s, 148);
+      expect(s.interaction, isNot(isA<Hide>()));
+      expect(s.toggleHide(), isFalse);
+    });
+
+    test('the stick climbs only past Tuning.verticalThreshold', () {
+      NightSim pushedUp(double y, {Tuning tuning = const Tuning()}) {
+        final s = NightSim(night3(), tuning: tuning)..setSneak(true);
+        walkTo(s, 148);
+        s
+          ..setVertical(y)
+          ..tick(frame);
+        return s;
+      }
+
+      expect(pushedUp(-0.4).mantling, isFalse);
+      expect(pushedUp(-0.6).mantling, isTrue);
+      expect(pushedUp(-0.4, tuning: const Tuning(verticalThreshold: 0.3)).mantling, isTrue);
+    });
+
+    test('no hiding halfway up a mantle', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 148);
+      s
+        ..setVertical(-1)
+        ..tick(frame);
+      expect(s.mantling, isTrue);
       expect(s.interaction, isNull);
+      expect(s.toggleHide(), isFalse);
+    });
+
+    test('up and down do nothing while hidden', () {
+      final s = NightSim(night3())..setSneak(true);
+      walkTo(s, 148);
+      expect(s.toggleHide(), isTrue);
+      expect(s.canMantle, isFalse);
+      s.setVertical(-1);
+      s.tick(1);
+      expect(s.playerY, 270);
     });
   });
 
@@ -921,7 +1068,7 @@ void main() {
     test('an escape scores loot, links and goals', () {
       final s = NightSim(Level.fromJson({
         ...jsonDecode(minimalLevel(loot: [{'id': 'cup', 'x': 20}], goals: _night3Goals)) as Map<String, Object?>,
-        'exitX': 50,
+        'exit': [50, 270],
       }));
       walkTo(s, 20);
       expect(s.grab('cup'), isTrue);

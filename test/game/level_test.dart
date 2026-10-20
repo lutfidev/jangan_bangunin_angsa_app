@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 
@@ -20,7 +21,117 @@ void main() {
     expect(l.links.first.delay, 0.4);
     expect(l.loot.singleWhere((x) => x.guarded).id, 'egg');
     expect(l.loot.firstWhere((x) => x.id == 'chicken').squeaks, isTrue);
-    expect(l.hideSpots, [148, 703]);
+    expect(l.hideSpots, [const Vec(148, 270), const Vec(703, 270)]);
+  });
+
+  test('night 3 is laid out in 2-D', () {
+    final l = night3();
+    expect(l.floorY, 270);
+    expect(l.geometry.platforms.map((p) => p.id), ['counter', 'crawlPlank', 'shelfLow', 'shelfHigh', 'sideTable', 'hallTable']);
+    expect(l.geometry.platforms[1].crawl, isTrue);
+    expect(l.loot.firstWhere((x) => x.id == 'chicken').at, const Vec(353, 106));
+    expect(l.loot.firstWhere((x) => x.id == 'toaster').at, const Vec(218, 200));
+    expect(l.spots['shelfBooks']!.at, const Vec(340, 160));
+    expect(l.playerStart, const Vec(236, 270));
+    expect(l.exitX, 770);
+    expect(l.bedX, 502);
+    expect(l.geometry.floorSurfaceAt(100), Surface.tile);
+    expect(l.geometry.floorSurfaceAt(500), Surface.carpet);
+  });
+
+  test('the parser walls the world in at its width', () {
+    final l = Level.parse(minimalLevel(extra: {'width': 1000}));
+    expect(l.width, 1000);
+    expect(l.geometry.solids.map((s) => s.box), containsAll([
+      Box.ltwh(-100, -400, 100, 790),
+      Box.ltwh(1000, -400, 100, 790),
+      Box.ltwh(0, -100, 1000, 100),
+    ]));
+    expect(night3().width, 844);
+    expect(() => Level.parse(minimalLevel(extra: {'width': 0})), _formatError('width must be above 0: test'));
+  });
+
+  test('a badly shaped level is a FormatException too', () {
+    Level parse(Map<String, Object?> extra) => Level.parse(minimalLevel(extra: extra));
+    Level withPlatform(Map<String, Object?> p) =>
+        Level.parse(minimalLevel(platforms: [{'id': 'shelf', 'x': [0, 90], 'y': 200, 'surface': 'wood', ...p}]));
+    expect(() => Level.parse('[]'), _formatError('not a level object'));
+    expect(() => parse({'width': null}), _formatError('missing "width"'));
+    expect(() => parse({'floorY': 'low'}), _formatError('not a number: "floorY"'));
+    expect(() => parse({'name': 3}), _formatError('not text: "name"'));
+    expect(() => parse({'solids': {'box': 1}}), _formatError('not a list: "solids"'));
+    expect(() => parse({'solids': [7]}), _formatError('not an object in "solids"'));
+    expect(
+      () => parse({'solids': [{'box': [0, 270, 844], 'surface': 'wood'}]}),
+      _formatError('needs 4 numbers: box test'),
+    );
+    expect(() => parse({'playerStart': 0}), _formatError('needs 2 numbers: playerStart test'));
+    expect(() => parse({'playerStart': [0, '270']}), _formatError('needs 2 numbers: playerStart test'));
+    expect(() => withPlatform({'x': null}), _formatError('needs 2 numbers: platform shelf'));
+    expect(() => withPlatform({'crawl': 'yes'}), _formatError('not true or false: "crawl"'));
+    expect(() => parse({'links': [{'from': 'a', 'to': 'a', 'delay': 'soon'}]}), _formatError('not a number: "delay"'));
+    expect(
+      () => parse({'goals': [{'style': 'chaos', 'kind': 'chain', 'count': 1.5}]}),
+      _formatError('not a whole number: "count"'),
+    );
+    expect(() => parse({'remix': <Object?>[]}), _formatError('not an object: "remix"'));
+    expect(
+      () => parse({'loot': [{'id': 'cup', 'at': [10, 270]}], 'remix': {'loot': {'cup': 50}}}),
+      _formatError('not a list: remix loot cup'),
+    );
+    final portable = [{'id': 'o', 'type': 'tipper', 'spot': 'a', 'portable': true}];
+    expect(
+      () => parse({'objects': portable, 'remix': {'objects': {'o': 'a'}}}),
+      _formatError('not a list: remix object o'),
+    );
+    expect(
+      () => parse({'objects': portable, 'remix': {'objects': {'o': [3]}}}),
+      _formatError('not text in remix object o'),
+    );
+  });
+
+  test('rejects a level that is not v2', () {
+    expect(() => Level.parse(minimalLevel(extra: {'version': 1})), _formatError('version must be 2: test'));
+  });
+
+  test('rejects broken geometry', () {
+    expect(
+      () => Level.parse(minimalLevel(extra: {'solids': [{'box': [0, 270, 0, 120], 'surface': 'wood'}]})),
+      _formatError('box has no area: test'),
+    );
+    expect(
+      () => Level.parse(minimalLevel(extra: {'solids': [{'box': [0, 270, 844, 120], 'surface': 'lava'}]})),
+      _formatError('unknown surface: lava'),
+    );
+    expect(
+      () => Level.parse(minimalLevel(platforms: [{'id': 'shelf', 'x': [90, 10], 'y': 200, 'surface': 'wood'}])),
+      _formatError('platform runs backwards: shelf'),
+    );
+  });
+
+  test('rejects things floating in the air', () {
+    Level parse(Map<String, Object?> extra) => Level.parse(minimalLevel(extra: extra));
+    expect(() => parse({'playerStart': [0, 200]}), _formatError('not on a surface: playerStart test'));
+    expect(() => parse({'exit': [800, 200]}), _formatError('not on a surface: exit test'));
+    expect(() => parse({'bed': [400, 200]}), _formatError('not on a surface: bed test'));
+    expect(() => parse({'hideSpots': [[10, 270], [20, 200]]}), _formatError('not on a surface: hide 1'));
+    expect(
+      () => Level.parse(minimalLevel(spots: [{'id': 'a', 'at': [10, 200]}])),
+      _formatError('not on a surface: spot a'),
+    );
+    expect(
+      () => Level.parse(minimalLevel(loot: [{'id': 'cup', 'at': [10, 200]}])),
+      _formatError('not on a surface: loot cup'),
+    );
+    expect(
+      () => Level.parse(minimalLevel(loot: [{'id': 'cup', 'x': 10}], remix: {'loot': {'cup': [[50, 200]]}})),
+      _formatError('not on a surface: remix loot cup'),
+    );
+    final shelf = {'id': 'shelf', 'x': [0, 100], 'y': 200, 'surface': 'wood'};
+    expect(
+      Level.parse(minimalLevel(platforms: [shelf], loot: [{'id': 'cup', 'at': [10, 200]}])).loot.single.at,
+      const Vec(10, 200),
+    );
   });
 
   test('rejects a link to an unknown spot', () {
@@ -68,34 +179,6 @@ void main() {
     );
   });
 
-  test('night 3 has the crawlway and the chicken up on it', () {
-    final l = night3();
-    expect(l.crawlway!.from, 250);
-    expect(l.crawlway!.to, 420);
-    expect(l.loot.firstWhere((x) => x.id == 'chicken').high, isTrue);
-    expect(l.loot.firstWhere((x) => x.id == 'toaster').high, isFalse);
-  });
-
-  test('a level without a crawlway has none', () {
-    expect(Level.parse(minimalLevel()).crawlway, isNull);
-  });
-
-  test('rejects a crawlway that runs backwards', () {
-    expect(
-      () => Level.parse(minimalLevel(crawlway: {'from': 420, 'to': 250})),
-      _formatError('crawlway runs backwards: test'),
-    );
-  });
-
-  test('rejects high loot off the crawlway', () {
-    final cup = {'id': 'cup', 'x': 500, 'high': true};
-    expect(
-      () => Level.parse(minimalLevel(crawlway: {'from': 0, 'to': 100}, loot: [cup])),
-      _formatError('high loot off the crawlway: cup'),
-    );
-    expect(() => Level.parse(minimalLevel(loot: [cup])), _formatError('high loot off the crawlway: cup'));
-  });
-
   test('night 3 has a goal per style', () {
     final goals = night3().goals;
     expect(goals.map((g) => g.style), [PlayStyle.ghost, PlayStyle.trickster, PlayStyle.chaos]);
@@ -120,7 +203,10 @@ void main() {
 
   test('parses remix alternatives', () {
     final level = night3();
-    expect(level.remixLoot, {'toaster': [60], 'chicken': [300]});
+    expect(level.remixLoot, {
+      'toaster': [const Vec(60, 270)],
+      'chicken': [const Vec(300, 106)],
+    });
     expect(level.remixSpots, {'pot': ['underShelf', 'underSideTable']});
   });
 
@@ -143,29 +229,26 @@ void main() {
     final loot = [
       {'id': 'cup', 'x': 200},
       {'id': 'egg', 'x': 400, 'guarded': true},
-      {'id': 'hat', 'x': 60, 'high': true},
     ];
     Level parse(Map<String, Object?> remix) => Level.parse(minimalLevel(
       spots: spots,
       objects: objects,
       loot: loot,
-      crawlway: {'from': 40, 'to': 80},
       remix: remix,
     ));
     expect(() => parse({'loot': {'mug': [5]}}), _formatError('remix names unknown loot: mug'));
     expect(() => parse({'loot': {'egg': [300]}}), _formatError('remix moves the guarded loot: egg'));
-    expect(() => parse({'loot': {'hat': [100]}}), _formatError('high loot off the crawlway: hat'));
     expect(() => parse({'objects': {'o': ['b']}}), _formatError('remix moves a fixed object: o'));
     expect(() => parse({'objects': {'ghost': ['b']}}), _formatError('remix names unknown object: ghost'));
     expect(() => parse({'objects': {'pot': ['a']}}), _formatError('remix spot is not a snap spot: a'));
     expect(() => parse({'objects': {'pot': ['zzz']}}), _formatError('remix names an unknown spot: zzz'));
-    expect(parse({'loot': {'cup': [300], 'hat': [70]}, 'objects': {'pot': ['b']}}).remixLoot['cup'], [300]);
+    expect(parse({'loot': {'cup': [300]}, 'objects': {'pot': ['b']}}).remixLoot['cup'], [const Vec(300, 270)]);
   });
 
   test('rearranged moves loot and objects', () {
     final level = night3();
-    final moved = level.rearranged(lootX: {'toaster': 424}, objectSpots: {'pot': 'underShelf'});
-    expect(moved.loot.firstWhere((l) => l.id == 'toaster').x, 424);
+    final moved = level.rearranged(lootAt: {'toaster': const Vec(424, 270)}, objectSpots: {'pot': 'underShelf'});
+    expect(moved.loot.firstWhere((l) => l.id == 'toaster').at, const Vec(424, 270));
     expect(moved.objects.firstWhere((o) => o.id == 'pot').spot, 'underShelf');
     expect(moved.loot.firstWhere((l) => l.id == 'chicken').x, 353);
     expect(moved.objects.firstWhere((o) => o.id == 'glass').spot, 'counterLeft');

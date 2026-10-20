@@ -3,7 +3,7 @@ import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
-GooseBrain _goose() => GooseBrain(bedX: 502, tuning: const Tuning());
+GooseBrain _goose() => GooseBrain(bedX: 502, floorY: 270, tuning: const Tuning());
 
 /// Ticks in 0.05s steps, like a frame loop would.
 void run(GooseBrain g, double seconds, {double playerX = 236, bool hidden = false}) {
