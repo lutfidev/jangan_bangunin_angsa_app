@@ -39,13 +39,55 @@ void main() {
     expect(l.geometry.floorSurfaceAt(500), Surface.carpet);
   });
 
-  test('the parser walls the world in', () {
-    final g = Level.parse(minimalLevel()).geometry;
-    expect(g.solids.map((s) => s.box), containsAll([
+  test('the parser walls the world in at its width', () {
+    final l = Level.parse(minimalLevel(extra: {'width': 1000}));
+    expect(l.width, 1000);
+    expect(l.geometry.solids.map((s) => s.box), containsAll([
       Box.ltwh(-100, -400, 100, 790),
-      Box.ltwh(844, -400, 100, 790),
-      Box.ltwh(0, -100, 844, 100),
+      Box.ltwh(1000, -400, 100, 790),
+      Box.ltwh(0, -100, 1000, 100),
     ]));
+    expect(night3().width, 844);
+    expect(() => Level.parse(minimalLevel(extra: {'width': 0})), _formatError('width must be above 0: test'));
+  });
+
+  test('a badly shaped level is a FormatException too', () {
+    Level parse(Map<String, Object?> extra) => Level.parse(minimalLevel(extra: extra));
+    Level withPlatform(Map<String, Object?> p) =>
+        Level.parse(minimalLevel(platforms: [{'id': 'shelf', 'x': [0, 90], 'y': 200, 'surface': 'wood', ...p}]));
+    expect(() => Level.parse('[]'), _formatError('not a level object'));
+    expect(() => parse({'width': null}), _formatError('missing "width"'));
+    expect(() => parse({'floorY': 'low'}), _formatError('not a number: "floorY"'));
+    expect(() => parse({'name': 3}), _formatError('not text: "name"'));
+    expect(() => parse({'solids': {'box': 1}}), _formatError('not a list: "solids"'));
+    expect(() => parse({'solids': [7]}), _formatError('not an object in "solids"'));
+    expect(
+      () => parse({'solids': [{'box': [0, 270, 844], 'surface': 'wood'}]}),
+      _formatError('needs 4 numbers: box test'),
+    );
+    expect(() => parse({'playerStart': 0}), _formatError('needs 2 numbers: playerStart test'));
+    expect(() => parse({'playerStart': [0, '270']}), _formatError('needs 2 numbers: playerStart test'));
+    expect(() => withPlatform({'x': null}), _formatError('needs 2 numbers: platform shelf'));
+    expect(() => withPlatform({'crawl': 'yes'}), _formatError('not true or false: "crawl"'));
+    expect(() => parse({'links': [{'from': 'a', 'to': 'a', 'delay': 'soon'}]}), _formatError('not a number: "delay"'));
+    expect(
+      () => parse({'goals': [{'style': 'chaos', 'kind': 'chain', 'count': 1.5}]}),
+      _formatError('not a whole number: "count"'),
+    );
+    expect(() => parse({'remix': <Object?>[]}), _formatError('not an object: "remix"'));
+    expect(
+      () => parse({'loot': [{'id': 'cup', 'at': [10, 270]}], 'remix': {'loot': {'cup': 50}}}),
+      _formatError('not a list: remix loot cup'),
+    );
+    final portable = [{'id': 'o', 'type': 'tipper', 'spot': 'a', 'portable': true}];
+    expect(
+      () => parse({'objects': portable, 'remix': {'objects': {'o': 'a'}}}),
+      _formatError('not a list: remix object o'),
+    );
+    expect(
+      () => parse({'objects': portable, 'remix': {'objects': {'o': [3]}}}),
+      _formatError('not text in remix object o'),
+    );
   });
 
   test('rejects a level that is not v2', () {

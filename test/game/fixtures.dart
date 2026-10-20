@@ -26,6 +26,7 @@ String minimalLevel({
   'version': 2,
   'id': 'test',
   'name': 'Test',
+  'width': 844,
   'floorY': 270,
   'solids': [
     {'box': [0, 270, 844, 120], 'surface': 'wood'},

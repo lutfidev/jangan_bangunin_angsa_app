@@ -282,7 +282,7 @@ class NightSim {
       case Tool.mouse:
         _mouse = ToyMouse(x: playerX, dir: facing);
       case Tool.marbles:
-        _spillX = (playerX - facing * tuning.spillBehind).clamp(0, tuning.worldWidth).toDouble();
+        _spillX = (playerX - facing * tuning.spillBehind).clamp(0, level.width).toDouble();
       case Tool.kazoo:
         _hear(Noise(x: playerX, y: playerY, loudness: 3), tool: Tool.kazoo);
       case Tool.socks:
@@ -390,7 +390,7 @@ class NightSim {
   /// of the burglar, inside the room.
   double throwLanding(double aimX) => aimX
       .clamp(playerX - tuning.throwRange, playerX + tuning.throwRange)
-      .clamp(0, tuning.worldWidth)
+      .clamp(0, level.width)
       .toDouble();
 
   /// The spot a sock landing at [landingX] would hit: the nearest one in
@@ -674,7 +674,7 @@ class NightSim {
   void _walkMouse(double h) {
     final m = _mouse;
     if (m == null || m.stopped) return;
-    final (from, to) = m.advance(h, tuning.mouseSpeed, min: 0, max: tuning.worldWidth);
+    final (from, to) = m.advance(h, tuning.mouseSpeed, min: 0, max: level.width);
     Spot? hit;
     for (final spot in level.spots.values) {
       final ahead = m.dir > 0 ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;

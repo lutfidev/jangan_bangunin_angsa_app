@@ -2,6 +2,7 @@
   "version": 2,
   "id": "night3",
   "name": "The Midnight Kitchen",
+  "width": 844,
   "floorY": 270,
   "solids": [
     {"box": [0, 270, 300, 120], "surface": "tile"},
