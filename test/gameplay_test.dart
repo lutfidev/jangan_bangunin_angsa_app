@@ -752,6 +752,43 @@ void main() {
       expect(scroll(tester), closeTo(-(1000 + 120 - 422), 1));
     });
 
+    double rise(WidgetTester tester) =>
+        tester.widget<Transform>(find.byKey(GameplayScreen.sceneKey)).transform.getTranslation().y;
+
+    testWidgets('the ground floor sits where the screen has its floor', (tester) async {
+      await pumpGameplay(tester, inHouse());
+      expect(rise(tester), -390);
+    });
+
+    testWidgets('upstairs the camera rises, and she is below', (tester) async {
+      await pumpGameplay(tester, NightSim(houseWith({'playerStart': [1450, 270]}), setup: const NightSetup(night: 'house')));
+      expect(rise(tester), 0);
+      final arrow = find.byKey(GameplayScreen.gooseArrowKey);
+      expect(tester.getTopLeft(arrow).dx, 8);
+      expect(tester.widget<GooseArrow>(arrow).vertical, 1);
+      expect(find.bySemanticsLabel('Gertrude is off screen, below'), findsOneWidget);
+    });
+
+    testWidgets('on a stair Milo is drawn over the floors', (tester) async {
+      final sim = NightSim(houseWith({'playerStart': [1460, 270]}), setup: const NightSetup(night: 'house'))
+        ..setVertical(1)
+        ..tick(frame)
+        ..setVertical(0);
+      expect(sim.onStairs, isTrue);
+      await pumpGameplay(tester, sim);
+      expect(find.byKey(GameplayScreen.miloOverKey), findsOneWidget);
+    });
+
+    testWidgets('VENT at a vent mouth crawls him in', (tester) async {
+      final sim = NightSim(houseWith({'playerStart': [80, 270]}), setup: const NightSetup(night: 'house'));
+      await pumpGameplay(tester, sim);
+      expect(_interact(tester).label, 'VENT');
+      await tester.tap(find.text('VENT'));
+      await tester.pump();
+      expect(sim.inVent, isTrue);
+      expect(find.byKey(GameplayScreen.miloOverKey), findsOneWidget);
+    });
+
     testWidgets('night 3 never scrolls', (tester) async {
       final sim = NightSim(Levels.night3)..setSneak(true);
       walkTo(sim, 700);

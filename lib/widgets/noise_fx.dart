@@ -3,6 +3,7 @@ import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 
+import '../game/geom.dart';
 import '../game/goose_brain.dart';
 import '../game/hearing.dart';
 import '../game/level.dart';
@@ -31,9 +32,9 @@ const _fade = 0.4;
 const _feetUp = 8.0;
 const _handsUp = 50.0;
 
-/// Gertrude's head, and where she slips.
-const _headY = 210.0;
-const _slipY = 200.0;
+/// Gertrude's head, and where she slips, above her feet.
+const _headUp = 60.0;
+const _slipUp = 70.0;
 
 abstract class _Fx {
   _Fx(this.life);
@@ -103,7 +104,7 @@ class NoiseFx {
   /// The last badge of each chain, where the next link's arc starts.
   final Map<int, Offset> _lastLink = {};
 
-  void take(SimEvent e, {required double gooseX}) {
+  void take(SimEvent e, {required Vec goose}) {
     switch (e) {
       case NoiseMade(:final noise, :final link, :final tool, :final heard, :final door):
         final at = link == null
@@ -133,9 +134,9 @@ class NoiseFx {
         final type = level.objects.firstWhere((o) => o.id == link.objectId).type;
         words.add(WordFx(sfxWord(type), threatColor(noise.loudness), at));
       case GooseChanged(to: GooseState.awake):
-        honk = HonkFx(Offset(gooseX, _headY));
-      case GooseSlipped(:final x):
-        words.add(WordFx('SLIP!', Palette.lamp, Offset(x, _slipY)));
+        honk = HonkFx(Offset(goose.x, goose.y - _headUp));
+      case GooseSlipped(:final at):
+        words.add(WordFx('SLIP!', Palette.lamp, Offset(at.x, at.y - _slipUp)));
       case _:
     }
   }

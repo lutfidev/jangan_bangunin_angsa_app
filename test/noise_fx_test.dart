@@ -27,7 +27,7 @@ void main() {
   late NoiseFx fx;
   setUp(() => fx = NoiseFx(level: Levels.night3, anchors: spotAnchors));
 
-  void take(SimEvent e) => fx.take(e, gooseX: 502);
+  void take(SimEvent e) => fx.take(e, goose: const Vec(502, 270));
 
   test('a chain link draws rings, a badge and a word', () {
     take(_link(1, 2, 'pot', 'counterPot', 2));
@@ -104,7 +104,7 @@ void main() {
   });
 
   test('a slip says so', () {
-    take(const GooseSlipped(480));
+    take(const GooseSlipped(Vec(480, 270)));
     expect(fx.words.single.text, 'SLIP!');
     expect(fx.words.single.at, const Offset(480, 200));
   });

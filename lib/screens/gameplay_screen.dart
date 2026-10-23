@@ -63,6 +63,9 @@ class GameplayScreen extends StatefulWidget {
   /// The chip pointing to Gertrude while she is off screen.
   static const gooseArrowKey = Key('gameplay-goose-arrow');
 
+  /// Milo drawn over the floors, on a stair or in a vent.
+  static const miloOverKey = Key('gameplay-milo-over');
+
   /// The CHAIN ×N! banner of a live chaos combo.
   static const comboKey = Key('gameplay-combo');
 
@@ -94,8 +97,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: _set.spotAnchors, tuning: _sim.tuning);
 
   /// Follows Milo along a house wider than the screen; Night 3 never moves it.
-  late final Camera _camera = Camera(worldWidth: _sim.level.width, tuning: _sim.tuning)
-    ..snap(_sim.playerX, _sim.facing);
+  late final Camera _camera = Camera(worldWidth: _sim.level.width, worldHeight: _sim.level.height, tuning: _sim.tuning)
+    ..snap(_sim.playerX, _sim.facing, floorY: _sim.viewFloorY);
 
   Duration? _last;
   bool _sneak = true;
@@ -137,10 +140,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       return;
     }
     _sim.tick(dt);
-    _camera.tick(dt, _sim.playerX, _sim.facing);
+    _camera.tick(dt, _sim.playerX, _sim.facing, floorY: _sim.viewFloorY);
     _fx.advance(dt);
     for (final e in _sim.takeEvents()) {
-      _fx.take(e, gooseX: _sim.goose.x);
+      _fx.take(e, goose: _sim.goose.at);
       switch (e) {
         case GooseChanged(to: GooseState.awake):
           // "A 0.3s freeze-frame, one white flash ring and HONK lettering."
@@ -234,11 +237,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                 flipX: _mirror,
                 child: Transform.translate(
                   key: GameplayScreen.sceneKey,
-                  offset: Offset(nudge - _camera.x, 0),
+                  offset: Offset(nudge - _camera.x, -_camera.y),
                   child: OverflowBox(
                     alignment: Alignment.topLeft,
                     minWidth: level.width,
                     maxWidth: level.width,
+                    minHeight: level.height,
+                    maxHeight: level.height,
                     child: Stack(
                       children: [
                         ..._set.backdrop(_sim, _camera.x, _camera.x + Stage.width),
@@ -247,7 +252,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         if (!goose.isAwake)
                           at(
                             goose.x - 172,
-                            level.floorY - 38,
+                            goose.y - 38,
                             band == MeterBand.suspicious || band == MeterBand.danger
                                 ? const Opacity(
                                     opacity: 0.7,
@@ -272,7 +277,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             width: 344,
                             height: 76,
                           ),
-                        rug(level.bedX),
+                        rug(level.bedX, floorY: level.bed.y),
 
                         // Free snap spots glow, brighter while he carries something.
                         for (final spot in level.spots.values)
@@ -331,7 +336,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         if (chasing && !_caught)
                           at(
                             _gooseRight ? goose.x - 120 : goose.x + 60,
-                            196,
+                            goose.y - 74,
                             const InlineSvg(
                               key: GameplayScreen.speedLinesKey,
                               '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
@@ -344,7 +349,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         if (!_caught)
                           at(
                             goose.x - 70,
-                            level.floorY - 110,
+                            goose.y - 110,
                             Transform.rotate(
                               angle: goose.slipping ? deg(-20) : 0,
                               child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
@@ -352,14 +357,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                           ),
                         for (final loot in level.loot)
                           if (!carried.contains(loot.id) && loot.guarded) _loot(loot),
-                        nest(level.bedX),
+                        nest(level.bedX, floorY: level.bed.y),
                         ...switch (goose.state) {
                           GooseState.asleep ||
-                          GooseState.drowsy => [at(goose.x - 56, 160, const Unmirror(child: Snores(reversed: true)))],
+                          GooseState.drowsy => [at(goose.x - 56, goose.y - 110, const Unmirror(child: Snores(reversed: true)))],
                           GooseState.stirring => [
                             at(
                               goose.x - 56,
-                              166,
+                              goose.y - 104,
                               Unmirror(
                                 child: Text('z…?', style: display(18, color: Palette.moonlight)),
                               ),
@@ -368,7 +373,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                           GooseState.suspicious || GooseState.lostYou => [
                             at(
                               goose.x - 72,
-                              120,
+                              goose.y - 150,
                               Container(
                                 width: 34,
                                 height: 34,
@@ -387,11 +392,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                         // Milo, or Milo under a goose.
                         if (_caught) ...[
-                          at(px - 50, 160, const Burglar(pose: BurglarPose.caught, width: 100)),
-                          at(px - 50, 182, const Goose(mood: GooseMood.awake, width: 100)),
+                          at(px - 50, py - 110, const Burglar(pose: BurglarPose.caught, width: 100)),
+                          at(px - 50, py - 88, const Goose(mood: GooseMood.awake, width: 100)),
                           at(
                             px - 90,
-                            150,
+                            py - 120,
                             const SizedBox(
                               width: 180,
                               height: 100,
@@ -399,8 +404,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             ),
                           ),
                         ] else if (_sim.hidden)
-                          ..._set.hiding(_nearestHide(level, px))
-                        else ...[
+                          ..._set.hiding(_nearestHide(level, Vec(px, py)))
+                        else if (!_sim.onStairs && !_sim.inVent) ...[
                           at(px - 30, py - 74, Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0)),
                           if (_sim.held case final held?) at(px - 20, py - 102, Prop(_set.objectKind(held)!, size: 40)),
                           // Up there he'd hide the loot he crawls to; it goes in front.
@@ -442,7 +447,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             hideTag(_set.hideTag(h)),
                         at(
                           level.exitX - 12,
-                          level.floorY - 162,
+                          level.exit.y - 162,
                           // The EXIT sign pulses while she chases.
                           Transform.scale(
                             scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
@@ -500,7 +505,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         if (goose.state == GooseState.distracted)
                           at(
                             goose.x - 60,
-                            102,
+                            goose.y - 168,
                             Unmirror(
                               child: Pill(
                                 'DISTRACTED · ${goose.distractLeft.ceil()}s',
@@ -519,6 +524,21 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                           ),
 
                         ..._set.foreground(_sim),
+                        // On a stair or in a vent he passes through floors: drawn over them.
+                        if (!_caught && (_sim.onStairs || _sim.inVent))
+                          at(
+                            px - 30,
+                            py - 74,
+                            Opacity(
+                              key: GameplayScreen.miloOverKey,
+                              opacity: _sim.inVent ? 0.7 : 1,
+                              child: Burglar(
+                                pose: _sim.inVent ? BurglarPose.crawl : _pose(goose, carried),
+                                width: 60,
+                                flip: _sim.facing > 0,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -546,11 +566,17 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
             ),
 
           if (!_caught)
-            if (_gooseArrowLeft(goose.x) case final left?)
+            if (_gooseArrow(goose) case (:final left, :final vertical))
               at(
                 left ? 8 : 772,
                 160,
-                GooseArrow(key: GameplayScreen.gooseArrowKey, left: left, state: goose.state, pulse: _sim.elapsed),
+                GooseArrow(
+                  key: GameplayScreen.gooseArrowKey,
+                  left: left,
+                  vertical: vertical,
+                  state: goose.state,
+                  pulse: _sim.elapsed,
+                ),
               ),
 
           // HUD.
@@ -671,13 +697,19 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     return 'Make it to the exit';
   }
 
-  /// Which screen edge Gertrude at [x] is off past (true: left), or null
-  /// while any of her shows. Mirror Night swaps the edges.
-  bool? _gooseArrowLeft(double x) {
-    final left = x + 70 < _camera.x;
-    final right = x - 70 > _camera.x + Stage.width;
-    if (!left && !right) return null;
-    return _mirror ? right : left;
+  /// Where the goose arrow goes while all of Gertrude is off screen, or
+  /// null while any of her shows: the edge on her side (true: left; Mirror
+  /// Night swaps them) and, when she is on another storey, -1 above or 1
+  /// below.
+  ({bool left, int vertical})? _gooseArrow(GooseBrain goose) {
+    final view = (left: _camera.x, top: _camera.y, right: _camera.x + Stage.width, bottom: _camera.y + Stage.height);
+    final above = goose.y < view.top;
+    final below = goose.y - 110 > view.bottom;
+    final left = goose.x + 70 < view.left;
+    final right = goose.x - 70 > view.right;
+    if (!above && !below && !left && !right) return null;
+    final onLeft = left || (!right && goose.x < (view.left + view.right) / 2);
+    return (left: _mirror ? !onLeft : onLeft, vertical: above ? -1 : (below ? 1 : 0));
   }
 
   bool _comboLive(int links) => _sim.combo.count >= links && _sim.comboLeft > 0;
@@ -725,8 +757,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       ? BurglarPose.carry
       : BurglarPose.sneak;
 
-  static Vec _nearestHide(Level level, double x) =>
-      level.hideSpots.reduce((a, b) => (a.x - x).abs() <= (b.x - x).abs() ? a : b);
+  static Vec _nearestHide(Level level, Vec p) => level.hideSpots.reduce(
+    (a, b) => (a.x - p.x).abs() + (a.y - p.y).abs() <= (b.x - p.x).abs() + (b.y - p.y).abs() ? a : b,
+  );
 
   Widget _interactButton(Interaction? interaction) {
     void interact() {

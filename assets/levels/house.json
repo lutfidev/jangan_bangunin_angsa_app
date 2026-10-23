@@ -53,7 +53,7 @@
     {"id": "hallStairs", "bottom": [1880, 1050], "top": [1620, 660]}
   ],
   "vents": [
-    {"id": "bedroomDuct", "from": [80, 270], "to": [60, 660]},
+    {"id": "bedroomDuct", "from": [80, 270], "to": [300, 660]},
     {"id": "wallHole", "from": [1040, 1050], "to": [1100, 1050]}
   ],
   "playerStart": [236, 660],

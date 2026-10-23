@@ -8,12 +8,16 @@ import 'hud.dart';
 
 /// The chip at the screen's edge pointing to Gertrude while she is off
 /// screen ("New · House camera & doors" board): her face, and a triangle
-/// in her mood's colour pointing out to [left] or right.
+/// in her mood's colour pointing out to [left] or right, or up or down when
+/// she is on another storey.
 class GooseArrow extends StatelessWidget {
-  const GooseArrow({super.key, required this.left, required this.state, this.pulse = 0});
+  const GooseArrow({super.key, required this.left, this.vertical = 0, required this.state, this.pulse = 0});
 
   /// Which edge it sits on, pointing out past.
   final bool left;
+
+  /// -1 she is above, 1 below, 0 on this storey.
+  final int vertical;
   final GooseState state;
 
   /// Seconds into the night: it pulses with them while she runs.
@@ -29,9 +33,15 @@ class GooseArrow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final running = state == GooseState.chase || state == GooseState.distracted;
-    final triangle = CustomPaint(size: const Size(10, 16), painter: _TrianglePainter(colorFor(state), left: left));
+    final triangle = vertical == 0
+        ? CustomPaint(size: const Size(10, 16), painter: _TrianglePainter(colorFor(state), left: left))
+        : CustomPaint(size: const Size(16, 10), painter: _TrianglePainter(colorFor(state), left: left, vertical: vertical));
     return Semantics(
-      label: 'Gertrude is off screen to the ${left ? 'left' : 'right'}',
+      label: switch (vertical) {
+        < 0 => 'Gertrude is off screen, above',
+        > 0 => 'Gertrude is off screen, below',
+        _ => 'Gertrude is off screen to the ${left ? 'left' : 'right'}',
+      },
       excludeSemantics: true,
       child: Transform.scale(
         // Like the EXIT sign: ±8% at 1.5 Hz.
@@ -57,14 +67,27 @@ class GooseArrow extends StatelessWidget {
 }
 
 class _TrianglePainter extends CustomPainter {
-  _TrianglePainter(this.color, {required this.left});
+  _TrianglePainter(this.color, {required this.left, this.vertical = 0});
 
   final Color color;
   final bool left;
+  final int vertical;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = left
+    final path = vertical != 0
+        ? (vertical > 0
+              ? (Path()
+                  ..moveTo(1, 1)
+                  ..lineTo(8, 9)
+                  ..lineTo(15, 1)
+                  ..close())
+              : (Path()
+                  ..moveTo(1, 9)
+                  ..lineTo(8, 1)
+                  ..lineTo(15, 9)
+                  ..close()))
+        : left
         ? (Path()
             ..moveTo(9, 1)
             ..lineTo(1, 8)
@@ -88,5 +111,5 @@ class _TrianglePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TrianglePainter old) => old.color != color || old.left != left;
+  bool shouldRepaint(_TrianglePainter old) => old.color != color || old.left != left || old.vertical != vertical;
 }

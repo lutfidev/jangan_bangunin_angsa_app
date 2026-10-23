@@ -51,11 +51,11 @@ class GooseChanged extends SimEvent {
   final GooseState to;
 }
 
-/// She ran onto the spilled marbles at [x] and went down.
+/// She ran onto the spilled marbles [at] her feet and went down.
 class GooseSlipped extends SimEvent {
-  const GooseSlipped(this.x);
+  const GooseSlipped(this.at);
 
-  final double x;
+  final Vec at;
 }
 
 class LootGrabbed extends SimEvent {
@@ -785,7 +785,7 @@ class NightSim {
     if (spill != null && running && (goose.x - spill.x).abs() <= tuning.slipRadius && (goose.y - spill.y).abs() <= 2) {
       goose.slip();
       _spill = null;
-      _events.add(GooseSlipped(goose.x));
+      _events.add(GooseSlipped(goose.at));
     }
 
     // Up out of her reach he is as safe as in a hide spot.
