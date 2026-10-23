@@ -284,23 +284,32 @@ void main() {
   });
 
   group('by sight', () {
+    test('out of sight, she goes where he went, not where she last saw him', () {
+      final g = _goose()..wake(WakeCause.noise);
+      run(g, 0.35);
+      // Seen at 236, then gone at 260: she saw him go that way.
+      g.tick(0.05, player: const Vec(260, 270), sees: false);
+      run(g, 4, playerX: 700, unseen: true);
+      expect(g.x, 260);
+    });
+
     test('out of sight, she goes where she last saw him and gives up 3s after', () {
       final g = _goose()..wake(WakeCause.noise);
       run(g, 0.35);
       expect(g.state, GooseState.chase);
-      // He slips out of her room; she last saw him at 236.
-      run(g, (g.x - 236) / 110 + 0.1, playerX: 800, unseen: true);
+      // He slips out of her sight at 236 and stays there.
+      run(g, (g.x - 236) / 110 + 0.1, unseen: true);
       expect(g.x, 236);
-      run(g, 2.8, playerX: 800, unseen: true);
+      run(g, 2.8, unseen: true);
       expect(g.state, GooseState.chase);
-      run(g, 0.3, playerX: 800, unseen: true);
+      run(g, 0.3, unseen: true);
       expect(g.state, GooseState.lostYou);
     });
 
     test('in sight again, the chase is on again', () {
       final g = _goose()..wake(WakeCause.noise);
       run(g, 0.35);
-      run(g, 1, playerX: 800, unseen: true);
+      run(g, 1, unseen: true);
       run(g, 3, playerX: 100);
       expect(g.state, GooseState.chase);
       expect(g.x, lessThan(236));

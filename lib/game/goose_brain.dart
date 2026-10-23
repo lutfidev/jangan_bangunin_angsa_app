@@ -47,8 +47,10 @@ class GooseBrain {
   Vec _target;
   Vec? _lastNoise;
 
-  /// Where she last saw Milo while chasing him.
+  /// Where she last saw Milo while chasing him: where he went out of
+  /// sight, the first step she didn't see.
   Vec? _lastSeen;
+  bool _sawHim = false;
 
   /// Seconds left in the current timed phase: sniff, awake freeze, distraction.
   double _timer = 0;
@@ -152,6 +154,7 @@ class GooseBrain {
     if (isAwake) return;
     _state = GooseState.awake;
     _lastSeen = null;
+    _sawHim = false;
     _wakeCause = cause;
     _timer = tuning.awakeFreeze;
     meter.reset(value: 100);
@@ -191,7 +194,8 @@ class GooseBrain {
         }
       case GooseState.awake:
         // Up on her feet, she takes a look round before she runs.
-        if (sees) _lastSeen = player;
+        if (sees || _sawHim) _lastSeen = player;
+        _sawHim = sees;
         _timer -= dt;
         if (_timer <= 0) {
           _state = GooseState.chase;
@@ -200,7 +204,10 @@ class GooseBrain {
         }
       case GooseState.chase:
         _chaseLeft -= dt;
-        if (sees) _lastSeen = player;
+        // She saw where he went: through a door she follows, pushing it if
+        // it was shut in her face.
+        if (sees || _sawHim) _lastSeen = player;
+        _sawHim = sees;
         final target = sees ? player : (_lastSeen ?? _lastNoise ?? at);
         final arrived = !_slipped(dt) && _moveTo(target, tuning.chaseSpeed, dt);
         final catchable = sees && (_route?.catches ?? false);

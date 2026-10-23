@@ -62,6 +62,9 @@ void main() {
       expect(l.roomsAround(const Vec(200, 465)).map((r) => r.id), ['up', 'down']);
       expect(l.roomsAround(const Vec(200, 380)), isEmpty);
       expect(l.roomsAround(const Vec(50, 600)).map((r) => r.id), ['down']);
+      // Standing at either end he is on that floor only.
+      expect(l.roomsAround(const Vec(300, 270)).map((r) => r.id), ['up']);
+      expect(l.roomsAround(const Vec(100, 660)).map((r) => r.id), ['down']);
       expect(l.geometry.solids.map((s) => s.box), containsAll([Box.ltwh(-100, -400, 100, 1180), Box.ltwh(844, -400, 100, 1180)]));
     });
 

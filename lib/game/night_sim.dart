@@ -327,12 +327,22 @@ class NightSim {
       !_body.onStairs;
 
   /// Out of her reach: higher than her neck stretches.
-  /// She sees him: he isn't tucked away, and they share a room (a stair is
-  /// in both rooms it joins, a doorway in both rooms either side).
+  /// She sees him: he isn't tucked away, and she is in his room or one
+  /// joined to it by open doors (a stair is in both rooms it joins, a
+  /// doorway in both rooms either side).
   bool get sees {
     if (_hidden || _vent != null) return false;
-    final hers = level.roomsAround(goose.at);
-    return level.roomsAround(Vec(playerX, playerY)).any(hers.contains);
+    final area = {for (final r in level.roomsAround(Vec(playerX, playerY))) r.id};
+    for (var grew = true; grew;) {
+      grew = false;
+      for (final d in level.doors) {
+        if (doors.isOpen(d.id) && area.contains(d.left) != area.contains(d.right)) {
+          area.addAll([d.left, d.right]);
+          grew = true;
+        }
+      }
+    }
+    return level.roomsAround(goose.at).any((r) => area.contains(r.id));
   }
   bool get sneaking => _sneak;
 
@@ -359,6 +369,7 @@ class NightSim {
       !_frozen &&
       !_hidden &&
       _vent == null &&
+      !onStairs &&
       _held == null &&
       (tool != Tool.marbles || goose.isAwake) &&
       // The mouse and the marbles go on the floor.
@@ -515,7 +526,9 @@ class NightSim {
 
   /// Lobs a sock at [aimX]. False if there is none to throw.
   bool throwSock(double aimX) {
-    if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden || _vent != null || _held != null) return false;
+    if (tool != Tool.socks || _toolLeft == 0 || _frozen || _hidden || _vent != null || onStairs || _held != null) {
+      return false;
+    }
     _toolLeft--;
     _flights.add(Flight(
       fromX: playerX,

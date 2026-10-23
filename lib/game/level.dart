@@ -402,11 +402,11 @@ class Level {
   List<Room> roomsAt(Vec p) => [for (final r in rooms) if (r.contains(p)) r];
 
   /// [roomsAt], and on a stair both rooms it joins, even inside the floor
-  /// it climbs through.
+  /// it climbs through. Its two ends are on their floors only.
   List<Room> roomsAround(Vec p) {
     final found = roomsAt(p).toSet();
     for (final s in stairs) {
-      if (!s.spans(p.x) || (s.yAt(p.x) - p.y).abs() > 2) continue;
+      if (p.x <= s.left || p.x >= s.right || (s.yAt(p.x) - p.y).abs() > 2) continue;
       found.addAll(roomsAt(s.bottom).followedBy(roomsAt(s.top)));
     }
     return [for (final r in rooms) if (found.contains(r)) r];

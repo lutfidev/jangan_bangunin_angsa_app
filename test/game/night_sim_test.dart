@@ -1461,4 +1461,49 @@ void main() {
       expect(s.goose.at, const Vec(1300, 270));
     });
   });
+
+  group('chasing through doors', () {
+    test('she sees through an open door and follows him through it', () {
+      final s = NightSim(Level.parse(twoRooms(open: true, extra: {'bed': [300, 270], 'playerStart': [341.3, 270]})));
+      s.goose.wake(WakeCause.noise);
+      walkTo(s, 700);
+      final caught = <SimEvent>[];
+      tickUntil(s, () {
+        caught.addAll(s.takeEvents().whereType<CaughtStarted>());
+        return caught.isNotEmpty;
+      }, limit: 10);
+      expect(s.goose.x, greaterThan(400));
+    });
+
+    test('a door shut in her face gains him the push, then she follows', () {
+      final s = NightSim(Level.parse(twoRooms(open: true, extra: {'bed': [100, 270], 'playerStart': [341.3, 270]})));
+      s.goose.wake(WakeCause.noise);
+      walkTo(s, 420);
+      expect(s.useDoor('d'), isTrue);
+      s.takeEvents();
+      walkTo(s, 700);
+      final events = <SimEvent>[];
+      tickUntil(s, () {
+        events.addAll(s.takeEvents());
+        return events.any((e) => e is CaughtStarted);
+      }, limit: 15);
+      expect(events.whereType<DoorMoved>().single.byGoose, isTrue);
+    });
+  });
+
+  test('no tools on a stair', () {
+    final s = NightSim(Level.parse(twoStoreys()), setup: const NightSetup(tool: Tool.kazoo));
+    expect(s.toolReady, isTrue);
+    s
+      ..setVertical(-1)
+      ..tick(frame)
+      ..setVertical(0);
+    expect(s.onStairs, isTrue);
+    expect(s.toolReady, isFalse);
+    expect(s.useTool(), isFalse);
+    final socks = NightSim(Level.parse(twoStoreys()))
+      ..setVertical(-1)
+      ..tick(frame);
+    expect(socks.throwSock(400), isFalse);
+  });
 }
