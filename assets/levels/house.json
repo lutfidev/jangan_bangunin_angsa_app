@@ -30,7 +30,7 @@
     {"id": "hallTable", "x": [1700, 1744], "y": 236, "surface": "wood"}
   ],
   "playerStart": [236, 270],
-  "exit": [1950, 270],
+  "exit": [1926, 270],
   "bed": [960, 270],
   "hideSpots": [[148, 270], [1695, 270]],
   "spots": [
