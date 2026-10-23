@@ -65,6 +65,22 @@ Map<String, Object?>? _remixOnFloor(Map<String, Object?>? remix) {
   };
 }
 
+/// [minimalLevel] split into two rooms at x 400, `a` and `b`, with door `d`
+/// between them, closed unless [open]. Any key can still be overridden.
+String twoRooms({bool open = false, Map<String, Object?> extra = const {}, List<Object?>? platforms}) => minimalLevel(
+  platforms: platforms,
+  extra: {
+    'rooms': [
+      {'id': 'a', 'name': 'A', 'box': [0, 0, 400, 270]},
+      {'id': 'b', 'name': 'B', 'box': [400, 0, 444, 270]},
+    ],
+    'doors': [
+      {'id': 'd', 'x': 400, 'open': open},
+    ],
+    ...extra,
+  },
+);
+
 const frame = 1 / 60;
 
 /// Walks (or sneaks) the burglar until they reach [x], a frame at a time.

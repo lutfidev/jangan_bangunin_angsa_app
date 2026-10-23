@@ -257,4 +257,73 @@ void main() {
     expect(level.loot.firstWhere((l) => l.id == 'toaster').x, 218);
     expect(level.objects.firstWhere((o) => o.id == 'pot').spot, 'counterPot');
   });
+
+  group('rooms and doors', () {
+    test('a level without rooms is one room, with no doors', () {
+      expect(night3().rooms.single.box, const Box(0, 0, 844, 270));
+      expect(night3().rooms.single.name, 'The Midnight Kitchen');
+      expect(night3().doors, isEmpty);
+    });
+
+    test('a door joins the rooms either side of it', () {
+      final l = Level.parse(twoRooms());
+      expect(l.rooms.map((r) => r.id), ['a', 'b']);
+      final door = l.doors.single;
+      expect(door.id, 'd');
+      expect(door.left, 'a');
+      expect(door.right, 'b');
+      expect(door.startsOpen, isFalse);
+      expect(door.leaf, const Box(394, 140, 406, 270));
+      expect(door.handle, const Vec(400, 270));
+      expect(Level.parse(twoRooms(open: true)).doors.single.startsOpen, isTrue);
+      expect(l.roomsAt(const Vec(400, 270)).map((r) => r.id), ['a', 'b']);
+      expect(l.roomsAt(const Vec(399, 270)).map((r) => r.id), ['a']);
+    });
+
+    test('the parser builds the wall above a door', () {
+      final l = Level.parse(twoRooms());
+      expect(
+        l.geometry.solids.where((s) => s.box == const Box(394, 0, 406, 140)).single.surface,
+        Surface.wood,
+      );
+    });
+
+    test('rearranged keeps rooms and doors', () {
+      final l = Level.parse(twoRooms()).rearranged();
+      expect(l.rooms, hasLength(2));
+      expect(l.doors.single.id, 'd');
+    });
+
+    test('rejects bad rooms and doors', () {
+      Level parse(Map<String, Object?> extra) => Level.parse(twoRooms(extra: extra));
+      Map<String, Object?> rooms(List<List<num>> boxes, {List<String>? ids}) => {
+        'rooms': [
+          for (final (i, b) in boxes.indexed) {'id': ids?[i] ?? ['a', 'b'][i], 'name': 'R', 'box': b},
+        ],
+      };
+      expect(() => parse(rooms([[0, 0, 400, 270], [400, 0, 444, 270]], ids: ['a', 'a'])), _formatError('duplicate room: a'));
+      expect(() => parse(rooms([[0, 0, 400, 270], [300, 0, 544, 270]])), _formatError('rooms overlap: b'));
+      expect(() => parse(rooms([[0, 0, 400, 270], [400, 0, 500, 270]])), _formatError('room outside the world: b'));
+      expect(
+        () => parse({...rooms([[20, 0, 380, 270], [400, 0, 444, 270]]), 'doors': <Object?>[]}),
+        _formatError('not in a room: spot a'),
+      );
+      expect(() => parse({'doors': [{'id': 'd', 'x': 300}]}), _formatError('door not between two rooms: d'));
+      expect(
+        () => parse({
+          'solids': [
+            {'box': [0, 270, 390, 120], 'surface': 'wood'},
+            {'box': [410, 270, 434, 120], 'surface': 'wood'},
+          ],
+          'bed': [500, 270],
+        }),
+        _formatError('door not on the floor: d'),
+      );
+      expect(
+        () => parse({'doors': [{'id': 'd', 'x': 400}, {'id': 'd', 'x': 400}]}),
+        _formatError('duplicate door: d'),
+      );
+      expect(() => parse({'doors': [{'id': 'd', 'x': 400, 'open': 'yes'}]}), _formatError('not true or false: "open"'));
+    });
+  });
 }
