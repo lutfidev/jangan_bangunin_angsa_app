@@ -872,4 +872,26 @@ void main() {
       expect(colorOf(tester), Palette.alarmTomato);
     });
   });
+
+  group('debug overlay', () {
+    final overlay = find.byKey(GameplayScreen.debugKey);
+
+    testWidgets('off unless the debug tools are on', (tester) async {
+      await pumpGameplay(tester, NightSim(Levels.house, setup: const NightSetup(night: 'house')));
+      expect(find.text('DEBUG'), findsNothing);
+      expect(overlay, findsNothing);
+    });
+
+    testWidgets('the DEBUG chip turns it on and off', (tester) async {
+      await pumpGameplay(tester, NightSim(Levels.house, setup: const NightSetup(night: 'house')), true);
+      expect(overlay, findsNothing);
+      await tester.tap(find.text('DEBUG'));
+      await tester.pump();
+      expect(overlay, findsOneWidget);
+      await play(tester, 0.5);
+      await tester.tap(find.text('DEBUG'));
+      await tester.pump();
+      expect(overlay, findsNothing);
+    });
+  });
 }

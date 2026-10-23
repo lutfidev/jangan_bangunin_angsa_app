@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
@@ -23,6 +24,7 @@ import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
 import '../widgets/dashed_outline.dart';
+import '../widgets/debug_overlay.dart';
 import '../widgets/goose_arrow.dart';
 import '../widgets/hud.dart';
 import '../widgets/joystick.dart';
@@ -40,7 +42,13 @@ import 'tool_art.dart';
 /// Landscape gameplay over Night 3, The Midnight Kitchen, driven by a
 /// [NightSim] that ticks once per frame.
 class GameplayScreen extends StatefulWidget {
-  const GameplayScreen({super.key, this.level, this.setup = const NightSetup(), @visibleForTesting this.sim});
+  const GameplayScreen({
+    super.key,
+    this.level,
+    this.setup = const NightSetup(),
+    @visibleForTesting this.sim,
+    this.debugTools = kDebugMode && const bool.fromEnvironment('GREYBOX'),
+  });
 
   /// Defaults to [Levels.night3], remixed when [setup] has a remix seed.
   final Level? level;
@@ -50,6 +58,13 @@ class GameplayScreen extends StatefulWidget {
 
   /// A night already under way, for tests.
   final NightSim? sim;
+
+  /// Shows the DEBUG chip that paints the sim's geometry, nav and sound
+  /// over the room: debug builds run with `--dart-define=GREYBOX=true`.
+  final bool debugTools;
+
+  /// The debug overlay, while it is on.
+  static const debugKey = Key('gameplay-debug');
 
   /// The room layer: the camera scrolls it, HONK nudges it 4px.
   static const sceneKey = Key('gameplay-scene');
@@ -114,6 +129,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
   /// The goose has landed on Milo; the caught tableau plays.
   bool _caught = false;
+
+  /// The debug overlay is on, and the last noise it draws.
+  bool _debug = false;
+  NoiseMade? _lastNoise;
   late double _gooseX = _sim.goose.x;
 
   @override
@@ -145,6 +164,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     for (final e in _sim.takeEvents()) {
       _fx.take(e, goose: _sim.goose.at);
       switch (e) {
+        case NoiseMade():
+          _lastNoise = e;
         case GooseChanged(to: GooseState.awake):
           // "A 0.3s freeze-frame, one white flash ring and HONK lettering."
           _freezeLeft = _sim.tuning.awakeFreeze;
@@ -524,6 +545,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                           ),
 
                         ..._set.foreground(_sim),
+                        if (_debug)
+                          Positioned.fill(child: DebugOverlay(key: GameplayScreen.debugKey, sim: _sim, lastNoise: _lastNoise)),
                         // On a stair or in a vent he passes through floors: drawn over them.
                         if (!_caught && (_sim.onStairs || _sim.inVent))
                           at(
@@ -625,6 +648,21 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           ],
           if (chasing) at(600, 18, _ChasePill(left: goose.chaseLeft / _sim.tuning.chaseTime)),
           at(782, 12, RoundIconButton(onPressed: _pause, semanticLabel: 'Pause', child: const PauseBars())),
+          if (widget.debugTools)
+            at(
+              14,
+              104,
+              GestureDetector(
+                onTap: () => setState(() => _debug = !_debug),
+                child: Pill(
+                  'DEBUG',
+                  color: _debug ? Palette.lamp : Palette.night,
+                  borderColor: Palette.slate,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  textStyle: ui(11, weight: FontWeight.w800, color: _debug ? Palette.ink : Palette.gooseWhite, letterSpacing: 1),
+                ),
+              ),
+            ),
           at(
             14,
             70,

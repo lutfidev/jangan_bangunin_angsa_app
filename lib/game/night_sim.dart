@@ -231,6 +231,9 @@ class NightSim {
   final Doors doors;
   final Hearing _hearing;
 
+  /// How sound carries between rooms, for the debug overlay.
+  Hearing get hearing => _hearing;
+
   final Combo _combo;
 
   /// Tonight's chaos combo, to read; only fired links feed it.
