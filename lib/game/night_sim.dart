@@ -601,12 +601,15 @@ class NightSim {
     return best;
   }
 
-  /// Opening always works; shutting doesn't with him or her in the doorway.
+  /// Opening always works; shutting doesn't with him, her or the mouse in
+  /// the doorway.
   bool _canToggle(Door d) {
     if (!doors.isOpen(d.id)) return true;
     final inDoorway = (playerX - d.x).abs() < tuning.bodyWidth / 2 + Door.thickness / 2;
     final gooseThere = (goose.x - d.x).abs() < tuning.doorStandOff && (goose.y - d.floorY).abs() <= 2;
-    return !inDoorway && !gooseThere;
+    final m = _mouse;
+    final mouseThere = m != null && m.y == d.floorY && (m.x - d.x).abs() < Door.thickness / 2 + 15;
+    return !inDoorway && !gooseThere && !mouseThere;
   }
 
   /// The nearest vent mouth in reach, while he stands on something.

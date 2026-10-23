@@ -39,8 +39,9 @@ import 'night_set.dart';
 import 'scene.dart';
 import 'tool_art.dart';
 
-/// Landscape gameplay over Night 3, The Midnight Kitchen, driven by a
-/// [NightSim] that ticks once per frame.
+/// Landscape gameplay over a night's house (Night 3, or the greybox house),
+/// driven by a [NightSim] that ticks once per frame. The room layer is the
+/// whole world, scrolled by a [Camera]; HUD and controls stay put.
 class GameplayScreen extends StatefulWidget {
   const GameplayScreen({
     super.key,

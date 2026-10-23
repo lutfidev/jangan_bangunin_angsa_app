@@ -52,6 +52,7 @@ class GreyboxSet implements NightSet {
       // never touch.
       for (final s in level.geometry.solids)
         if (!level.geometry.floors.contains(s.box.top) &&
+            s.box.top >= 0 &&
             s.box.left >= 0 &&
             s.box.right <= level.width &&
             seen(s.box.left, s.box.right))

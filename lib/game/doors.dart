@@ -14,10 +14,13 @@ class DoorMove {
 
 /// Which of the level's doors stand open tonight.
 class Doors {
-  Doors(this.level) : _open = {for (final d in level.doors) d.id: d.startsOpen};
+  Doors(this.level) : _open = {for (final d in level.doors) d.id: d.startsOpen} {
+    _leaves = _closed();
+  }
 
   final Level level;
   final Map<String, bool> _open;
+  late List<Solid> _leaves;
   final List<DoorMove> _moves = [];
 
   List<Door> get all => level.doors;
@@ -25,7 +28,9 @@ class Doors {
   bool isOpen(String id) => _open[id]!;
 
   /// The leaves of the closed doors, as walls.
-  Iterable<Solid> get closedLeaves => [
+  Iterable<Solid> get closedLeaves => _leaves;
+
+  List<Solid> _closed() => [
     for (final d in level.doors)
       if (!_open[d.id]!) Solid(d.leaf, Surface.wood),
   ];
@@ -69,6 +74,7 @@ class Doors {
   void _set(String id, bool open, {bool byGoose = false}) {
     if (_open[id] == open) return;
     _open[id] = open;
+    _leaves = _closed();
     _moves.add(DoorMove(id, open: open, byGoose: byGoose));
   }
 

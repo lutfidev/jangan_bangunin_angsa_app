@@ -1266,6 +1266,23 @@ void main() {
       tickUntil(s, () => s.mouse!.stopped);
       expect(s.mouse!.x, 634);
     });
+
+    test('a door never shuts on the mouse in the doorway', () {
+      final s = inHouse(tool: Tool.mouse);
+      walkTo(s, 620);
+      s.useDoor('kitchenDoor');
+      walkTo(s, 615);
+      s
+        ..setMove(1)
+        ..setMove(0)
+        ..useTool();
+      tickUntil(s, () => s.mouse!.x >= 636);
+      expect(s.interaction, isNot(isA<UseDoor>()));
+      expect(s.useDoor('kitchenDoor'), isFalse);
+      // Its 30-px body clears the doorway at 640 + 6 + 15.
+      tickUntil(s, () => s.mouse!.x > 662);
+      expect(s.useDoor('kitchenDoor'), isTrue);
+    });
   });
 
   group('stairs and vents', () {
