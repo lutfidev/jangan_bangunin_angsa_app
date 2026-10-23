@@ -1,3 +1,4 @@
+import 'doors.dart';
 import 'noise.dart';
 import 'noise_meter.dart';
 import 'tuning.dart';
@@ -13,7 +14,7 @@ enum _Walk { out, sniff, back }
 
 /// Gertrude. She lives on the floor line; [x] is where she is now.
 class GooseBrain {
-  GooseBrain({required this.bedX, required this.floorY, required this.tuning, double meterGain = 1})
+  GooseBrain({required this.bedX, required this.floorY, required this.tuning, double meterGain = 1, this.doors})
     : _x = bedX,
       meter = NoiseMeter(tuning, gain: meterGain);
 
@@ -23,6 +24,9 @@ class GooseBrain {
   final double floorY;
   final Tuning tuning;
   final NoiseMeter meter;
+
+  /// Closed doors stop her until she pushes them open.
+  final Doors? doors;
 
   double _x;
   GooseState _state = GooseState.asleep;
@@ -39,6 +43,7 @@ class GooseBrain {
   double _hiddenFor = 0;
   double _patrolFor = 0;
   double _slipLeft = 0;
+  double _pushFor = 0;
 
   double get x => _x;
   GooseState get state => _state;
@@ -68,6 +73,9 @@ class GooseBrain {
   /// Seconds left of a distraction; 0 when she isn't distracted.
   double get distractLeft => _state == GooseState.distracted ? _timer : 0;
 
+  /// Leaning on a closed door until it gives.
+  bool get pushingDoor => _pushFor > 0;
+
   /// Down on spilled marbles: she stands still while the chase clock runs.
   bool get slipping => _slipLeft > 0 && (_state == GooseState.chase || _state == GooseState.distracted);
 
@@ -77,9 +85,11 @@ class GooseBrain {
   }
 
   /// A noise went off. [chainLinks] is its link number when a chain made it;
-  /// [fromTool] when a tool made it directly.
-  void hear(Noise n, {int chainLinks = 0, bool fromTool = false}) {
-    _lastNoiseX = n.x;
+  /// [fromTool] when a tool made it directly. [sourceX] is where it really
+  /// went off, when she hears it muffled through a door: she goes there.
+  void hear(Noise n, {int chainLinks = 0, bool fromTool = false, double? sourceX}) {
+    final at = sourceX ?? n.x;
+    _lastNoiseX = at;
     final touches = n.touchesEar(_x, floorY, tuning);
     if (inBed) {
       if (touches) {
@@ -88,7 +98,7 @@ class GooseBrain {
         // A loud noise far from her bed doesn't wake her — it moves her.
         _state = GooseState.sleepwalk;
         _walk = _Walk.out;
-        _target = n.x;
+        _target = at;
       }
     } else if (_state == GooseState.sleepwalk) {
       if (n.loudness >= 2 && (touches || sniffing)) {
@@ -98,7 +108,7 @@ class GooseBrain {
       }
     } else if (chainLinks >= 2 && (_state == GooseState.chase || _state == GooseState.distracted)) {
       _state = GooseState.distracted;
-      _target = n.x;
+      _target = at;
       _timer = tuning.distractTime;
     }
   }
@@ -210,14 +220,26 @@ class GooseBrain {
     return true;
   }
 
-  /// Steps toward [target]; true once she is standing on it.
+  /// Steps toward [target]; true once she is standing on it. A closed door
+  /// on the way stops her short of it, pushing, until it gives.
   bool _moveTo(double target, double speed, double dt) {
     final step = speed * dt;
-    if ((target - _x).abs() <= step) {
-      _x = target;
-      return true;
+    final next = (target - _x).abs() <= step ? target : _x + (target > _x ? step : -step);
+    final door = doors?.closedAhead(_x, next, tuning.doorStandOff);
+    if (door != null) {
+      final right = next > _x;
+      final stop = right ? door.x - tuning.doorStandOff : door.x + tuning.doorStandOff;
+      // Never backwards, even if a door shut right in front of her.
+      if (right ? stop > _x : stop < _x) _x = stop;
+      _pushFor += dt;
+      if (_pushFor >= tuning.doorPushTime) {
+        doors!.open(door.id, byGoose: true);
+        _pushFor = 0;
+      }
+      return false;
     }
-    _x += target > _x ? step : -step;
-    return false;
+    _pushFor = 0;
+    _x = next;
+    return _x == target;
   }
 }
