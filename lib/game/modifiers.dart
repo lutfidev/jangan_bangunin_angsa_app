@@ -3,7 +3,13 @@ import 'tools.dart';
 /// Everything the briefing decides about a night: the tool and the
 /// modifiers. Retry, Replay and Restart play the same setup again.
 class NightSetup {
-  const NightSetup({this.tool = Tool.socks, this.lightSleeper = false, this.mirror = false, this.remixSeed});
+  const NightSetup({
+    this.tool = Tool.socks,
+    this.lightSleeper = false,
+    this.mirror = false,
+    this.remixSeed,
+    this.night = 'night3',
+  });
 
   final Tool tool;
 
@@ -18,14 +24,22 @@ class NightSetup {
   /// the same house.
   final int? remixSeed;
 
+  /// Which level to play, by id.
+  final String night;
+
+  /// This setup in another night.
+  NightSetup withNight(String night) =>
+      NightSetup(tool: tool, lightSleeper: lightSleeper, mirror: mirror, remixSeed: remixSeed, night: night);
+
   @override
   bool operator ==(Object other) =>
       other is NightSetup &&
       other.tool == tool &&
       other.lightSleeper == lightSleeper &&
       other.mirror == mirror &&
-      other.remixSeed == remixSeed;
+      other.remixSeed == remixSeed &&
+      other.night == night;
 
   @override
-  int get hashCode => Object.hash(tool, lightSleeper, mirror, remixSeed);
+  int get hashCode => Object.hash(tool, lightSleeper, mirror, remixSeed, night);
 }

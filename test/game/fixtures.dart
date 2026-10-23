@@ -8,6 +8,9 @@ import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 /// Night 3, read straight from the bundled asset.
 Level night3() => Level.parse(File('assets/levels/night3.json').readAsStringSync());
 
+/// The greybox house, read straight from the bundled asset.
+Level house() => Level.parse(File('assets/levels/house.json').readAsStringSync());
+
 /// A valid one-spot level as JSON (format v2), with any top-level key
 /// overridden. One wood floor at y 270, no furniture unless [platforms].
 /// Spots, loot, hide spots and remix loot may give a bare `x`: they are put

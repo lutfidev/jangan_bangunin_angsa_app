@@ -1,0 +1,71 @@
+{
+  "version": 2,
+  "id": "house",
+  "name": "The Greybox House",
+  "width": 2000,
+  "floorY": 270,
+  "rooms": [
+    {"id": "kitchen", "name": "Kitchen", "box": [0, 0, 640, 270]},
+    {"id": "living", "name": "Living room", "box": [640, 0, 840, 270]},
+    {"id": "hall", "name": "Hall", "box": [1480, 0, 520, 270]}
+  ],
+  "doors": [
+    {"id": "kitchenDoor", "x": 640, "open": false},
+    {"id": "hallDoor", "x": 1480, "open": true}
+  ],
+  "solids": [
+    {"box": [0, 270, 640, 120], "surface": "tile"},
+    {"box": [640, 270, 200, 120], "surface": "wood"},
+    {"box": [840, 270, 420, 120], "surface": "carpet"},
+    {"box": [1260, 270, 220, 120], "surface": "wood"},
+    {"box": [1480, 270, 520, 120], "surface": "wood"}
+  ],
+  "platforms": [
+    {"id": "counter", "x": [18, 280], "y": 200, "surface": "tile"},
+    {"id": "crawlPlank", "x": [244, 426], "y": 106, "surface": "wood", "crawl": true},
+    {"id": "shelfLow", "x": [316, 392], "y": 212, "surface": "wood"},
+    {"id": "shelfHigh", "x": [316, 392], "y": 160, "surface": "wood"},
+    {"id": "kitchenTable", "x": [470, 560], "y": 220, "surface": "wood"},
+    {"id": "sideTable", "x": [1052, 1092], "y": 236, "surface": "wood"},
+    {"id": "hallTable", "x": [1700, 1744], "y": 236, "surface": "wood"}
+  ],
+  "playerStart": [236, 270],
+  "exit": [1950, 270],
+  "bed": [960, 270],
+  "hideSpots": [[148, 270], [1695, 270]],
+  "spots": [
+    {"id": "counterLeft", "at": [62, 200]},
+    {"id": "counterPot", "at": [113, 200], "snap": true},
+    {"id": "shelfBooks", "at": [340, 160]},
+    {"id": "underShelf", "at": [372, 270], "snap": true},
+    {"id": "underSideTable", "at": [1054, 270], "snap": true},
+    {"id": "sideTable", "at": [1072, 236]},
+    {"id": "plank", "at": [1098, 270]},
+    {"id": "clockStand", "at": [1125, 270]}
+  ],
+  "objects": [
+    {"id": "glass", "type": "tipper", "spot": "counterLeft"},
+    {"id": "pot", "type": "amplifier", "spot": "counterPot", "portable": true},
+    {"id": "books", "type": "tipper", "spot": "shelfBooks"},
+    {"id": "robot", "type": "walker", "spot": "sideTable"},
+    {"id": "plank", "type": "squeaker", "spot": "plank"},
+    {"id": "clock", "type": "chimer", "spot": "clockStand"}
+  ],
+  "links": [
+    {"from": "counterLeft", "to": "counterPot"},
+    {"from": "shelfBooks", "to": "underShelf"},
+    {"from": "sideTable", "to": "underSideTable", "delay": 0.8},
+    {"from": "sideTable", "to": "clockStand", "delay": 1.2},
+    {"from": "plank", "to": "clockStand"}
+  ],
+  "loot": [
+    {"id": "toaster", "at": [218, 200]},
+    {"id": "chicken", "at": [353, 106], "squeaks": true},
+    {"id": "egg", "at": [1019, 270], "guarded": true}
+  ],
+  "goals": [
+    {"style": "ghost", "kind": "neverSuspicious"},
+    {"style": "trickster", "kind": "lure", "count": 2},
+    {"style": "chaos", "kind": "chain", "count": 5}
+  ]
+}

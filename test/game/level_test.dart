@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 
 import 'fixtures.dart';
 
@@ -325,5 +326,26 @@ void main() {
       );
       expect(() => parse({'doors': [{'id': 'd', 'x': 400, 'open': 'yes'}]}), _formatError('not true or false: "open"'));
     });
+  });
+
+  test('the greybox house parses', () {
+    final l = house();
+    expect(l.width, 2000);
+    expect(l.rooms.map((r) => r.id), ['kitchen', 'living', 'hall']);
+    expect(l.doors.map((d) => (d.id, d.startsOpen)), [('kitchenDoor', false), ('hallDoor', true)]);
+    for (final loot in l.loot) {
+      expect(l.geometry.restsOnSurface(loot.at), isTrue, reason: loot.id);
+      expect(l.roomsAt(loot.at), isNotEmpty, reason: loot.id);
+    }
+    expect(l.roomsAt(l.bed).single.id, 'living');
+    expect(l.roomsAt(l.exit).single.id, 'hall');
+    expect(l.objects.map((o) => o.id), night3().objects.map((o) => o.id));
+  });
+
+  test('a night setup names its night', () {
+    expect(const NightSetup().night, 'night3');
+    expect(const NightSetup().withNight('house').night, 'house');
+    expect(const NightSetup().withNight('house'), isNot(const NightSetup()));
+    expect(const NightSetup(mirror: true).withNight('house').mirror, isTrue);
   });
 }
