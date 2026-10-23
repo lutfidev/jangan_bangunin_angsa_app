@@ -8,19 +8,19 @@ class Noise {
 
   final double x;
 
-  /// Where it went off up the room; null is on the floor line. Chain
-  /// objects are heard from the floor, where things clatter down.
+  /// Where it went off up the room; null is on the floor line she stands
+  /// on. Chain objects are heard from the floor, where things clatter down.
   final double? y;
   final int loudness;
 
   double radius(Tuning t) => loudness == 0 ? t.footstepRadius : loudness * t.ringRadius;
 
-  /// Whether the outer ring reaches the ear zone around a goose at [gooseX]
-  /// on a floor at [floorY]: the dashed ellipse, grown by the ring's radius.
-  /// Only rings that touch it raise the meter.
-  bool touchesEar(double gooseX, double floorY, Tuning t) {
+  /// Whether the outer ring reaches the ear zone around a goose standing
+  /// at [ear]: the dashed ellipse, grown by the ring's radius. Only rings
+  /// that touch it raise the meter.
+  bool touchesEar(Vec ear, Tuning t) {
     final r = radius(t);
-    return insideEllipse(Vec(x, y ?? floorY), Vec(gooseX, floorY), t.earHalfWidth + r, t.earHalfHeight + r);
+    return insideEllipse(Vec(x, y ?? ear.y), ear, t.earHalfWidth + r, t.earHalfHeight + r);
   }
 
   @override

@@ -63,7 +63,25 @@ class Room {
   final String name;
   final Box box;
 
+  /// Its floor line: the box's bottom.
+  double get floorY => box.bottom;
+
   bool contains(Vec p) => box.contains(p);
+}
+
+/// A duct or a hole in a wall that only Milo fits through, from one mouth
+/// to the other in a straight line.
+class Vent {
+  const Vent({required this.id, required this.from, required this.to});
+
+  final String id;
+  final Vec from;
+  final Vec to;
+
+  double get length => math.sqrt(math.pow(to.x - from.x, 2) + math.pow(to.y - from.y, 2));
+
+  /// The point [t] of the way from [from] to [to].
+  Vec at(double t) => Vec(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
 }
 
 /// The door between rooms [left] and [right], standing on the floor at
@@ -101,10 +119,13 @@ class Level {
     required this.id,
     required this.name,
     required this.width,
+    required this.height,
     required this.floorY,
     required this.geometry,
     required this.rooms,
     required this.doors,
+    required this.stairs,
+    required this.vents,
     required this.playerStart,
     required this.exit,
     required this.bed,
@@ -124,13 +145,15 @@ class Level {
     final width = _num(json, 'width');
     if (width <= 0) throw FormatException('width must be above 0: $id');
     final floorY = _num(json, 'floorY');
+    final height = _optionalNum(json, 'height') ?? 390;
+    if (height <= floorY) throw FormatException('height too small: $id');
 
     final solids = [
       for (final s in _list(json, 'solids'))
         Solid(_box(s, id), _surface(s)),
       // The world's walls and ceiling.
-      Solid(Box.ltwh(-100, -400, 100, 790), Surface.wood),
-      Solid(Box.ltwh(width, -400, 100, 790), Surface.wood),
+      Solid(Box.ltwh(-100, -400, 100, height + 400), Surface.wood),
+      Solid(Box.ltwh(width, -400, 100, height + 400), Surface.wood),
       Solid(Box.ltwh(0, -100, width, 100), Surface.wood),
     ];
     final rooms = <Room>[];
@@ -143,18 +166,20 @@ class Level {
     }
     if (rooms.isEmpty) rooms.add(Room(id: 'room', name: _str(json, 'name'), box: Box(0, 0, width, floorY)));
 
-    final floor = Geometry(solids: solids, platforms: const [], floorY: floorY);
+    final floors = {for (final r in rooms) r.floorY}.toList()..sort();
+    final floor = Geometry(solids: solids, platforms: const [], floors: floors);
     final doors = <Door>[];
     for (final d in _list(json, 'doors')) {
       final did = _str(d, 'id');
       final x = _num(d, 'x');
-      final left = rooms.where((r) => r.box.right == x).firstOrNull;
-      final right = rooms.where((r) => r.box.left == x).firstOrNull;
+      final y = _optionalNum(d, 'y') ?? floorY;
+      final left = rooms.where((r) => r.box.right == x && r.floorY == y).firstOrNull;
+      final right = rooms.where((r) => r.box.left == x && r.floorY == y).firstOrNull;
       if (left == null || right == null) throw FormatException('door not between two rooms: $did');
-      if (floor.floorSurfaceAt(x) == null) throw FormatException('door not on the floor: $did');
+      if (floor.floorSurfaceAt(x, y) == null) throw FormatException('door not on the floor: $did');
       if (doors.any((x) => x.id == did)) throw FormatException('duplicate door: $did');
-      if (doors.any((other) => other.x == x)) throw FormatException('two doors in one doorway: $did');
-      final door = Door(id: did, x: x, floorY: floorY, left: left.id, right: right.id, startsOpen: _flag(d, 'open'));
+      if (doors.any((other) => other.x == x && other.floorY == y)) throw FormatException('two doors in one doorway: $did');
+      final door = Door(id: did, x: x, floorY: y, left: left.id, right: right.id, startsOpen: _flag(d, 'open'));
       doors.add(door);
       // The wall above the doorway, from the rooms' top down to the lintel.
       solids.add(Solid(
@@ -166,7 +191,9 @@ class Level {
     for (final a in rooms) {
       for (final b in rooms) {
         final meet = a.box.right == b.box.left && a.box.top < b.box.bottom && b.box.top < a.box.bottom;
-        if (meet && !doors.any((d) => d.x == a.box.right)) throw FormatException('rooms meet without a door: ${b.id}');
+        if (meet && !doors.any((d) => d.left == a.id && d.right == b.id)) {
+          throw FormatException('rooms meet without a door: ${b.id}');
+        }
       }
     }
 
@@ -184,7 +211,7 @@ class Level {
         crawl: _flag(p, 'crawl'),
       ));
     }
-    final geometry = Geometry(solids: solids, platforms: platforms, floorY: floorY);
+    final geometry = Geometry(solids: solids, platforms: platforms, floors: floors);
 
     /// The point [raw], which has to rest on the floor or a furniture top.
     Vec placed(Object? raw, String what) {
@@ -193,6 +220,33 @@ class Level {
       if (!geometry.restsOnSurface(p)) throw FormatException('not on a surface: $what');
       if (!rooms.any((r) => r.contains(p))) throw FormatException('not in a room: $what');
       return p;
+    }
+
+    Set<Room> roomsOf(Vec p) => {for (final r in rooms) if (r.contains(p)) r};
+
+    final stairs = <Stair>[];
+    for (final s in _list(json, 'stairs')) {
+      final sid = _str(s, 'id');
+      final [bx, by] = _numbers(s['bottom'], 2, 'stair $sid');
+      final [tx, ty] = _numbers(s['top'], 2, 'stair $sid');
+      final stair = Stair(id: sid, bottom: Vec(bx, by), top: Vec(tx, ty));
+      if (stairs.any((x) => x.id == sid)) throw FormatException('duplicate stair: $sid');
+      if (by <= ty) throw FormatException('stair runs backwards: $sid');
+      if ((tx - bx).abs() < Stair.minRun) throw FormatException('stair too steep: $sid');
+      if (!geometry.onFloor(stair.bottom) || !geometry.onFloor(stair.top)) {
+        throw FormatException('stair not on a floor: $sid');
+      }
+      if (roomsOf(stair.bottom).isEmpty || roomsOf(stair.top).isEmpty) throw FormatException('not in a room: stair $sid');
+      stairs.add(stair);
+    }
+
+    final vents = <Vent>[];
+    for (final v in _list(json, 'vents')) {
+      final vid = _str(v, 'id');
+      final vent = Vent(id: vid, from: placed(v['from'], 'vent $vid'), to: placed(v['to'], 'vent $vid'));
+      if (vents.any((x) => x.id == vid)) throw FormatException('duplicate vent: $vid');
+      if (roomsOf(vent.from).intersection(roomsOf(vent.to)).isNotEmpty) throw FormatException('vent ends in one room: $vid');
+      vents.add(vent);
     }
 
     final spots = <String, Spot>{};
@@ -295,10 +349,13 @@ class Level {
       id: id,
       name: _str(json, 'name'),
       width: width,
+      height: height,
       floorY: floorY,
       geometry: geometry,
       rooms: rooms,
       doors: doors,
+      stairs: stairs,
+      vents: vents,
       playerStart: placed(json['playerStart'], 'playerStart $id'),
       exit: placed(json['exit'], 'exit $id'),
       bed: placed(json['bed'], 'bed $id'),
@@ -325,7 +382,11 @@ class Level {
   /// How wide the world is; the parser walls it in at 0 and here.
   final double width;
 
-  /// The floor line: where the goose walks and her ear zone sits.
+  /// How tall the world is: one 390-px screen per storey.
+  final double height;
+
+  /// The ground floor's line: the floor of a level without rooms, and of a
+  /// door that names no `y`.
   final double floorY;
 
   /// Floor, walls and furniture tops.
@@ -334,9 +395,33 @@ class Level {
   /// Never empty: a level without rooms is one room the size of the world.
   final List<Room> rooms;
   final List<Door> doors;
+  final List<Stair> stairs;
+  final List<Vent> vents;
 
   /// The rooms [p] is in: two in a doorway, none outside the house.
   List<Room> roomsAt(Vec p) => [for (final r in rooms) if (r.contains(p)) r];
+
+  /// [roomsAt], and on a stair both rooms it joins, even inside the floor
+  /// it climbs through. Its two ends are on their floors only.
+  List<Room> roomsAround(Vec p) {
+    final found = roomsAt(p).toSet();
+    for (final s in stairs) {
+      if (p.x <= s.left || p.x >= s.right || (s.yAt(p.x) - p.y).abs() > 2) continue;
+      found.addAll(roomsAt(s.bottom).followedBy(roomsAt(s.top)));
+    }
+    return [for (final r in rooms) if (found.contains(r)) r];
+  }
+
+  /// The floor line at or below [p]: the floor of the room it is in, or of
+  /// the first room under it.
+  double floorOf(Vec p) {
+    double? best;
+    for (final r in rooms) {
+      if (r.box.left > p.x || p.x > r.box.right || r.floorY < p.y - 2) continue;
+      if (best == null || r.floorY < best) best = r.floorY;
+    }
+    return best ?? floorY;
+  }
   final Vec playerStart;
   final Vec exit;
   final Vec bed;
@@ -364,10 +449,13 @@ class Level {
     id: id,
     name: name,
     width: width,
+    height: height,
     floorY: floorY,
     geometry: geometry,
     rooms: rooms,
     doors: doors,
+    stairs: stairs,
+    vents: vents,
     playerStart: playerStart,
     exit: exit,
     bed: bed,

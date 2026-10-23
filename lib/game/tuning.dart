@@ -74,6 +74,14 @@ class Tuning {
     this.doorStandOff = 24,
     this.doorCreak = 1,
     this.closedDoorMuffle = 1,
+    this.ventSpeed = 120,
+    this.stairMuffle = 1,
+    this.floorMuffle = 2,
+    this.flapHeight = 100,
+    this.flapHeadroom = 90,
+    this.flapGap = 40,
+    this.flapTime = 0.5,
+    this.flapCost = 60,
   });
 
   /// Radius per ring; a noise draws one ring per loudness step.
@@ -261,4 +269,30 @@ class Tuning {
 
   /// What a closed door takes off a noise passing through it.
   final int closedDoorMuffle;
+
+  /// How fast he crawls through a vent, mouth to mouth.
+  final double ventSpeed;
+
+  /// What a flight of stairs takes off a noise carried up or down it.
+  final int stairMuffle;
+
+  /// What a floor takes off a noise heard through it, from the room above
+  /// or below.
+  final int floorMuffle;
+
+  /// The highest top over its room's floor she flaps up onto ("low and
+  /// medium furniture"); higher up is safe from her.
+  final double flapHeight;
+
+  /// The room she needs over a top to stand on it: none under a shelf.
+  final double flapHeadroom;
+
+  /// The widest gap she flaps across from one top to the next.
+  final double flapGap;
+
+  /// Seconds a flap takes, up or down.
+  final double flapTime;
+
+  /// What a flap costs her route, in px of walking.
+  final double flapCost;
 }

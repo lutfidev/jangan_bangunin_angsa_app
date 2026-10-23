@@ -362,5 +362,27 @@ void main() {
       await play(tester, 0.2);
       await snap(tester, 'house_chase');
     });
+
+    testWidgets('house_upstairs', (tester) async {
+      // At the head of the living-room stair; she sleeps a floor below.
+      final sim = NightSim(houseWith({'playerStart': [1450, 270]}), setup: const NightSetup(night: 'house'))
+        ..setSneak(true);
+      await pumpGameplay(tester, sim);
+      await snap(tester, 'house_upstairs');
+    });
+
+    testWidgets('house_stairs', (tester) async {
+      // Halfway up the living-room stair: the camera between storeys.
+      final sim = NightSim(houseWith({'playerStart': [1460, 270]}), setup: const NightSetup(night: 'house'))
+        ..setSneak(true)
+        ..setVertical(1)
+        ..tick(frame)
+        ..setVertical(0)
+        ..setMove(-1);
+      tickUntil(sim, () => sim.playerX <= 1340);
+      sim.setMove(0);
+      await pumpGameplay(tester, sim);
+      await snap(tester, 'house_stairs');
+    });
   });
 }

@@ -5,15 +5,18 @@ import 'dart:math' as math;
 enum Tool { socks, mouse, marbles, kazoo }
 
 /// A thrown sock in the air, lobbed from his hand at ([fromX], [fromY]) to
-/// [toX] on the floor.
+/// [toX] on the floor line [toY].
 class Flight {
-  Flight({required this.fromX, required this.fromY, required this.toX, required this.duration});
+  Flight({required this.fromX, required this.fromY, required this.toX, required this.toY, required this.duration});
 
   final double fromX;
 
   /// Where his hand was when he threw, even if he has moved since.
   final double fromY;
   final double toX;
+
+  /// The floor of the room he threw it in.
+  final double toY;
   final double duration;
   double _t = 0;
 
@@ -25,10 +28,12 @@ class Flight {
   void advance(double dt) => _t += dt;
 }
 
-/// The wind-up mouse: walks one way along the floor until it bumps
-/// something or a wall.
+/// The wind-up mouse: walks one way along the floor line [y] until it
+/// bumps something or a wall.
 class ToyMouse {
-  ToyMouse({required this._x, required this.dir});
+  ToyMouse({required this._x, required this.y, required this.dir});
+
+  final double y;
 
   /// +1 walks right, -1 walks left.
   final double dir;

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/hearing.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -26,7 +27,7 @@ void main() {
   late NoiseFx fx;
   setUp(() => fx = NoiseFx(level: Levels.night3, anchors: spotAnchors));
 
-  void take(SimEvent e) => fx.take(e, gooseX: 502);
+  void take(SimEvent e) => fx.take(e, goose: const Vec(502, 270));
 
   test('a chain link draws rings, a badge and a word', () {
     take(_link(1, 2, 'pot', 'counterPot', 2));
@@ -103,7 +104,7 @@ void main() {
   });
 
   test('a slip says so', () {
-    take(const GooseSlipped(480));
+    take(const GooseSlipped(Vec(480, 270)));
     expect(fx.words.single.text, 'SLIP!');
     expect(fx.words.single.at, const Offset(480, 200));
   });
@@ -116,13 +117,17 @@ void main() {
       take(NoiseMade(
         const Noise(x: 300, loudness: 3),
         touchedEar: false,
-        heard: Heard(const Noise(x: 640, loudness: 2), through: door, sourceX: 300),
+        heard: Heard(
+          Noise(x: door.x, y: door.floorY, loudness: 2),
+          through: Portal(kind: PortalKind.door, id: door.id, a: door.left, b: door.right),
+          source: Vec(300, door.floorY),
+        ),
         tool: Tool.kazoo,
       ));
       expect(fx.rings, hasLength(2));
       final muffled = fx.rings.last;
       expect(muffled.dashed, isTrue);
-      expect(muffled.center, const Offset(640, 220));
+      expect(muffled.center, Offset(640, door.floorY - 50));
       expect(muffled.radius, 72);
       expect(muffled.circles, 2);
       expect(muffled.color, Palette.beakOrange);

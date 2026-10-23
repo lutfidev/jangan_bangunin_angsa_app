@@ -3,7 +3,7 @@ import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 
 /// Night 3's floor and furniture tops, as the v2 level lays them out.
 Geometry kitchen() => const Geometry(
-  floorY: 270,
+  floors: [270],
   solids: [
     Solid(Box(0, 270, 300, 390), Surface.tile),
     Solid(Box(300, 270, 410, 390), Surface.wood),
@@ -63,9 +63,35 @@ void main() {
 
   test('the floor surface under an x', () {
     final g = kitchen();
-    expect(g.floorSurfaceAt(100), Surface.tile);
-    expect(g.floorSurfaceAt(500), Surface.carpet);
-    expect(g.floorSurfaceAt(700), Surface.wood);
-    expect(g.floorSurfaceAt(900), isNull);
+    expect(g.floorSurfaceAt(100, 270), Surface.tile);
+    expect(g.floorSurfaceAt(500, 270), Surface.carpet);
+    expect(g.floorSurfaceAt(700, 270), Surface.wood);
+    expect(g.floorSurfaceAt(900, 270), isNull);
+    expect(g.floorSurfaceAt(100, 200), isNull);
+  });
+
+  test('every floor line is a floor', () {
+    const g = Geometry(
+      floors: [270, 660],
+      solids: [Solid(Box(0, 270, 844, 390), Surface.wood), Solid(Box(0, 660, 844, 780), Surface.tile)],
+      platforms: [],
+    );
+    expect(g.onFloor(const Vec(50, 660)), isTrue);
+    expect(g.onFloor(const Vec(50, 270)), isTrue);
+    expect(g.onFloor(const Vec(50, 390)), isFalse);
+    expect(g.floorSurfaceAt(50, 660), Surface.tile);
+  });
+
+  test('a stair runs from its bottom end up to its top end', () {
+    const s = Stair(id: 's', bottom: Vec(100, 660), top: Vec(300, 270));
+    expect(s.left, 100);
+    expect(s.right, 300);
+    expect(s.yAt(100), 660);
+    expect(s.yAt(300), 270);
+    expect(s.yAt(200), 465);
+    expect(s.spans(301), isFalse);
+    const back = Stair(id: 'b', bottom: Vec(300, 660), top: Vec(100, 270));
+    expect(back.left, 100);
+    expect(back.yAt(100), 270);
   });
 }

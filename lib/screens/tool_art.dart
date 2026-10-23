@@ -4,6 +4,7 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 
 import '../art/art.dart';
+import '../game/geom.dart';
 import '../game/night_sim.dart';
 import '../game/tools.dart';
 import '../theme/palette.dart';
@@ -17,8 +18,8 @@ const _handY = 212.0;
 const _handOut = 26.0;
 const _topY = 20.0;
 
-/// A sock that misses lands on the floor here.
-const _floorY = 262.0;
+/// A sock that misses lands this far above the floor line.
+const _floorUp = 8.0;
 
 /// The one parabola every throw follows (Plan View: `M356 212 Q210 40 66 176`).
 class ThrowArc {
@@ -47,11 +48,12 @@ ThrowArc throwArc({required double fromX, required Offset end, double handY = _h
   return ThrowArc(start, control, end);
 }
 
-/// Where a sock landing at [landingX] ends up on screen: on the object it
-/// would hit (at its spot's [anchors]), else on the floor.
-Offset throwEnd(NightSim sim, double landingX, Map<String, Offset> anchors) {
-  final target = sim.throwTarget(landingX);
-  return target == null ? Offset(landingX, _floorY) : anchors[target]!;
+/// Where a sock landing at [landingX] on the floor line [floorY] ends up
+/// on screen: on the object it would hit (at its spot's [anchors]), else
+/// on the floor.
+Offset throwEnd(NightSim sim, double landingX, double floorY, Map<String, Offset> anchors) {
+  final target = sim.throwTarget(landingX, floorY);
+  return target == null ? Offset(landingX, floorY - _floorUp) : anchors[target]!;
 }
 
 /// The dotted aim arc and the crosshair where it lands.
@@ -136,14 +138,14 @@ Widget flyingSock(Flight flight, ThrowArc arc) {
 }
 
 /// The wind-up mouse on the floor, nose the way it walks.
-Widget toyMouse(ToyMouse mouse) => at(mouse.x - 15, 240, Prop(PropKind.mouse, size: 30, flip: mouse.dir < 0));
+Widget toyMouse(ToyMouse mouse) => at(mouse.x - 15, mouse.y - 30, Prop(PropKind.mouse, size: 30, flip: mouse.dir < 0));
 
 /// Spilled marbles on the floor (the Chaos escape board's three).
-List<Widget> marbleSpill(double x) => [
+List<Widget> marbleSpill(Vec at) => [
   for (final (dx, dy, size, color) in const [
-    (-6.0, 252.0, 12.0, Palette.calmMint),
-    (10.0, 258.0, 10.0, Palette.moonlight),
-    (-22.0, 258.0, 10.0, Palette.lamp),
+    (-6.0, -18.0, 12.0, Palette.calmMint),
+    (10.0, -12.0, 10.0, Palette.moonlight),
+    (-22.0, -12.0, 10.0, Palette.lamp),
   ])
-    box(x + dx, dy, size, size, color, border: 2, oval: true),
+    box(at.x + dx, at.y + dy, size, size, color, border: 2, oval: true),
 ];

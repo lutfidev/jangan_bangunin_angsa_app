@@ -19,13 +19,18 @@ class Landing {
 /// Milo's body: a box with its feet at the bottom centre, walked, dropped
 /// and jumped through [geometry]. Advanced only by [step].
 class Body {
-  Body(this.geometry, Vec feet, this.tuning, {this.doors}) : _x = feet.x, _y = feet.y, _highest = feet.y {
-    _standingOn = geometry.platformAt(feet, tolerance: 0);
-    _grounded = _standingOn != null || _solidTopAt(_x, _y) != null;
+  Body(this.geometry, Vec feet, this.tuning, {this.doors, this.stairs = const []})
+    : _x = feet.x,
+      _y = feet.y,
+      _highest = feet.y {
+    _settle();
   }
 
   final Geometry geometry;
   final Tuning tuning;
+
+  /// Flights he can walk up and down.
+  final List<Stair> stairs;
 
   /// Closed doors are walls too.
   final Doors? doors;
@@ -54,6 +59,9 @@ class Body {
   /// the middle before the next.
   bool _verticalSpent = false;
 
+  /// The flight he is on; his x moves along it and his feet follow its line.
+  Stair? _stair;
+
   Vec get feet => Vec(_x, _y);
   bool get grounded => _grounded;
 
@@ -71,6 +79,44 @@ class Body {
 
   /// Down on the stick would drop through the top he stands on.
   bool get canDrop => standingOn != null && !mantling;
+
+  Stair? get stair => _stair;
+  bool get onStairs => _stair != null;
+
+  /// Up on the stick would step onto a stair's foot right now.
+  bool get canClimbStairs => _stairEnd(up: true) != null;
+
+  /// Down on the stick would step onto a stair's head right now.
+  bool get canDescendStairs => _stairEnd(up: false) != null;
+
+  /// The stair whose foot ([up]) or head is within reach of his feet on
+  /// the floor.
+  Stair? _stairEnd({required bool up}) {
+    if (!onFloor || mantling) return null;
+    for (final s in stairs) {
+      final end = up ? s.bottom : s.top;
+      if ((end.x - _x).abs() <= tuning.reach && (end.y - _y).abs() <= 2) return s;
+    }
+    return null;
+  }
+
+  /// Stands him at [feet], on whatever surface is there: the far end of a
+  /// vent.
+  void placeAt(Vec feet) {
+    _x = feet.x;
+    _y = feet.y;
+    _vy = 0;
+    _stair = null;
+    _mantle = null;
+    _dropping = null;
+    _highest = feet.y;
+    _settle();
+  }
+
+  void _settle() {
+    _standingOn = geometry.platformAt(feet, tolerance: 0);
+    _grounded = _standingOn != null || _solidTopAt(_x, _y) != null;
+  }
 
   /// The nearest top above his feet that he can reach from here.
   Platform? _mantleTarget() {
@@ -94,11 +140,28 @@ class Body {
       _stepMantle(mantle, h);
       return null;
     }
+    final onStair = _stair;
+    if (onStair != null) {
+      _buffer = 0;
+      _stepStair(onStair, h, move: move, vertical: vertical, sneak: sneak);
+      return null;
+    }
 
     _buffer = math.max(0, _buffer - h);
     if (!_grounded) _coyote = math.max(0, _coyote - h);
 
     if (_grounded && !_verticalSpent && vertical != 0) {
+      if (_stairEnd(up: vertical < 0) case final s?) {
+        _verticalSpent = true;
+        _buffer = 0;
+        final end = vertical < 0 ? s.bottom : s.top;
+        _stair = s;
+        _x = end.x;
+        _y = end.y;
+        _grounded = false;
+        _standingOn = null;
+        return null;
+      }
       final onto = vertical < 0 && canClimb && !crawling ? _mantleTarget() : null;
       if (onto != null) {
         _verticalSpent = true;
@@ -127,6 +190,25 @@ class Body {
     if (_grounded && !_supported()) _leaveGround(coyote: wasCrawling ? 0 : tuning.coyoteTime);
     if (_grounded) return null;
     return _fall(h);
+  }
+
+  /// Walks along [s]: x by the stick's x, else by holding up (climb) or
+  /// down, at his walking speed across; off either end onto its floor.
+  void _stepStair(Stair s, double h, {required double move, required int vertical, required bool sneak}) {
+    final rises = s.top.x > s.bottom.x ? 1.0 : -1.0;
+    final dir = move != 0 ? move : -vertical * rises;
+    if (dir == 0) return;
+    final x = (_x + dir * (sneak ? tuning.sneakSpeed : tuning.walkSpeed) * h).clamp(s.left, s.right).toDouble();
+    _x = x;
+    _y = s.yAt(x);
+    final end = dir > 0 ? s.right : s.left;
+    if (x == end) {
+      _stair = null;
+      _y = (x == s.top.x ? s.top : s.bottom).y;
+      _vy = 0;
+      _highest = _y;
+      _settle();
+    }
   }
 
   void _stepMantle(({Platform onto, Vec from, double t}) m, double h) {

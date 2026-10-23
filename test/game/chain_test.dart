@@ -186,6 +186,15 @@ void main() {
     expect(r.isHeld('clock'), isFalse);
   });
 
+
+  test('a link sounds on the floor under its spot', () {
+    final c = ChainRunner(night3(), const Tuning());
+    c
+      ..poke('counterLeft')
+      ..poke('shelfBooks')
+      ..tick(0.01);
+    expect(c.takeFired().map((f) => (f.spotId, f.noise.y)), [('counterLeft', 270), ('shelfBooks', 270)]);
+  });
 }
 
 final _portableClock = minimalLevel(

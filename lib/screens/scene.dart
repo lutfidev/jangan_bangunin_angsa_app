@@ -127,11 +127,12 @@ List<Widget> kitchenCounter({bool details = true}) => [
   ],
 ];
 
-/// Floor line plus the dark 104dp control band under it.
-List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false, double width = 844}) => [
+/// Floor line plus the dark 104dp control band under it; [top] is the
+/// floor line, which on a storey above is the slab down to the next room.
+List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false, double width = 844, double top = 270}) => [
   Positioned(
     left: 0,
-    top: 270,
+    top: top,
     width: width,
     height: 16,
     child: DecoratedBox(
@@ -146,26 +147,27 @@ List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false, do
       ),
     ),
   ),
-  box(0, 286, width, 104, Palette.night),
+  box(0, top + 16, width, 104, Palette.night),
   if (rules) ...[
-    box(0, 318, width, 2, const Color(0xFF201E38)),
-    box(0, 352, width, 2, const Color(0xFF201E38)),
+    box(0, top + 48, width, 2, const Color(0xFF201E38)),
+    box(0, top + 82, width, 2, const Color(0xFF201E38)),
   ],
 ];
 
 /// Exit door at the right edge of the hall, ajar onto moonlight; [left] is
-/// its frame's left edge.
-List<Widget> exitDoor({bool open = true, bool knob = false, double left = 762}) => [
-  if (open) box(left, 142, 66, 128, Palette.moonlight, border: 4),
-  box(open ? left + 10 : left, 142, open ? 56 : 66, 128, Palette.floorTrim, border: 4),
-  if (knob) box(left + 20, 204, 13, 13, Palette.lamp, border: 2, oval: true),
+/// its frame's left edge, [floorY] the floor it stands on.
+List<Widget> exitDoor({bool open = true, bool knob = false, double left = 762, double floorY = 270}) => [
+  if (open) box(left, floorY - 128, 66, 128, Palette.moonlight, border: 4),
+  box(open ? left + 10 : left, floorY - 128, open ? 56 : 66, 128, Palette.floorTrim, border: 4),
+  if (knob) box(left + 20, floorY - 66, 13, 13, Palette.lamp, border: 2, oval: true),
 ];
 
-/// Gertrude's rug, under her bed at [bedX].
-Widget rug(double bedX) => box(bedX - 92, 258, 190, 22, Palette.rug, border: 3, oval: true);
+/// Gertrude's rug, under her bed at [bedX] on the floor [floorY].
+Widget rug(double bedX, {double floorY = 270}) => box(bedX - 92, floorY - 12, 190, 22, Palette.rug, border: 3, oval: true);
 
 /// Her nest at [bedX], drawn in front of her and the egg.
-Widget nest(double bedX) => at(bedX - 78, 234, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
+Widget nest(double bedX, {double floorY = 270}) =>
+    at(bedX - 78, floorY - 36, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
 
 class ExitSign extends StatelessWidget {
   const ExitSign({super.key});
