@@ -83,13 +83,37 @@ class Platform {
   bool spans(double x) => from <= x && x <= to;
 }
 
-/// Everything solid in a level, plus where its floor line is.
+/// A flight of stairs: a straight line from its [bottom] end, on a floor,
+/// up to its [top] end on the floor above. Walked, never collided with.
+class Stair {
+  const Stair({required this.id, required this.bottom, required this.top});
+
+  /// The least run across a flight, part of the level format: steeper is
+  /// a ladder, not a stair.
+  static const minRun = 120.0;
+
+  final String id;
+  final Vec bottom;
+  final Vec top;
+
+  double get left => bottom.x < top.x ? bottom.x : top.x;
+  double get right => bottom.x < top.x ? top.x : bottom.x;
+
+  bool spans(double x) => left <= x && x <= right;
+
+  /// The height of the line at [x], which it spans.
+  double yAt(double x) => bottom.y + (top.y - bottom.y) * (x - bottom.x) / (top.x - bottom.x);
+}
+
+/// Everything solid in a level, plus its floor lines, one per storey.
 class Geometry {
-  const Geometry({required this.solids, required this.platforms, required this.floorY});
+  const Geometry({required this.solids, required this.platforms, required this.floors});
 
   final List<Solid> solids;
   final List<Platform> platforms;
-  final double floorY;
+
+  /// The floor lines, top storey first.
+  final List<double> floors;
 
   /// The platform whose top [p] stands on, within [tolerance] px.
   Platform? platformAt(Vec p, {double tolerance = 2}) {
@@ -99,16 +123,16 @@ class Geometry {
     return null;
   }
 
-  /// Whether [p] stands on the floor line, over floor.
+  /// Whether [p] stands on a floor line, over floor.
   bool onFloor(Vec p, {double tolerance = 2}) =>
-      (p.y - floorY).abs() <= tolerance && floorSurfaceAt(p.x) != null;
+      floors.any((y) => (p.y - y).abs() <= tolerance && floorSurfaceAt(p.x, y) != null);
 
   bool restsOnSurface(Vec p) => onFloor(p) || platformAt(p) != null;
 
-  /// The surface of the floor solid under [x], if any.
-  Surface? floorSurfaceAt(double x) {
+  /// The surface of the floor solid under [x] on the floor line [y], if any.
+  Surface? floorSurfaceAt(double x, double y) {
     for (final s in solids) {
-      if (s.box.top == floorY && s.box.left <= x && x <= s.box.right) return s.surface;
+      if (s.box.top == y && s.box.left <= x && x <= s.box.right) return s.surface;
     }
     return null;
   }

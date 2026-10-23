@@ -84,6 +84,37 @@ String twoRooms({bool open = false, Map<String, Object?> extra = const {}, List<
   },
 );
 
+/// Two storeys, one room each: `up` (floor 270) over `down` (floor 660),
+/// stair `s` from (100, 660) up to (300, 270), vent `v` from (700, 270)
+/// down to (700, 660). Milo starts at the stair's foot, her bed at 600
+/// downstairs. Any key can still be overridden.
+String twoStoreys({Map<String, Object?> extra = const {}, List<Object?>? platforms, List<Object?>? spots}) =>
+    minimalLevel(
+      platforms: platforms,
+      spots: spots ?? [{'id': 'a', 'at': [10, 660]}],
+      extra: {
+        'height': 780,
+        'solids': [
+          {'box': [0, 270, 844, 120], 'surface': 'wood'},
+          {'box': [0, 660, 844, 120], 'surface': 'wood'},
+        ],
+        'rooms': [
+          {'id': 'up', 'name': 'Up', 'box': [0, 0, 844, 270]},
+          {'id': 'down', 'name': 'Down', 'box': [0, 390, 844, 270]},
+        ],
+        'stairs': [
+          {'id': 's', 'bottom': [100, 660], 'top': [300, 270]},
+        ],
+        'vents': [
+          {'id': 'v', 'from': [700, 270], 'to': [700, 660]},
+        ],
+        'playerStart': [100, 660],
+        'exit': [800, 660],
+        'bed': [600, 660],
+        ...extra,
+      },
+    );
+
 const frame = 1 / 60;
 
 /// Walks (or sneaks) the burglar until they reach [x], a frame at a time.

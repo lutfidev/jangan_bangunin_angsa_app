@@ -12,7 +12,7 @@ const t = Tuning();
 /// Night 3 built by hand, world edges included, so these tests don't
 /// depend on the level parser.
 Geometry world() => const Geometry(
-  floorY: 270,
+  floors: [270],
   solids: [
     Solid(Box(0, 270, 300, 390), Surface.tile),
     Solid(Box(300, 270, 410, 390), Surface.wood),
@@ -97,7 +97,7 @@ void main() {
     // A 40 px crate on the wood floor, 500..540.
     Body onCrate(double x) => Body(
       Geometry(
-        floorY: 270,
+        floors: const [270],
         solids: [...world().solids, const Solid(Box(500, 230, 540, 270), Surface.wood)],
         platforms: const [],
       ),

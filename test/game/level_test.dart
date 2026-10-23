@@ -36,8 +36,78 @@ void main() {
     expect(l.playerStart, const Vec(236, 270));
     expect(l.exitX, 770);
     expect(l.bedX, 502);
-    expect(l.geometry.floorSurfaceAt(100), Surface.tile);
-    expect(l.geometry.floorSurfaceAt(500), Surface.carpet);
+    expect(l.geometry.floorSurfaceAt(100, 270), Surface.tile);
+    expect(l.geometry.floorSurfaceAt(500, 270), Surface.carpet);
+    expect(l.height, 390);
+    expect(l.stairs, isEmpty);
+    expect(l.vents, isEmpty);
+    expect(l.floorOf(const Vec(100, 200)), 270);
+  });
+
+  group('storeys, stairs and vents', () {
+    test('two storeys, a stair and a vent', () {
+      final l = Level.parse(twoStoreys());
+      expect(l.height, 780);
+      expect(l.rooms.map((r) => r.floorY), [270, 660]);
+      final s = l.stairs.single;
+      expect((s.id, s.bottom, s.top), ('s', const Vec(100, 660), const Vec(300, 270)));
+      final v = l.vents.single;
+      expect((v.id, v.from, v.to, v.length), ('v', const Vec(700, 270), const Vec(700, 660), 390));
+      expect(v.at(0.5), const Vec(700, 465));
+      expect(l.geometry.restsOnSurface(const Vec(50, 660)), isTrue);
+      expect(l.geometry.restsOnSurface(const Vec(50, 270)), isTrue);
+      expect(l.floorOf(const Vec(200, 300)), 660);
+      expect(l.floorOf(const Vec(200, 100)), 270);
+      expect(l.floorOf(const Vec(200, 660)), 660);
+      expect(l.roomsAround(const Vec(200, 465)).map((r) => r.id), ['up', 'down']);
+      expect(l.roomsAround(const Vec(200, 380)), isEmpty);
+      expect(l.roomsAround(const Vec(50, 600)).map((r) => r.id), ['down']);
+      expect(l.geometry.solids.map((s) => s.box), containsAll([Box.ltwh(-100, -400, 100, 1180), Box.ltwh(844, -400, 100, 1180)]));
+    });
+
+    test('a door stands on its own floor', () {
+      final l = Level.parse(twoStoreys(extra: {
+        'rooms': [
+          {'id': 'up', 'name': 'Up', 'box': [0, 0, 844, 270]},
+          {'id': 'a', 'name': 'A', 'box': [0, 390, 400, 270]},
+          {'id': 'b', 'name': 'B', 'box': [400, 390, 444, 270]},
+        ],
+        'doors': [{'id': 'd', 'x': 400, 'y': 660}],
+      }));
+      final d = l.doors.single;
+      expect((d.left, d.right, d.floorY), ('a', 'b', 660));
+      expect(d.leaf, const Box(394, 530, 406, 660));
+      expect(l.geometry.solids.where((s) => s.box == const Box(394, 390, 406, 530)), hasLength(1));
+    });
+
+    test('rearranged keeps stairs and vents', () {
+      final l = Level.parse(twoStoreys()).rearranged();
+      expect(l.stairs, hasLength(1));
+      expect(l.vents, hasLength(1));
+      expect(l.height, 780);
+    });
+
+    test('rejects bad storeys, stairs and vents', () {
+      Level parse(Map<String, Object?> extra) => Level.parse(twoStoreys(extra: extra));
+      Map<String, Object?> stair(List<num> bottom, List<num> top, {String id = 's'}) => {
+        'stairs': [{'id': id, 'bottom': bottom, 'top': top}],
+      };
+      expect(() => Level.parse(minimalLevel(extra: {'height': 270})), _formatError('height too small: test'));
+      expect(
+        () => parse({'stairs': [{'id': 's', 'bottom': [100, 660], 'top': [300, 270]}, {'id': 's', 'bottom': [500, 660], 'top': [700, 270]}]}),
+        _formatError('duplicate stair: s'),
+      );
+      expect(() => parse(stair([300, 270], [100, 660])), _formatError('stair runs backwards: s'));
+      expect(() => parse(stair([100, 660], [200, 270])), _formatError('stair too steep: s'));
+      expect(() => parse(stair([100, 600], [300, 270])), _formatError('stair not on a floor: s'));
+      expect(
+        () => parse({'vents': [{'id': 'v', 'from': [700, 270], 'to': [700, 660]}, {'id': 'v', 'from': [600, 270], 'to': [600, 660]}]}),
+        _formatError('duplicate vent: v'),
+      );
+      expect(() => parse({'vents': [{'id': 'v', 'from': [700, 660], 'to': [600, 660]}]}), _formatError('vent ends in one room: v'));
+      expect(() => parse({'vents': [{'id': 'v', 'from': [700, 200], 'to': [700, 660]}]}), _formatError('not on a surface: vent v'));
+      expect(() => parse({'stairs': [{'id': 's', 'bottom': [100, 660]}]}), _formatError('needs 2 numbers: stair s'));
+    });
   });
 
   test('the parser walls the world in at its width', () {
