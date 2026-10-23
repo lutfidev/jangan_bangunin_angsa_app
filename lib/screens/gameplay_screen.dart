@@ -706,6 +706,11 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       PlaceObject() => ActionButton(label: 'PLACE', semanticLabel: 'Put the ${_sim.held} down', onPressed: interact),
       Hide() => ActionButton(label: 'HIDE', semanticLabel: 'Hide', onPressed: interact),
       Unhide() => ActionButton(label: 'OUT', semanticLabel: 'Come out of hiding', onPressed: interact),
+      UseDoor(:final open) => ActionButton(
+        label: open ? 'OPEN' : 'CLOSE',
+        semanticLabel: open ? 'Open the door' : 'Close the door',
+        onPressed: interact,
+      ),
       // Hands full: the only thing he could do is put it down.
       null when _sim.held != null => const Opacity(
         opacity: 0.6,
