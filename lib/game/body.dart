@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'doors.dart';
 import 'geom.dart';
 import 'tuning.dart';
 
@@ -18,13 +19,21 @@ class Landing {
 /// Milo's body: a box with its feet at the bottom centre, walked, dropped
 /// and jumped through [geometry]. Advanced only by [step].
 class Body {
-  Body(this.geometry, Vec feet, this.tuning) : _x = feet.x, _y = feet.y, _highest = feet.y {
+  Body(this.geometry, Vec feet, this.tuning, {this.doors}) : _x = feet.x, _y = feet.y, _highest = feet.y {
     _standingOn = geometry.platformAt(feet, tolerance: 0);
     _grounded = _standingOn != null || _solidTopAt(_x, _y) != null;
   }
 
   final Geometry geometry;
   final Tuning tuning;
+
+  /// Closed doors are walls too.
+  final Doors? doors;
+
+  Iterable<Solid> get _solids {
+    final doors = this.doors;
+    return doors == null ? geometry.solids : geometry.solids.followedBy(doors.closedLeaves);
+  }
 
   double _x;
   double _y;
@@ -159,7 +168,7 @@ class Body {
     var nx = _x + dx;
     final half = tuning.bodyWidth / 2;
     final was = _boxAt(_x, _y);
-    for (final s in geometry.solids) {
+    for (final s in _solids) {
       if (!_boxAt(nx, _y).overlaps(s.box)) continue;
       if (was.overlaps(s.box)) {
         // Already inside it (a level that starts him in a wall): he may
@@ -182,7 +191,7 @@ class Body {
   /// A solid whose top is at [y] under any part of his body at [x]: the
   /// same overlap that lands him on it in [_fall].
   Solid? _solidTopAt(double x, double y) {
-    for (final s in geometry.solids) {
+    for (final s in _solids) {
       if (s.box.top == y && _over(s.box, x)) return s;
     }
     return null;
@@ -201,7 +210,7 @@ class Body {
 
     if (_vy < 0) {
       // Head into a ceiling.
-      for (final s in geometry.solids) {
+      for (final s in _solids) {
         final hitsHead = s.box.bottom <= from - tuning.bodyHeight && s.box.bottom > to - tuning.bodyHeight;
         if (hitsHead && _over(s.box, _x)) {
           to = s.box.bottom + tuning.bodyHeight;
@@ -217,7 +226,7 @@ class Body {
     double? landY;
     Surface? surface;
     Platform? platform;
-    for (final s in geometry.solids) {
+    for (final s in _solids) {
       final top = s.box.top;
       if (top >= from && top <= to && _over(s.box, _x)) {
         if (landY == null || top < landY) {
