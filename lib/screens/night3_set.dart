@@ -1,13 +1,50 @@
 import 'package:flutter/material.dart';
 
 import '../art/art.dart';
+import '../game/geom.dart';
+import '../game/level.dart';
+import '../game/night_sim.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/hud.dart';
 import 'night_art.dart';
+import 'night_art.dart' as art;
+import 'night_set.dart';
 import 'scene.dart';
 
 /// Night 3's room, The Midnight Kitchen: everything that never moves.
+
+/// Night 3 as a [NightSet]: its own art, at the artboard's positions.
+class Night3Set implements NightSet {
+  const Night3Set();
+
+  @override
+  List<Widget> backdrop(NightSim sim, double viewLeft, double viewRight) => night3Backdrop();
+
+  @override
+  List<Widget> foreground(NightSim sim) => [...floorAndControlBand(rules: true), loosePlank()];
+
+  @override
+  Map<String, Offset> get spotAnchors => art.spotAnchors;
+
+  @override
+  Offset snapAnchor(String spotId) => snapAnchors[spotId]!;
+
+  @override
+  PropKind? objectKind(String objectId) => objectArt[objectId]?.kind;
+
+  @override
+  ArtBox objectBox(String objectId, String spotId) => objectId == 'pot' ? potBoxAt(spotId) : objectArt[objectId]!.box;
+
+  @override
+  ArtBox lootBox(Loot loot) => art.lootBox(loot);
+
+  @override
+  Offset hideTag(Vec hide) => hideArt[hide.x]!.tag;
+
+  @override
+  List<Widget> hiding(Vec hide) => hidingMilo(hide.x);
+}
 
 /// Walls, window, lamp, counter, bookshelf, crawlway, side tables, coat
 /// rack and the exit door.
@@ -68,16 +105,10 @@ List<Widget> night3Backdrop() => [
   ...exitDoor(knob: true),
 ];
 
-/// Gertrude's rug, under her bed.
-Widget night3Rug() => box(410, 258, 190, 22, Palette.rug, border: 3, oval: true);
-
-/// Her nest, drawn in front of her and the egg.
-Widget night3Nest() => at(424, 234, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
-
-/// The sparkle that marks the rubber chicken, standing at [x] up high.
-Widget chickenSparkle(double x) => at(
-  x + 15,
-  62,
+/// The sparkle that marks the rubber chicken drawn at [box], up high.
+Widget chickenSparkle(ArtBox box) => at(
+  box.centerX + 15,
+  box.top - 8,
   const InlineSvg(
     '<path d="M10 1 L12 8 L19 10 L12 12 L10 19 L8 12 L1 10 L8 8 Z" fill="#FFC14D" stroke="#1C1A2B" stroke-width="2" stroke-linejoin="round"/>',
     width: 20,

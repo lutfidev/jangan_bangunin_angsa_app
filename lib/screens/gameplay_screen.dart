@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/geom.dart';
 import '../game/goose_brain.dart';
 import '../game/heist.dart';
 import '../game/level.dart';
@@ -30,6 +31,7 @@ import '../widgets/tool_button.dart';
 import 'heist_copy.dart';
 import 'night3_set.dart';
 import 'night_art.dart';
+import 'night_set.dart';
 import 'scene.dart';
 import 'tool_art.dart';
 
@@ -79,7 +81,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   };
   late final Ticker _ticker = createTicker(_onTick);
   late final AppLifecycleListener _lifecycle = AppLifecycleListener(onInactive: _pause);
-  late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: spotAnchors, tuning: _sim.tuning);
+  /// How this house is drawn: Night 3's art, or greybox.
+  late final NightSet _set = NightSet.of(_sim.level);
+  late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: _set.spotAnchors, tuning: _sim.tuning);
 
   Duration? _last;
   bool _sneak = true;
@@ -218,13 +222,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               offset: Offset(nudge, 0),
               child: Stack(
                 children: [
-                  ...night3Backdrop(),
+                  ..._set.backdrop(_sim, 0, level.width),
 
                   // Gertrude's ear zone: only rings that touch it raise the meter.
                   if (!goose.isAwake)
                     at(
                       goose.x - 172,
-                      232,
+                      level.floorY - 38,
                       band == MeterBand.suspicious || band == MeterBand.danger
                           ? const Opacity(
                               opacity: 0.7,
@@ -249,14 +253,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       width: 344,
                       height: 76,
                     ),
-                  night3Rug(),
+                  rug(level.bedX),
 
                   // Free snap spots glow, brighter while he carries something.
-                  for (final MapEntry(key: spotId, value: c) in snapAnchors.entries)
-                    if (_sim.chain.objectAt(spotId) == null)
+                  for (final spot in level.spots.values)
+                    if (spot.snap && _sim.chain.objectAt(spot.id) == null)
                       at(
-                        c.dx - 15,
-                        c.dy - 15,
+                        _set.snapAnchor(spot.id).dx - 15,
+                        _set.snapAnchor(spot.id).dy - 15,
                         Opacity(
                           opacity: _sim.held != null ? 0.85 : 0.35,
                           child: const DashedOutline(color: Palette.lamp, strokeWidth: 3, oval: true),
@@ -267,34 +271,34 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                   // The chain kit; spent tippers and walkers lie where they fell,
                   // the pot wherever it was put down.
-                  for (final MapEntry(key: id, value: art) in objectArt.entries)
-                    if (_sim.chain.spotOf(id) case final spotId?)
+                  for (final o in level.objects)
+                    if ((_set.objectKind(o.id), _sim.chain.spotOf(o.id)) case (final kind?, final spotId?))
                       at(
-                        id == 'pot' ? potBoxAt(spotId).left : art.box.left,
-                        id == 'pot' ? potBoxAt(spotId).top : art.box.top,
+                        _set.objectBox(o.id, spotId).left,
+                        _set.objectBox(o.id, spotId).top,
                         Transform.rotate(
-                          angle: switch (id) {
-                            'glass' when _sim.chain.isSpent(id) => deg(-70),
-                            'robot' when _sim.chain.isSpent(id) => deg(-80),
+                          angle: switch (o.type) {
+                            ObjectType.tipper when _sim.chain.isSpent(o.id) => deg(-70),
+                            ObjectType.walker when _sim.chain.isSpent(o.id) => deg(-80),
                             _ => 0,
                           },
-                          child: Prop(art.kind, size: art.box.size),
+                          child: Prop(kind, size: _set.objectBox(o.id, spotId).size),
                         ),
                       ),
 
                   // Loot still in the house, and what Interact would do.
                   if (interaction case GrabLoot(:final loot))
                     at(
-                      lootBox(loot).left - 14,
-                      lootBox(loot).top - 14,
+                      _set.lootBox(loot).left - 14,
+                      _set.lootBox(loot).top - 14,
                       const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
-                      width: lootBox(loot).size + 28,
-                      height: lootBox(loot).size + 16,
+                      width: _set.lootBox(loot).size + 28,
+                      height: _set.lootBox(loot).size + 16,
                     ),
                   for (final loot in level.loot)
                     if (!carried.contains(loot.id) && !loot.guarded && !(_sim.crawling && _onCrawlTop(level, loot))) _loot(loot),
                   for (final loot in level.loot)
-                    if (_onCrawlTop(level, loot) && !carried.contains(loot.id)) chickenSparkle(loot.x),
+                    if (_onCrawlTop(level, loot) && !carried.contains(loot.id)) chickenSparkle(_set.lootBox(loot)),
 
                   // Tools on the floor.
                   if (_sim.spillX case final x?) ...marbleSpill(x),
@@ -317,7 +321,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   if (!_caught)
                     at(
                       goose.x - 70,
-                      160,
+                      level.floorY - 110,
                       Transform.rotate(
                         angle: goose.slipping ? deg(-20) : 0,
                         child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
@@ -325,7 +329,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                     ),
                   for (final loot in level.loot)
                     if (!carried.contains(loot.id) && loot.guarded) _loot(loot),
-                  night3Nest(),
+                  nest(level.bedX),
                   ...switch (goose.state) {
                     GooseState.asleep || GooseState.drowsy => [
                       at(goose.x - 56, 160, const Unmirror(child: Snores(reversed: true))),
@@ -367,7 +371,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       ),
                     ),
                   ] else if (_sim.hidden)
-                    ...hidingMilo(_nearestHide(level, px))
+                    ..._set.hiding(_nearestHide(level, px))
                   else ...[
                     at(
                       px - 30,
@@ -375,7 +379,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0),
                     ),
                     if (_sim.held case final held?)
-                      at(px - 20, py - 102, Prop(objectArt[held]!.kind, size: 40)),
+                      at(px - 20, py - 102, Prop(_set.objectKind(held)!, size: 40)),
                     // Up there he'd hide the loot he crawls to; it goes in front.
                     for (final loot in level.loot)
                       if (_sim.crawling && _onCrawlTop(level, loot) && !carried.contains(loot.id)) _loot(loot),
@@ -393,13 +397,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                   switch (interaction) {
                     GrabLoot(:final loot) => at(
-                      lootBox(loot).left - 4,
-                      lootBox(loot).top - 46,
+                      _set.lootBox(loot).left - 4,
+                      _set.lootBox(loot).top - 46,
                       const Unmirror(child: PromptBubble('Grab')),
                     ),
                     Wind(:final spotId) => at(
-                      spotAnchors[spotId]!.dx - 32,
-                      spotAnchors[spotId]!.dy - 64,
+                      _set.spotAnchors[spotId]!.dx - 32,
+                      _set.spotAnchors[spotId]!.dy - 64,
                       const Unmirror(child: PromptBubble('Wind')),
                     ),
                     // The other verbs show on the button only, like Plan View's MOVE POT.
@@ -410,10 +414,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   for (final h in level.hideSpots)
                     if (!_sim.hidden && _sim.onFloor && _sim.held == null &&
                         ((interaction is Hide && interaction.x == h.x) || goose.isAwake))
-                      hideTag(hideArt[h.x]!.tag),
+                      hideTag(_set.hideTag(h)),
                   at(
-                    758,
-                    108,
+                    level.exitX - 12,
+                    level.floorY - 162,
                     // The EXIT sign pulses while she chases.
                     Transform.scale(
                       scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
@@ -423,10 +427,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
 
                   // Socks in the air, and the one being aimed.
                   for (final f in _sim.flights)
-                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: f.fromY)),
+                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX, _set.spotAnchors), handY: f.fromY)),
                   if (_aimDx case final dx?)
                     Positioned.fill(
-                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)), handY: handY)),
+                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx), _set.spotAnchors), handY: handY)),
                     ),
 
                   FxLayer(fx: _fx),
@@ -481,8 +485,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                       ),
                     ),
 
-                  ...floorAndControlBand(rules: true),
-                  loosePlank(),
+                  ..._set.foreground(_sim),
 
                   // Red chase frame.
                   if (chasing)
@@ -655,7 +658,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   }
 
   Widget _loot(Loot loot) {
-    final box = lootBox(loot);
+    final box = _set.lootBox(loot);
     return at(box.left, box.top, Prop(lootArt[loot.id]!.kind, size: box.size));
   }
 
@@ -673,8 +676,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       ? BurglarPose.carry
       : BurglarPose.sneak;
 
-  static double _nearestHide(Level level, double x) =>
-      level.hideSpots.map((h) => h.x).reduce((a, b) => (a - x).abs() <= (b - x).abs() ? a : b);
+  static Vec _nearestHide(Level level, double x) =>
+      level.hideSpots.reduce((a, b) => (a.x - x).abs() <= (b.x - x).abs() ? a : b);
 
   Widget _interactButton(Interaction? interaction) {
     void interact() {

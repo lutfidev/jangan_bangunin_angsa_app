@@ -9,7 +9,6 @@ import '../game/tools.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/hud.dart';
-import 'night_art.dart';
 import 'scene.dart';
 
 /// Where a sock leaves Milo's hand, and the highest its arc may climb.
@@ -49,10 +48,10 @@ ThrowArc throwArc({required double fromX, required Offset end, double handY = _h
 }
 
 /// Where a sock landing at [landingX] ends up on screen: on the object it
-/// would hit, else on the floor.
-Offset throwEnd(NightSim sim, double landingX) {
+/// would hit (at its spot's [anchors]), else on the floor.
+Offset throwEnd(NightSim sim, double landingX, Map<String, Offset> anchors) {
   final target = sim.throwTarget(landingX);
-  return target == null ? Offset(landingX, _floorY) : spotAnchors[target]!;
+  return target == null ? Offset(landingX, _floorY) : anchors[target]!;
 }
 
 /// The dotted aim arc and the crosshair where it lands.

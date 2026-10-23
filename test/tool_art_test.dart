@@ -27,8 +27,8 @@ void main() {
 
   test('the arc ends on the object it would hit, else on the floor', () {
     final sim = NightSim(Levels.night3);
-    expect(throwEnd(sim, 70), spotAnchors['counterLeft']);
-    expect(throwEnd(sim, 250), const Offset(250, 262));
+    expect(throwEnd(sim, 70, spotAnchors), spotAnchors['counterLeft']);
+    expect(throwEnd(sim, 250, spotAnchors), const Offset(250, 262));
   });
 
   test('a point along the arc', () {
