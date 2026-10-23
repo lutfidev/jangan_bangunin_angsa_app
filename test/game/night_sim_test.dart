@@ -1110,4 +1110,126 @@ void main() {
     expect(s.result!.setup, setup);
     expect(s.result!.tool, Tool.mouse);
   });
+
+  group('house', () {
+    NightSim inHouse({Tool tool = Tool.socks, bool sneak = true}) =>
+        NightSim(house(), setup: NightSetup(tool: tool, night: 'house'))..setSneak(sneak);
+
+    /// Ticks until [done], keeping every event on the way.
+    List<SimEvent> eventsUntil(NightSim s, bool Function() done) {
+      final events = <SimEvent>[];
+      tickUntil(s, () {
+        events.addAll(s.takeEvents());
+        return done();
+      });
+      return events..addAll(s.takeEvents());
+    }
+
+    test('the closed kitchen door stops him until he opens it', () {
+      final s = inHouse();
+      walkTo(s, 700);
+      expect(s.playerX, 620);
+      final i = s.interaction;
+      expect(i, isA<UseDoor>().having((u) => u.door.id, 'door', 'kitchenDoor').having((u) => u.open, 'open', isTrue));
+      s.takeEvents();
+      expect(s.interact(), isA<UseDoor>());
+      expect(s.doors.isOpen('kitchenDoor'), isTrue);
+      final events = s.takeEvents();
+      expect(events.whereType<NoiseMade>(), isEmpty);
+      expect(events.whereType<DoorMoved>().single.byGoose, isFalse);
+      expect(s.interaction, isA<UseDoor>().having((u) => u.open, 'open', isFalse));
+      walkTo(s, 700);
+      expect(s.playerX, greaterThanOrEqualTo(700));
+    });
+
+    test('a door creaks unless he sneaks', () {
+      final s = inHouse(sneak: false);
+      walkTo(s, 700);
+      s.takeEvents();
+      s.useDoor('kitchenDoor');
+      final creak = s.takeEvents().whereType<NoiseMade>().single;
+      expect(creak.noise.loudness, 1);
+      expect(creak.noise.x, 640);
+      expect(creak.door, 'kitchenDoor');
+    });
+
+    test('a door never shuts on Milo in the doorway', () {
+      final s = inHouse();
+      walkTo(s, 700);
+      s.useDoor('kitchenDoor');
+      walkTo(s, 640);
+      expect(s.interaction, isNot(isA<UseDoor>()));
+      expect(s.useDoor('kitchenDoor'), isFalse);
+      expect(s.doors.isOpen('kitchenDoor'), isTrue);
+    });
+
+    test('a door never shuts on her in the doorway', () {
+      final s = inHouse(tool: Tool.kazoo);
+      walkTo(s, 700);
+      s.useDoor('kitchenDoor');
+      walkTo(s, 615);
+      s.useTool();
+      expect(s.goose.state, GooseState.sleepwalk);
+      tickUntil(s, () => (s.goose.x - 640).abs() < 24);
+      expect(s.interaction, isNot(isA<UseDoor>()));
+      expect(s.useDoor('kitchenDoor'), isFalse);
+      expect(s.doors.isOpen('kitchenDoor'), isTrue);
+    });
+
+    test('a toot behind the closed door lures her through it', () {
+      final s = inHouse(tool: Tool.kazoo);
+      walkTo(s, 300);
+      s.takeEvents();
+      s.useTool();
+      final toot = s.takeEvents().whereType<NoiseMade>().single;
+      expect(toot.heard!.muffled, isTrue);
+      expect(toot.heard!.noise.loudness, 2);
+      expect(toot.heard!.noise.x, 640);
+      expect(toot.touchedEar, isFalse);
+      expect(s.goose.state, GooseState.sleepwalk);
+      final events = eventsUntil(s, () => s.doors.isOpen('kitchenDoor'));
+      expect(events.whereType<DoorMoved>().single.byGoose, isTrue);
+      tickUntil(s, () => s.goose.x < 640);
+    });
+
+    test('glass into pot is muffled to nothing by the closed door, and lures her through an open one', () {
+      final s = inHouse();
+      s.poke('counterLeft');
+      final events = eventsUntil(s, () => s.chain.isSpent('glass') && s.elapsed > 2);
+      final clang = events.whereType<NoiseMade>().where((e) => e.link?.objectId == 'pot').single;
+      expect(clang.heard!.noise.loudness, 1);
+      expect(s.goose.inBed, isTrue);
+
+      final open = inHouse();
+      walkTo(open, 700);
+      open.useDoor('kitchenDoor');
+      open.poke('counterLeft');
+      tickUntil(open, () => open.goose.state == GooseState.sleepwalk, limit: 3);
+    });
+
+    test('footsteps in the kitchen never reach her', () {
+      final s = inHouse(sneak: false);
+      final steps = eventsUntil(s, () {
+        s.setMove(1);
+        return s.playerX > 500;
+      }).whereType<NoiseMade>().where((e) => e.noise.loudness == 0);
+      expect(steps, isNotEmpty);
+      expect(steps.every((e) => e.heard == null), isTrue);
+    });
+
+    test('a sock lands inside his room', () {
+      final s = inHouse();
+      walkTo(s, 300);
+      expect(s.throwLanding(900), 640);
+      expect(s.throwLanding(-200), 0);
+    });
+
+    test('the mouse stops at a closed door', () {
+      final s = inHouse(tool: Tool.mouse);
+      walkTo(s, 500);
+      s.useTool();
+      tickUntil(s, () => s.mouse!.stopped);
+      expect(s.mouse!.x, 634);
+    });
+  });
 }
