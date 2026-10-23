@@ -733,4 +733,56 @@ void main() {
       expect(sim.playerY, 200);
     });
   });
+
+  group('house', () {
+    NightSim inHouse() => NightSim(Levels.house, setup: const NightSetup(night: 'house'))..setSneak(true);
+
+    double scroll(WidgetTester tester) =>
+        tester.widget<Transform>(find.byKey(GameplayScreen.sceneKey)).transform.getTranslation().x;
+
+    testWidgets('the room scrolls to follow Milo', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 1000);
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.2);
+      expect(scroll(tester), closeTo(-(1000 + 120 - 422), 1));
+    });
+
+    testWidgets('night 3 never scrolls', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 700);
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.2);
+      expect(scroll(tester), 0);
+    });
+
+    testWidgets('rooms out of view are not built', (tester) async {
+      await pumpGameplay(tester, inHouse());
+      expect(find.text('KITCHEN'), findsOneWidget);
+      expect(find.text('HALL'), findsNothing);
+    });
+
+    testWidgets('walking into the hall builds it', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 1600);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HALL'), findsOneWidget);
+      expect(find.text('KITCHEN'), findsNothing);
+    });
+
+    testWidgets('OPEN opens the door, then it offers CLOSE', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      await pumpGameplay(tester, sim);
+      expect(_interact(tester).label, 'OPEN');
+      await tester.tap(find.text('OPEN'));
+      await tester.pump();
+      expect(sim.doors.isOpen('kitchenDoor'), isTrue);
+      expect(_interact(tester).label, 'CLOSE');
+    });
+  });
 }

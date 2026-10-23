@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/hearing.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tools.dart';
@@ -105,5 +106,34 @@ void main() {
     take(const GooseSlipped(480));
     expect(fx.words.single.text, 'SLIP!');
     expect(fx.words.single.at, const Offset(480, 200));
+  });
+
+  group('in the house', () {
+    setUp(() => fx = NoiseFx(level: Levels.house, anchors: const {}));
+
+    test('a noise heard through a door adds a dashed ring at the door', () {
+      final door = Levels.house.doors.first;
+      take(NoiseMade(
+        const Noise(x: 300, loudness: 3),
+        touchedEar: false,
+        heard: Heard(const Noise(x: 640, loudness: 2), through: door, sourceX: 300),
+        tool: Tool.kazoo,
+      ));
+      expect(fx.rings, hasLength(2));
+      final muffled = fx.rings.last;
+      expect(muffled.dashed, isTrue);
+      expect(muffled.center, const Offset(640, 220));
+      expect(muffled.radius, 72);
+      expect(muffled.circles, 2);
+      expect(muffled.color, Palette.beakOrange);
+      expect(fx.rings.first.dashed, isFalse);
+      expect(fx.words.map((w) => w.text), ['TOOT!']);
+    });
+
+    test('a door creaks', () {
+      take(const NoiseMade(Noise(x: 640, loudness: 1), touchedEar: false, door: 'kitchenDoor'));
+      expect(fx.words.single.text, 'creak!');
+      expect(fx.words.single.color, Palette.lamp);
+    });
   });
 }

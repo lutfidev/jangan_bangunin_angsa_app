@@ -60,10 +60,7 @@ List<Widget> night3Backdrop() => [
     40,
     62,
     Container(
-      decoration: BoxDecoration(
-        border: inkBorder(4),
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(border: inkBorder(4), borderRadius: BorderRadius.circular(6)),
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF16193A),
@@ -88,11 +85,11 @@ List<Widget> night3Backdrop() => [
   box(319, 160, 70, 3, Palette.ink),
   box(319, 212, 70, 3, Palette.ink),
   at(324, 126, const Books([...bookIcon, (Palette.lamp, 26.0, 14.0)])),
-  at(324, 178, const Books([
-    (Palette.lamp, 30.0, 0.0),
-    (Color(0xFF4C5BA8), 30.0, 0.0),
-    (Palette.alarmTomato, 26.0, 0.0),
-  ])),
+  at(
+    324,
+    178,
+    const Books([(Palette.lamp, 30.0, 0.0), (Color(0xFF4C5BA8), 30.0, 0.0), (Palette.alarmTomato, 26.0, 0.0)]),
+  ),
   ...crawlway(),
 
   // Side tables, and the gnome in the hall.
@@ -161,32 +158,34 @@ List<Widget> coatRack() => [
 Widget hideTag(Offset at_) => at(
   at_.dx,
   at_.dy,
-  Unmirror(child: Pill(
-    'HIDE',
-    radius: 6,
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-    textStyle: ui(10, weight: FontWeight.w800),
-  )),
+  Unmirror(
+    child: Pill(
+      'HIDE',
+      radius: 6,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      textStyle: ui(10, weight: FontWeight.w800),
+    ),
+  ),
 );
 
 /// Milo tucked into the hide spot at [x]: only his masked eyes show. The
 /// kitchen cabinet door stands open a crack around them.
 List<Widget> hidingMilo(double x) {
   final (:peek, :crack, tag: _) = hideArt[x]!;
-  return [
-    if (crack != null) box(crack.left, crack.top, crack.width, crack.height, Palette.ink),
-    at(
-      peek.dx,
-      peek.dy,
-      const InlineSvg(
-        '<rect x="1.5" y="2" width="27" height="10" rx="4" fill="#F0533B" stroke="#1C1A2B" stroke-width="2.5"/>'
-        '<circle cx="10" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
-        '<circle cx="20" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
-        '<circle cx="10.5" cy="7" r="1.6" fill="#1C1A2B"/>'
-        '<circle cx="20.5" cy="7" r="1.6" fill="#1C1A2B"/>',
-        width: 30,
-        height: 14,
-      ),
-    ),
-  ];
+  return [if (crack != null) box(crack.left, crack.top, crack.width, crack.height, Palette.ink), miloPeek(peek)];
 }
+
+/// Milo's masked eyes peeking out of a hiding place, at [peek].
+Widget miloPeek(Offset peek) => at(
+  peek.dx,
+  peek.dy,
+  const InlineSvg(
+    '<rect x="1.5" y="2" width="27" height="10" rx="4" fill="#F0533B" stroke="#1C1A2B" stroke-width="2.5"/>'
+    '<circle cx="10" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+    '<circle cx="20" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+    '<circle cx="10.5" cy="7" r="1.6" fill="#1C1A2B"/>'
+    '<circle cx="20.5" cy="7" r="1.6" fill="#1C1A2B"/>',
+    width: 30,
+    height: 14,
+  ),
+);
