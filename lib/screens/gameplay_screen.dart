@@ -324,7 +324,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             chickenSparkle(_set.lootBox(loot)),
 
                         // Tools on the floor.
-                        if (_sim.spillX case final x?) ...marbleSpill(x),
+                        if (_sim.spill case final spill?) ...marbleSpill(spill),
                         if (_sim.mouse case final mouse?) toyMouse(mouse),
 
                         // Speed lines trail her while she runs.
@@ -454,12 +454,12 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         for (final f in _sim.flights)
                           flyingSock(
                             f,
-                            throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX, _set.spotAnchors), handY: f.fromY),
+                            throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX, f.toY, _set.spotAnchors), handY: f.fromY),
                           ),
                         if (_aimDx case final dx?)
                           Positioned.fill(
                             child: AimLayer(
-                              arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx), _set.spotAnchors), handY: handY),
+                              arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx), _sim.floorY, _set.spotAnchors), handY: handY),
                             ),
                           ),
 

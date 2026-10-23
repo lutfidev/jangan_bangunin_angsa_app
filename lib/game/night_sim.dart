@@ -243,7 +243,7 @@ class NightSim {
   int _toolLeft;
   final List<Flight> _flights = [];
   ToyMouse? _mouse;
-  double? _spillX;
+  Vec? _spill;
   bool _sneak = false;
   bool _hidden = false;
 
@@ -346,7 +346,8 @@ class NightSim {
   ToyMouse? get mouse => _mouse;
 
   /// Where the marbles lie, until she slips on them.
-  double? get spillX => _spillX;
+  Vec? get spill => _spill;
+  double? get spillX => _spill?.x;
 
   /// Whether the Tool button does anything right now. Marbles only work
   /// once she is up and after someone.
@@ -367,9 +368,9 @@ class NightSim {
     _toolLeft--;
     switch (tool) {
       case Tool.mouse:
-        _mouse = ToyMouse(x: playerX, dir: facing);
+        _mouse = ToyMouse(x: playerX, y: floorY, dir: facing);
       case Tool.marbles:
-        _spillX = (playerX - facing * tuning.spillBehind).clamp(0, level.width).toDouble();
+        _spill = Vec((playerX - facing * tuning.spillBehind).clamp(0, level.width).toDouble(), floorY);
       case Tool.kazoo:
         _hear(Noise(x: playerX, y: playerY, loudness: 3), tool: Tool.kazoo);
       case Tool.socks:
@@ -481,22 +482,27 @@ class NightSim {
   /// short of a closed door.
   double throwLanding(double aimX) {
     final rooms = level.roomsAt(Vec(playerX, playerY));
-    final free = doors.freeSpan(playerX, floorY: level.floorOf(Vec(playerX, playerY)));
+    final free = doors.freeSpan(playerX, floorY: floorY);
     final left = math.max(free.min, rooms.isEmpty ? 0.0 : rooms.map((r) => r.box.left).reduce(math.min));
     final right = math.min(free.max, rooms.isEmpty ? level.width : rooms.map((r) => r.box.right).reduce(math.max));
     return aimX.clamp(playerX - tuning.throwRange, playerX + tuning.throwRange).clamp(left, right).toDouble();
   }
 
-  /// The spot a sock landing at [landingX] would hit: the nearest one in
-  /// [Tuning.throwHitRadius] holding something that can still go off, on
-  /// this side of any closed door. Squeakers are stepped on, not hit.
-  String? throwTarget(double landingX) {
+  /// The floor line of the room he is in.
+  double get floorY => level.floorOf(Vec(playerX, playerY));
+
+  /// The spot a sock landing at [landingX] on the floor line [floorY] would
+  /// hit: the nearest one on that storey in [Tuning.throwHitRadius] holding
+  /// something that can still go off, on this side of any closed door.
+  /// Squeakers are stepped on, not hit.
+  String? throwTarget(double landingX, double floorY) {
     String? best;
     var bestD = double.infinity;
-    final free = doors.freeSpan(landingX, floorY: level.floorOf(Vec(playerX, playerY)));
+    final free = doors.freeSpan(landingX, floorY: floorY);
     for (final spot in level.spots.values) {
       final d = (spot.x - landingX).abs();
       if (d > tuning.throwHitRadius || d >= bestD || !_live(spot.id, squeakers: false)) continue;
+      if (level.floorOf(spot.at) != floorY) continue;
       if (spot.x < free.min || spot.x > free.max) continue;
       best = spot.id;
       bestD = d;
@@ -512,6 +518,7 @@ class NightSim {
       fromX: playerX,
       fromY: playerY - tuning.handHeight,
       toX: throwLanding(aimX),
+      toY: floorY,
       duration: tuning.throwFlightTime,
     ));
     return true;
@@ -773,11 +780,11 @@ class NightSim {
     _noteDoors();
     _noteGoose();
 
-    final spill = _spillX;
+    final spill = _spill;
     final running = goose.state == GooseState.chase || goose.state == GooseState.distracted;
-    if (spill != null && running && (goose.x - spill).abs() <= tuning.slipRadius) {
+    if (spill != null && running && (goose.x - spill.x).abs() <= tuning.slipRadius && (goose.y - spill.y).abs() <= 2) {
       goose.slip();
-      _spillX = null;
+      _spill = null;
       _events.add(GooseSlipped(goose.x));
     }
 
@@ -823,8 +830,9 @@ class NightSim {
     if (wasOnFloor && onFloor) {
       for (final spot in level.spots.values) {
         final crossed = from < to ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;
+        if (!crossed || spot.at.y != playerY) continue;
         final id = chain.objectAt(spot.id);
-        if (crossed && id != null && level.objects.any((o) => o.id == id && o.type == ObjectType.squeaker)) {
+        if (id != null && level.objects.any((o) => o.id == id && o.type == ObjectType.squeaker)) {
           chain.poke(spot.id);
         }
       }
@@ -851,11 +859,11 @@ class NightSim {
     }
     for (final f in _flights.where((f) => f.landed).toList()) {
       _flights.remove(f);
-      final target = throwTarget(f.toX);
+      final target = throwTarget(f.toX, f.toY);
       if (target != null) {
         chain.poke(target);
       } else {
-        _hear(Noise(x: f.toX, loudness: 0), tool: Tool.socks);
+        _hear(Noise(x: f.toX, y: f.toY, loudness: 0), tool: Tool.socks);
       }
     }
   }
@@ -864,12 +872,12 @@ class NightSim {
   void _walkMouse(double h) {
     final m = _mouse;
     if (m == null || m.stopped) return;
-    final span = doors.freeSpan(m.x, floorY: level.floorY);
+    final span = doors.freeSpan(m.x, floorY: m.y);
     final (from, to) = m.advance(h, tuning.mouseSpeed, min: span.min, max: span.max);
     Spot? hit;
     for (final spot in level.spots.values) {
       final ahead = m.dir > 0 ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;
-      if (!ahead || !_live(spot.id, squeakers: true)) continue;
+      if (!ahead || level.floorOf(spot.at) != m.y || !_live(spot.id, squeakers: true)) continue;
       if (hit == null || (spot.x - from).abs() < (hit.x - from).abs()) hit = spot;
     }
     if (hit != null) {

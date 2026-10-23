@@ -11,6 +11,12 @@ Level night3() => Level.parse(File('assets/levels/night3.json').readAsStringSync
 /// The greybox house, read straight from the bundled asset.
 Level house() => Level.parse(File('assets/levels/house.json').readAsStringSync());
 
+/// The greybox house with top-level keys overridden.
+Level houseWith(Map<String, Object?> extra) => Level.fromJson({
+  ...jsonDecode(File('assets/levels/house.json').readAsStringSync()) as Map<String, Object?>,
+  ...extra,
+});
+
 /// A valid one-spot level as JSON (format v2), with any top-level key
 /// overridden. One wood floor at y 270, no furniture unless [platforms].
 /// Spots, loot, hide spots and remix loot may give a bare `x`: they are put

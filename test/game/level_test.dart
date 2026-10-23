@@ -402,9 +402,17 @@ void main() {
 
   test('the greybox house parses', () {
     final l = house();
-    expect(l.width, 2000);
-    expect(l.rooms.map((r) => r.id), ['kitchen', 'living', 'hall']);
-    expect(l.doors.map((d) => (d.id, d.startsOpen)), [('kitchenDoor', false), ('hallDoor', true)]);
+    expect((l.width, l.height, l.floorY), (2000, 1170, 660));
+    expect(l.rooms.map((r) => r.id), ['bedroom', 'landing', 'kitchen', 'living', 'hall', 'cellar', 'boiler']);
+    expect({for (final r in l.rooms) r.floorY}, {270, 660, 1050});
+    expect(
+      l.doors.map((d) => (d.id, d.startsOpen, d.floorY)),
+      [('kitchenDoor', false, 660), ('hallDoor', true, 660), ('bedroomDoor', false, 270)],
+    );
+    expect(l.stairs.map((s) => s.id), ['livingStairs', 'kitchenStairs', 'hallStairs']);
+    expect(l.vents.map((v) => v.id), ['bedroomDuct', 'wallHole']);
+    expect(l.roomsAt(l.loot.firstWhere((x) => x.id == 'toaster').at).single.id, 'bedroom');
+    expect(l.roomsAt(l.loot.firstWhere((x) => x.id == 'chicken').at).single.id, 'boiler');
     for (final loot in l.loot) {
       expect(l.geometry.restsOnSurface(loot.at), isTrue, reason: loot.id);
       expect(l.roomsAt(loot.at), isNotEmpty, reason: loot.id);

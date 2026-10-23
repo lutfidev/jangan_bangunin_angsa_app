@@ -95,4 +95,38 @@ void main() {
     final r = from(nav, const Vec(690, 660), const Vec(310, 270), speed: 1000, doors: Doors(level));
     expect(r.moves.whereType<Cross>().map((c) => c.to.id), ['s2', 'up']);
   });
+
+  group('the house', () {
+    late Level l;
+    late Nav nav;
+    setUp(() {
+      l = house();
+      nav = Nav(l);
+    });
+
+    test('from her bed she can walk to every room', () {
+      for (final r in l.rooms) {
+        final target = Vec((r.box.left + r.box.right) / 2, r.floorY);
+        final route = from(nav, l.bed, target, doors: Doors(l));
+        expect(route.goalSeg.id, r.id, reason: r.id);
+        expect(route.catches, isTrue, reason: r.id);
+      }
+    });
+
+    test('upstairs by the living-room stair, the cellar by the kitchen', () {
+      final up = from(nav, l.bed, const Vec(1300, 270));
+      expect(up.moves.whereType<Cross>().map((c) => c.to.id), ['livingStairs', 'landing']);
+      final down = from(nav, l.bed, const Vec(500, 1050), doors: Doors(l)..open('kitchenDoor'));
+      expect(down.moves.whereType<Cross>().map((c) => c.to.id), ['kitchen', 'kitchenStairs', 'cellar']);
+    });
+
+    test("the chicken's shelf and the wardrobe are out of her reach", () {
+      final tops = [for (final s in nav.segs) if (s.kind == SegKind.platform) s.id];
+      expect(tops, containsAll(['bedFrame', 'landingChest', 'counter', 'workbench']));
+      for (final safe in ['pipeShelf', 'wardrobe', 'landingShelf', 'boilerTank', 'nightstand', 'crawlPlank', 'shelfHigh']) {
+        expect(tops, isNot(contains(safe)), reason: safe);
+      }
+      expect(from(nav, l.bed, const Vec(1550, 900)).catches, isFalse);
+    });
+  });
 }

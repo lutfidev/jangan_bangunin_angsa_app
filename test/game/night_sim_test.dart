@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/hearing.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
@@ -371,10 +372,10 @@ void main() {
 
     test('targets the nearest live object within 24px', () {
       final s = NightSim(night3());
-      expect(s.throwTarget(70), 'counterLeft');
-      expect(s.throwTarget(100), 'counterPot');
-      expect(s.throwTarget(250), isNull);
-      expect(s.throwTarget(640), isNull); // the plank is stepped on, not hit
+      expect(s.throwTarget(70, 270), 'counterLeft');
+      expect(s.throwTarget(100, 270), 'counterPot');
+      expect(s.throwTarget(250, 270), isNull);
+      expect(s.throwTarget(640, 270), isNull); // the plank is stepped on, not hit
     });
 
     test('a miss flops softly where it lands', () {
@@ -1253,9 +1254,9 @@ void main() {
         'objects': [{'id': 'o', 'type': 'tipper', 'spot': 'b'}],
       }));
       final s = NightSim(level);
-      expect(s.throwTarget(394), isNull);
+      expect(s.throwTarget(394, 270), isNull);
       s.doors.open('d');
-      expect(s.throwTarget(394), 'b');
+      expect(s.throwTarget(394, 270), 'b');
     });
 
     test('the mouse stops at a closed door', () {
@@ -1341,6 +1342,106 @@ void main() {
       expect(s.lift('pot'), isTrue);
       expect(s.enterVent('v'), isFalse);
       expect(s.inVent, isFalse);
+    });
+  });
+
+  group('one storey at a time', () {
+    /// [twoStoreys] with a tipper on `a` (500, 660) under the upstairs
+    /// floor, and Milo upstairs at [x].
+    NightSim upstairs({double x = 300, Tool tool = Tool.socks, List<Object?>? objects}) => NightSim(
+      Level.parse(twoStoreys(
+        spots: [{'id': 'a', 'at': [500, 660]}],
+        extra: {
+          'playerStart': [x, 270],
+          'objects': objects ?? [{'id': 'o', 'type': 'tipper', 'spot': 'a'}],
+        },
+      )),
+      setup: NightSetup(tool: tool),
+    )..setSneak(false);
+
+    test('the exit is only on its own floor', () {
+      final s = upstairs(x: 780);
+      walkTo(s, 830);
+      expect(s.playerX, greaterThan(s.level.exitX));
+      expect(s.outcome, isNull);
+    });
+
+    test('a sock upstairs never hits a spot downstairs', () {
+      final s = upstairs();
+      expect(s.floorY, 270);
+      expect(s.throwTarget(500, 270), isNull);
+      expect(s.throwTarget(500, 660), 'a');
+      s.throwSock(500);
+      tickUntil(s, () => s.flights.isEmpty);
+      expect(s.chain.isSpent('o'), isFalse);
+    });
+
+    test('a sock that misses flops on his floor', () {
+      final s = upstairs()..throwSock(500);
+      final flop = <NoiseMade>[];
+      tickUntil(s, () {
+        flop.addAll(s.takeEvents().whereType<NoiseMade>());
+        return s.flights.isEmpty;
+      });
+      expect((flop.single.noise.x, flop.single.noise.y), (500, 270));
+    });
+
+    test('the mouse upstairs walks past what is downstairs', () {
+      final s = upstairs(tool: Tool.mouse)..useTool();
+      expect(s.mouse!.y, 270);
+      tickUntil(s, () => s.mouse!.stopped);
+      expect(s.mouse!.x, 844);
+      expect(s.chain.isSpent('o'), isFalse);
+    });
+
+    test('a loose plank only creaks underfoot on its own floor', () {
+      final s = upstairs(x: 400, objects: [{'id': 'p', 'type': 'squeaker', 'spot': 'a'}]);
+      s.takeEvents();
+      walkTo(s, 600);
+      expect(s.chain.takeFired(), isEmpty);
+    });
+
+    test('she chases him up the stair and catches him on it', () {
+      final s = NightSim(Level.parse(twoStoreys(extra: {'bed': [200, 660]})))..setSneak(true);
+      s.goose.wake(WakeCause.noise);
+      s
+        ..setVertical(-1)
+        ..tick(frame)
+        ..setVertical(0)
+        ..setMove(1);
+      tickUntil(s, () => s.outcome != null || s.takeEvents().any((e) => e is CaughtStarted), limit: 8);
+      expect(s.onStairs, isTrue);
+      expect(s.playerY, lessThan(660));
+    });
+
+    test('in a vent he is gone: she loses him', () {
+      final s = NightSim(Level.parse(twoStoreys(extra: {'playerStart': [710, 660]})));
+      s.goose.wake(WakeCause.noise);
+      expect(s.enterVent('v'), isTrue);
+      tickUntil(s, () => s.goose.state == GooseState.lostYou, limit: 6);
+      expect(s.outcome, isNull);
+    });
+  });
+
+  group('house storeys', () {
+    test('a toot in the bedroom goes down the duct, then through the kitchen door', () {
+      final s = NightSim(houseWith({'playerStart': [300, 270]}), setup: const NightSetup(tool: Tool.kazoo, night: 'house'));
+      s.useTool();
+      final toot = s.takeEvents().whereType<NoiseMade>().single;
+      expect((toot.heard!.through!.kind, toot.heard!.through!.id), (PortalKind.door, 'kitchenDoor'));
+      expect((toot.heard!.noise.x, toot.heard!.noise.y, toot.heard!.noise.loudness), (640, 660, 2));
+      expect(s.goose.state, GooseState.sleepwalk);
+    });
+
+    test('a toot on the landing comes down the stair and she climbs up to it', () {
+      final s = NightSim(houseWith({'playerStart': [1300, 270]}), setup: const NightSetup(tool: Tool.kazoo, night: 'house'));
+      s.useTool();
+      final toot = s.takeEvents().whereType<NoiseMade>().single;
+      expect(toot.heard!.through!.id, 'livingStairs');
+      expect(toot.heard!.noise.loudness, 2);
+      expect(s.goose.state, GooseState.sleepwalk);
+      tickUntil(s, () => s.goose.sniffing, limit: 30);
+      expect(s.goose.at, const Vec(1300, 270));
     });
   });
 }

@@ -42,17 +42,24 @@ class Doors {
     return first;
   }
 
-  /// The stretch of the floor line [floorY] around [x] between the nearest
-  /// closed doors, or the world's edges.
+  /// The stretch of the floor line [floorY] around [x]: its room, and the
+  /// rooms beyond each open door, up to a closed door's leaf or a wall.
   ({double min, double max}) freeSpan(double x, {required double floorY}) {
-    var min = 0.0;
-    var max = level.width;
-    for (final d in level.doors) {
-      if (_open[d.id]! || d.floorY != floorY) continue;
-      if (d.x < x && d.leaf.right > min) min = d.leaf.right;
-      if (d.x > x && d.leaf.left < max) max = d.leaf.left;
+    final rooms = [for (final r in level.rooms) if (r.floorY == floorY) r];
+    final start = rooms.where((r) => r.box.left <= x && x <= r.box.right).firstOrNull;
+    if (start == null) return (min: 0, max: level.width);
+    double edge(bool right) {
+      var room = start;
+      while (true) {
+        final side = right ? room.box.right : room.box.left;
+        final door = level.doors.where((d) => d.x == side && d.floorY == floorY).firstOrNull;
+        if (door == null) return side;
+        if (!_open[door.id]!) return right ? door.leaf.left : door.leaf.right;
+        room = rooms.firstWhere((r) => r.id == (right ? door.right : door.left));
+      }
     }
-    return (min: min, max: max);
+
+    return (min: edge(false), max: edge(true));
   }
 
   void open(String id, {bool byGoose = false}) => _set(id, true, byGoose: byGoose);
