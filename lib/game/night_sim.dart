@@ -425,23 +425,27 @@ class NightSim {
   }
 
   /// Where a sock aimed at [aimX] comes down: within [Tuning.throwRange]
-  /// of the burglar, inside the room (or rooms, in a doorway) he is in.
+  /// of the burglar, inside the room (or rooms, in a doorway) he is in, and
+  /// short of a closed door.
   double throwLanding(double aimX) {
     final rooms = level.roomsAt(Vec(playerX, playerY));
-    final left = rooms.isEmpty ? 0.0 : rooms.map((r) => r.box.left).reduce(math.min);
-    final right = rooms.isEmpty ? level.width : rooms.map((r) => r.box.right).reduce(math.max);
+    final free = doors.freeSpan(playerX);
+    final left = math.max(free.min, rooms.isEmpty ? 0.0 : rooms.map((r) => r.box.left).reduce(math.min));
+    final right = math.min(free.max, rooms.isEmpty ? level.width : rooms.map((r) => r.box.right).reduce(math.max));
     return aimX.clamp(playerX - tuning.throwRange, playerX + tuning.throwRange).clamp(left, right).toDouble();
   }
 
   /// The spot a sock landing at [landingX] would hit: the nearest one in
-  /// [Tuning.throwHitRadius] holding something that can still go off.
-  /// Squeakers are stepped on, not hit.
+  /// [Tuning.throwHitRadius] holding something that can still go off, on
+  /// this side of any closed door. Squeakers are stepped on, not hit.
   String? throwTarget(double landingX) {
     String? best;
     var bestD = double.infinity;
+    final free = doors.freeSpan(landingX);
     for (final spot in level.spots.values) {
       final d = (spot.x - landingX).abs();
       if (d > tuning.throwHitRadius || d >= bestD || !_live(spot.id, squeakers: false)) continue;
+      if (spot.x < free.min || spot.x > free.max) continue;
       best = spot.id;
       bestD = d;
     }
@@ -522,6 +526,7 @@ class NightSim {
 
   /// The nearest door in reach that he could open or shut right now.
   Door? _doorInReach() {
+    if (!_body.grounded) return null;
     Door? best;
     for (final d in doors.all) {
       if (!_reaches(d.handle) || !_canToggle(d)) continue;

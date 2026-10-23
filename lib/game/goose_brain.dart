@@ -45,6 +45,9 @@ class GooseBrain {
   double _slipLeft = 0;
   double _pushFor = 0;
 
+  /// Whether she leaned on a door this tick; a push left off starts over.
+  bool _pushed = false;
+
   double get x => _x;
   GooseState get state => _state;
   WakeCause? get wakeCause => _wakeCause;
@@ -123,6 +126,12 @@ class GooseBrain {
   }
 
   void tick(double dt, {required double playerX, required bool playerHidden}) {
+    _pushed = false;
+    _tick(dt, playerX: playerX, playerHidden: playerHidden);
+    if (!_pushed) _pushFor = 0;
+  }
+
+  void _tick(double dt, {required double playerX, required bool playerHidden}) {
     switch (_state) {
       case GooseState.asleep || GooseState.stirring || GooseState.suspicious || GooseState.drowsy:
         meter.tick(dt);
@@ -231,6 +240,9 @@ class GooseBrain {
       final stop = right ? door.x - tuning.doorStandOff : door.x + tuning.doorStandOff;
       // Never backwards, even if a door shut right in front of her.
       if (right ? stop > _x : stop < _x) _x = stop;
+      // Going no further than the door: as close as she gets is there.
+      if (right ? target <= door.x : target >= door.x) return true;
+      _pushed = true;
       _pushFor += dt;
       if (_pushFor >= tuning.doorPushTime) {
         doors!.open(door.id, byGoose: true);

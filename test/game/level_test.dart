@@ -305,9 +305,11 @@ void main() {
       expect(() => parse(rooms([[0, 0, 400, 270], [400, 0, 444, 270]], ids: ['a', 'a'])), _formatError('duplicate room: a'));
       expect(() => parse(rooms([[0, 0, 400, 270], [300, 0, 544, 270]])), _formatError('rooms overlap: b'));
       expect(() => parse(rooms([[0, 0, 400, 270], [400, 0, 500, 270]])), _formatError('room outside the world: b'));
+      expect(() => parse(rooms([[20, 0, 380, 270], [400, 0, 444, 270]])), _formatError('not in a room: spot a'));
+      expect(() => parse({'doors': <Object?>[]}), _formatError('rooms meet without a door: b'));
       expect(
-        () => parse({...rooms([[20, 0, 380, 270], [400, 0, 444, 270]]), 'doors': <Object?>[]}),
-        _formatError('not in a room: spot a'),
+        () => parse({'doors': [{'id': 'd', 'x': 400}, {'id': 'e', 'x': 400}]}),
+        _formatError('two doors in one doorway: e'),
       );
       expect(() => parse({'doors': [{'id': 'd', 'x': 300}]}), _formatError('door not between two rooms: d'));
       expect(

@@ -1153,6 +1153,17 @@ void main() {
       expect(creak.door, 'kitchenDoor');
     });
 
+    test('no door verb in mid-air', () {
+      final s = inHouse();
+      walkTo(s, 700);
+      s.useDoor('kitchenDoor');
+      walkTo(s, 615);
+      expect(s.interaction, isA<UseDoor>());
+      s.jump();
+      tickUntil(s, () => !s.grounded, limit: 1);
+      expect(s.interaction, isNot(isA<UseDoor>()));
+    });
+
     test('a door never shuts on Milo in the doorway', () {
       final s = inHouse();
       walkTo(s, 700);
@@ -1217,11 +1228,30 @@ void main() {
       expect(steps.every((e) => e.heard == null), isTrue);
     });
 
-    test('a sock lands inside his room', () {
+    test('a sock lands inside his room, short of a closed door', () {
       final s = inHouse();
       walkTo(s, 300);
-      expect(s.throwLanding(900), 640);
+      expect(s.throwLanding(900), 634);
       expect(s.throwLanding(-200), 0);
+      s.throwSock(900);
+      final flop = eventsUntil(s, () => s.flights.isEmpty).whereType<NoiseMade>().single;
+      expect(flop.noise.x, 634);
+      expect(flop.heard, isNull);
+      walkTo(s, 620);
+      expect(s.useDoor('kitchenDoor'), isTrue);
+      walkTo(s, 600);
+      expect(s.throwLanding(900), 640);
+    });
+
+    test('a sock never hits a spot through a closed door', () {
+      final level = Level.parse(twoRooms(extra: {
+        'spots': [{'id': 'a', 'at': [10, 270]}, {'id': 'b', 'at': [410, 270]}],
+        'objects': [{'id': 'o', 'type': 'tipper', 'spot': 'b'}],
+      }));
+      final s = NightSim(level);
+      expect(s.throwTarget(394), isNull);
+      s.doors.open('d');
+      expect(s.throwTarget(394), 'b');
     });
 
     test('the mouse stops at a closed door', () {

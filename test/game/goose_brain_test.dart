@@ -218,6 +218,25 @@ void main() {
       expect(g.sniffing, isTrue);
     });
 
+    test('a sound on her side of a closed door leaves the door shut', () {
+      g.hear(const Noise(x: 410, loudness: 2));
+      run(g, (800 - 424) / 50 + 3);
+      expect(doors.isOpen('d'), isFalse);
+      expect(g.pushingDoor, isFalse);
+      expect(g.x, 424);
+      expect(g.sniffing, isTrue);
+    });
+
+    test('a slip mid-push starts the push over', () {
+      chase(100);
+      run(g, 376 / 110 + 0.1, playerX: 100);
+      run(g, 1.5, playerX: 100);
+      g.slip();
+      run(g, 2.05, playerX: 100);
+      run(g, 1, playerX: 100);
+      expect(doors.isOpen('d'), isFalse);
+    });
+
     test('a long frame never carries her through a closed door', () {
       final small = GooseBrain(bedX: 800, floorY: 270, tuning: const Tuning(), doors: Doors(doors.level));
       for (final (brain, dt) in [(g, 0.1), (small, 0.01)]) {

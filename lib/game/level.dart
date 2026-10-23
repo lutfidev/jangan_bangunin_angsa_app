@@ -153,6 +153,7 @@ class Level {
       if (left == null || right == null) throw FormatException('door not between two rooms: $did');
       if (floor.floorSurfaceAt(x) == null) throw FormatException('door not on the floor: $did');
       if (doors.any((x) => x.id == did)) throw FormatException('duplicate door: $did');
+      if (doors.any((other) => other.x == x)) throw FormatException('two doors in one doorway: $did');
       final door = Door(id: did, x: x, floorY: floorY, left: left.id, right: right.id, startsOpen: _flag(d, 'open'));
       doors.add(door);
       // The wall above the doorway, from the rooms' top down to the lintel.
@@ -160,6 +161,13 @@ class Level {
         Box(door.leaf.left, math.min(left.box.top, right.box.top), door.leaf.right, door.leaf.top),
         Surface.wood,
       ));
+    }
+
+    for (final a in rooms) {
+      for (final b in rooms) {
+        final meet = a.box.right == b.box.left && a.box.top < b.box.bottom && b.box.top < a.box.bottom;
+        if (meet && !doors.any((d) => d.x == a.box.right)) throw FormatException('rooms meet without a door: ${b.id}');
+      }
     }
 
     final platforms = <Platform>[];
