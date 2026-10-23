@@ -1,5 +1,6 @@
 import 'doors.dart';
 import 'geom.dart';
+import 'nav.dart';
 import 'noise.dart';
 import 'noise_meter.dart';
 import 'tuning.dart';
@@ -13,29 +14,41 @@ enum WakeCause { noise, footsteps, grabbedGuarded, tool }
 
 enum _Walk { out, sniff, back }
 
-/// Gertrude. She lives on the floor line; [x] is where she is now.
+/// Gertrude. She walks the house on [nav]: floors, stairs and the low tops
+/// she flaps onto. [at] is where her feet are now.
 class GooseBrain {
-  GooseBrain({required this.bedX, required this.floorY, required this.tuning, double meterGain = 1, this.doors})
-    : _x = bedX,
+  GooseBrain({required this.nav, required this.bed, required this.tuning, double meterGain = 1, this.doors})
+    : _seg = nav.segAt(bed),
+      _x = bed.x,
+      _target = bed,
       meter = NoiseMeter(tuning, gain: meterGain);
 
-  final double bedX;
+  final Nav nav;
 
-  /// The floor line she walks; her ear zone sits on it.
-  final double floorY;
+  /// Her nest, on the floor.
+  final Vec bed;
   final Tuning tuning;
   final NoiseMeter meter;
 
   /// Closed doors stop her until she pushes them open.
   final Doors? doors;
 
+  Seg _seg;
   double _x;
+
+  /// Mid-flap: where to, from where, onto what, and how far along (0..1).
+  ({Seg to, Vec from, Vec land, double t})? _flap;
+  Route? _route;
+
   GooseState _state = GooseState.asleep;
   WakeCause? _wakeCause;
 
   _Walk _walk = _Walk.out;
-  double _target = 0;
-  double? _lastNoiseX;
+  Vec _target;
+  Vec? _lastNoise;
+
+  /// Where she last saw Milo while chasing him.
+  Vec? _lastSeen;
 
   /// Seconds left in the current timed phase: sniff, awake freeze, distraction.
   double _timer = 0;
@@ -49,7 +62,23 @@ class GooseBrain {
   /// Whether she leaned on a door this tick; a push left off starts over.
   bool _pushed = false;
 
-  double get x => _x;
+  double get bedX => bed.x;
+
+  Vec get at {
+    final f = _flap;
+    if (f == null) return _seg.at(_x);
+    return Vec(f.from.x + (f.land.x - f.from.x) * f.t, f.from.y + (f.land.y - f.from.y) * f.t);
+  }
+
+  double get x => at.x;
+  double get y => at.y;
+
+  /// Flying up onto a top, or down off it.
+  bool get flapping => _flap != null;
+
+  /// The way she last planned to go, for the debug overlay.
+  Route? get route => _route;
+
   GooseState get state => _state;
   WakeCause? get wakeCause => _wakeCause;
 
@@ -89,12 +118,13 @@ class GooseBrain {
   }
 
   /// A noise went off. [chainLinks] is its link number when a chain made it;
-  /// [fromTool] when a tool made it directly. [sourceX] is where it really
-  /// went off, when she hears it muffled through a door: she goes there.
-  void hear(Noise n, {int chainLinks = 0, bool fromTool = false, double? sourceX}) {
-    final at = sourceX ?? n.x;
-    _lastNoiseX = at;
-    final touches = n.touchesEar(Vec(_x, floorY), tuning);
+  /// [fromTool] when a tool made it directly. [source] is where it really
+  /// went off, when she hears it muffled on its way: she goes there.
+  void hear(Noise n, {int chainLinks = 0, bool fromTool = false, Vec? source}) {
+    final here = at;
+    final from = source ?? Vec(n.x, n.y ?? here.y);
+    _lastNoise = from;
+    final touches = n.touchesEar(here, tuning);
     if (inBed) {
       if (touches) {
         _raise(n.loudness, fromTool: fromTool);
@@ -102,7 +132,7 @@ class GooseBrain {
         // A loud noise far from her bed doesn't wake her — it moves her.
         _state = GooseState.sleepwalk;
         _walk = _Walk.out;
-        _target = at;
+        _target = from;
       }
     } else if (_state == GooseState.sleepwalk) {
       if (n.loudness >= 2 && (touches || sniffing)) {
@@ -112,7 +142,7 @@ class GooseBrain {
       }
     } else if (chainLinks >= 2 && (_state == GooseState.chase || _state == GooseState.distracted)) {
       _state = GooseState.distracted;
-      _target = at;
+      _target = from;
       _timer = tuning.distractTime;
     }
   }
@@ -121,18 +151,22 @@ class GooseBrain {
   void wake(WakeCause cause) {
     if (isAwake) return;
     _state = GooseState.awake;
+    _lastSeen = null;
     _wakeCause = cause;
     _timer = tuning.awakeFreeze;
     meter.reset(value: 100);
   }
 
-  void tick(double dt, {required double playerX, required bool playerHidden}) {
+  /// Advances [dt] seconds with Milo's feet at [player]. She [sees] him
+  /// when he shares her room and isn't tucked away; [hidden] is a hide
+  /// spot or a vent.
+  void tick(double dt, {required Vec player, required bool sees, bool hidden = false}) {
     _pushed = false;
-    _tick(dt, playerX: playerX, playerHidden: playerHidden);
+    _tick(dt, player: player, sees: sees, hidden: hidden);
     if (!_pushed) _pushFor = 0;
   }
 
-  void _tick(double dt, {required double playerX, required bool playerHidden}) {
+  void _tick(double dt, {required Vec player, required bool sees, required bool hidden}) {
     switch (_state) {
       case GooseState.asleep || GooseState.stirring || GooseState.suspicious || GooseState.drowsy:
         meter.tick(dt);
@@ -150,12 +184,14 @@ class GooseBrain {
             _timer -= dt;
             if (_timer <= 0) _walk = _Walk.back;
           case _Walk.back:
-            if (_moveTo(bedX, tuning.sleepwalkSpeed, dt)) {
+            if (_moveTo(bed, tuning.sleepwalkSpeed, dt)) {
               meter.drowsyLeft = tuning.drowsyTime;
               _settleInBed();
             }
         }
       case GooseState.awake:
+        // Up on her feet, she takes a look round before she runs.
+        if (sees) _lastSeen = player;
         _timer -= dt;
         if (_timer <= 0) {
           _state = GooseState.chase;
@@ -164,24 +200,29 @@ class GooseBrain {
         }
       case GooseState.chase:
         _chaseLeft -= dt;
-        if (!_slipped(dt)) _moveTo(playerHidden ? (_lastNoiseX ?? _x) : playerX, tuning.chaseSpeed, dt);
-        _trackHiding(dt, playerHidden);
+        if (sees) _lastSeen = player;
+        final target = sees ? player : (_lastSeen ?? _lastNoise ?? at);
+        final arrived = !_slipped(dt) && _moveTo(target, tuning.chaseSpeed, dt);
+        final catchable = sees && (_route?.catches ?? false);
+        // She loses him hidden, seen but out of her reach, or gone from
+        // where she last saw him.
+        _trackHiding(dt, hidden || (sees && !catchable) || (!sees && arrived));
         if (_chaseLeft <= 0) _loseThem();
       case GooseState.distracted:
         if (!_slipped(dt)) _moveTo(_target, tuning.chaseSpeed, dt);
         _timer -= dt;
-        _trackHiding(dt, playerHidden);
+        _trackHiding(dt, hidden);
         if (_state == GooseState.distracted && _timer <= 0) _state = GooseState.chase;
       case GooseState.lostYou:
         // Grumpy, not blind: walk into her and the chase is back on.
-        if (!playerHidden && (playerX - _x).abs() <= tuning.caughtDistance) {
+        if (sees && !flapping && nav.catches(at, player)) {
           _state = GooseState.chase;
           _chaseLeft = tuning.chaseTime;
           _hiddenFor = 0;
           return;
         }
         _patrolFor += dt;
-        if (_moveTo(bedX, tuning.patrolSpeed, dt) && _patrolFor >= tuning.patrolTime) {
+        if (_moveTo(bed, tuning.patrolSpeed, dt) && _patrolFor >= tuning.patrolTime) {
           meter.reset();
           meter.drowsyLeft = tuning.drowsyTime;
           _wakeCause = null;
@@ -212,8 +253,8 @@ class GooseBrain {
     _state = next;
   }
 
-  void _trackHiding(double dt, bool hidden) {
-    _hiddenFor = hidden ? _hiddenFor + dt : 0;
+  void _trackHiding(double dt, bool lost) {
+    _hiddenFor = lost ? _hiddenFor + dt : 0;
     if (_hiddenFor >= tuning.hideToLose) _loseThem();
   }
 
@@ -230,29 +271,59 @@ class GooseBrain {
     return true;
   }
 
-  /// Steps toward [target]; true once she is standing on it. A closed door
-  /// on the way stops her short of it, pushing, until it gives.
-  bool _moveTo(double target, double speed, double dt) {
-    final step = speed * dt;
-    final next = (target - _x).abs() <= step ? target : _x + (target > _x ? step : -step);
-    final door = doors?.closedAhead(_x, next, tuning.doorStandOff);
-    if (door != null) {
-      final right = next > _x;
-      final stop = right ? door.x - tuning.doorStandOff : door.x + tuning.doorStandOff;
-      // Never backwards, even if a door shut right in front of her.
-      if (right ? stop > _x : stop < _x) _x = stop;
-      // Going no further than the door: as close as she gets is there.
-      if (right ? target <= door.x : target >= door.x) return true;
-      _pushed = true;
-      _pushFor += dt;
-      if (_pushFor >= tuning.doorPushTime) {
-        doors!.open(door.id, byGoose: true);
-        _pushFor = 0;
+  /// Goes [dt] seconds along her route to [target]; true once she stands
+  /// where the route ends. A flap, once begun, finishes first. A closed
+  /// door on the way stops her short of it, pushing, until it gives.
+  bool _moveTo(Vec target, double speed, double dt) {
+    final flap = _flap;
+    if (flap != null) {
+      final t = flap.t + dt / tuning.flapTime;
+      if (t < 1) {
+        _flap = (to: flap.to, from: flap.from, land: flap.land, t: t);
+      } else {
+        _flap = null;
+        _seg = flap.to;
+        _x = flap.land.x;
       }
       return false;
     }
-    _pushFor = 0;
-    _x = next;
-    return _x == target;
+
+    final route = _route = nav.route(_seg, _x, target, speed: speed, doors: doors);
+    var budget = speed * dt;
+    for (final (i, m) in route.moves.indexed) {
+      switch (m) {
+        case Cross(:final to):
+          _seg = to;
+        case Flap(:final to, :final from, :final land):
+          _flap = (to: to, from: from, land: land, t: 0);
+          return false;
+        case WalkTo(:final x):
+          final dx = x - _x;
+          final next = dx.abs() <= budget ? x : _x + (dx > 0 ? budget : -budget);
+          final door = _seg.kind == SegKind.floor
+              ? doors?.closedAhead(_x, next, tuning.doorStandOff, floorY: _seg.yLeft)
+              : null;
+          if (door != null) {
+            final right = next > _x;
+            final stop = right ? door.x - tuning.doorStandOff : door.x + tuning.doorStandOff;
+            // Never backwards, even if a door shut right in front of her.
+            if (right ? stop > _x : stop < _x) _x = stop;
+            // Going no further than the door: as close as she gets is there.
+            final last = i == route.moves.length - 1;
+            if (last && (right ? x <= door.x : x >= door.x)) return true;
+            _pushed = true;
+            _pushFor += dt;
+            if (_pushFor >= tuning.doorPushTime) {
+              doors!.open(door.id, byGoose: true);
+              _pushFor = 0;
+            }
+            return false;
+          }
+          budget -= (next - _x).abs();
+          _x = next;
+          if (_x != x) return false;
+      }
+    }
+    return true;
   }
 }

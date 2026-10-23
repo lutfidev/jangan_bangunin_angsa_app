@@ -43,17 +43,18 @@ void main() {
 
   test('closedAhead finds the closed door a walk would run into', () {
     final d = doors();
-    expect(d.closedAhead(300, 390, 24)?.id, 'd');
-    expect(d.closedAhead(300, 370, 24), isNull);
-    expect(d.closedAhead(500, 410, 24)?.id, 'd');
-    expect(d.closedAhead(376, 380, 24)?.id, 'd');
-    expect(d.closedAhead(390, 300, 24), isNull);
-    expect(doors(open: true).closedAhead(300, 500, 24), isNull);
+    expect(d.closedAhead(300, 390, 24, floorY: 270)?.id, 'd');
+    expect(d.closedAhead(300, 370, 24, floorY: 270), isNull);
+    expect(d.closedAhead(500, 410, 24, floorY: 270)?.id, 'd');
+    expect(d.closedAhead(376, 380, 24, floorY: 270)?.id, 'd');
+    expect(d.closedAhead(390, 300, 24, floorY: 270), isNull);
+    expect(doors(open: true).closedAhead(300, 500, 24, floorY: 270), isNull);
+    expect(d.closedAhead(300, 390, 24, floorY: 660), isNull, reason: 'a door on another floor is no wall');
   });
 
   test('freeSpan runs between closed doors and the world edges', () {
-    expect(doors().freeSpan(200), (min: 0.0, max: 394.0));
-    expect(doors().freeSpan(600), (min: 406.0, max: 844.0));
-    expect(doors(open: true).freeSpan(200), (min: 0.0, max: 844.0));
+    expect(doors().freeSpan(200, floorY: 270), (min: 0.0, max: 394.0));
+    expect(doors().freeSpan(600, floorY: 270), (min: 406.0, max: 844.0));
+    expect(doors(open: true).freeSpan(200, floorY: 270), (min: 0.0, max: 844.0));
   });
 }

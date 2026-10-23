@@ -9,6 +9,7 @@ import 'hearing.dart';
 import 'heist.dart';
 import 'level.dart';
 import 'modifiers.dart';
+import 'nav.dart';
 import 'noise.dart';
 import 'tools.dart';
 import 'tuning.dart';
@@ -195,13 +196,13 @@ class NightResult {
 /// only by [tick].
 class NightSim {
   NightSim(Level level, {NightSetup setup = const NightSetup(), Tuning tuning = const Tuning()})
-    : this._(level, Doors(level), setup, tuning);
+    : this._(level, Doors(level), Nav(level, tuning), setup, tuning);
 
-  NightSim._(this.level, this.doors, this.setup, this.tuning)
+  NightSim._(this.level, this.doors, this.nav, this.setup, this.tuning)
     : chain = ChainRunner(level, tuning),
       goose = GooseBrain(
-        bedX: level.bedX,
-        floorY: level.floorY,
+        nav: nav,
+        bed: level.bed,
         tuning: tuning,
         meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
         doors: doors,
@@ -214,6 +215,9 @@ class NightSim {
   }
 
   final Level level;
+
+  /// Where she can walk.
+  final Nav nav;
 
   /// The briefing's tool and modifiers.
   final NightSetup setup;
@@ -320,7 +324,13 @@ class NightSim {
       !_body.onStairs;
 
   /// Out of her reach: higher than her neck stretches.
-  bool get _outOfReach => playerY < level.floorY - tuning.gooseReach;
+  /// She sees him: he isn't tucked away, and they share a room (a stair is
+  /// in both rooms it joins, a doorway in both rooms either side).
+  bool get sees {
+    if (_hidden || _vent != null) return false;
+    final hers = level.roomsAround(goose.at);
+    return level.roomsAround(Vec(playerX, playerY)).any(hers.contains);
+  }
   bool get sneaking => _sneak;
 
   /// +1 facing right, -1 facing left: the way the burglar last moved.
@@ -471,7 +481,7 @@ class NightSim {
   /// short of a closed door.
   double throwLanding(double aimX) {
     final rooms = level.roomsAt(Vec(playerX, playerY));
-    final free = doors.freeSpan(playerX);
+    final free = doors.freeSpan(playerX, floorY: level.floorOf(Vec(playerX, playerY)));
     final left = math.max(free.min, rooms.isEmpty ? 0.0 : rooms.map((r) => r.box.left).reduce(math.min));
     final right = math.min(free.max, rooms.isEmpty ? level.width : rooms.map((r) => r.box.right).reduce(math.max));
     return aimX.clamp(playerX - tuning.throwRange, playerX + tuning.throwRange).clamp(left, right).toDouble();
@@ -483,7 +493,7 @@ class NightSim {
   String? throwTarget(double landingX) {
     String? best;
     var bestD = double.infinity;
-    final free = doors.freeSpan(landingX);
+    final free = doors.freeSpan(landingX, floorY: level.floorOf(Vec(playerX, playerY)));
     for (final spot in level.spots.values) {
       final d = (spot.x - landingX).abs();
       if (d > tuning.throwHitRadius || d >= bestD || !_live(spot.id, squeakers: false)) continue;
@@ -585,7 +595,8 @@ class NightSim {
   bool _canToggle(Door d) {
     if (!doors.isOpen(d.id)) return true;
     final inDoorway = (playerX - d.x).abs() < tuning.bodyWidth / 2 + Door.thickness / 2;
-    return !inDoorway && (goose.x - d.x).abs() >= tuning.doorStandOff;
+    final gooseThere = (goose.x - d.x).abs() < tuning.doorStandOff && (goose.y - d.floorY).abs() <= 2;
+    return !inDoorway && !gooseThere;
   }
 
   /// The nearest vent mouth in reach, while he stands on something.
@@ -673,7 +684,7 @@ class NightSim {
     final loot = level.loot.where((l) => l.id == lootId).firstOrNull;
     if (loot == null || !_reaches(loot.at)) return false;
     // She guards it from her bed, including while she stands there patrolling.
-    final guarding = goose.inBed || (goose.state == GooseState.lostYou && goose.x == level.bedX);
+    final guarding = goose.inBed || (goose.state == GooseState.lostYou && goose.at == level.bed);
     if (loot.guarded && guarding && !goose.rollingOver) {
       goose.wake(WakeCause.grabbedGuarded);
       _noteGoose();
@@ -756,8 +767,9 @@ class NightSim {
       _hear(fired.noise, link: fired);
     }
 
-    // Up out of her reach, or in a vent, he is as safe as in a hide spot.
-    goose.tick(h, playerX: playerX, playerHidden: _hidden || _vent != null || _outOfReach);
+    final player = Vec(playerX, playerY);
+    final sees = this.sees;
+    goose.tick(h, player: player, sees: sees, hidden: _hidden || _vent != null);
     _noteDoors();
     _noteGoose();
 
@@ -769,8 +781,8 @@ class NightSim {
       _events.add(GooseSlipped(goose.x));
     }
 
-    final inReach = !_hidden && _vent == null && !_outOfReach;
-    if (goose.state == GooseState.chase && inReach && (goose.x - playerX).abs() <= tuning.caughtDistance) {
+    // Up out of her reach he is as safe as in a hide spot.
+    if (goose.state == GooseState.chase && sees && !goose.flapping && nav.catches(goose.at, player)) {
       _caughtLeft = tuning.caughtAnim;
       _events.add(const CaughtStarted());
     }
@@ -852,7 +864,7 @@ class NightSim {
   void _walkMouse(double h) {
     final m = _mouse;
     if (m == null || m.stopped) return;
-    final span = doors.freeSpan(m.x);
+    final span = doors.freeSpan(m.x, floorY: level.floorY);
     final (from, to) = m.advance(h, tuning.mouseSpeed, min: span.min, max: span.max);
     Spot? hit;
     for (final spot in level.spots.values) {
@@ -867,7 +879,7 @@ class NightSim {
   }
 
   void _hear(Noise noise, {LinkFired? link, Tool? tool, String? door}) {
-    final ear = Vec(goose.x, level.floorY);
+    final ear = goose.at;
     final heard = _hearing.reach(noise, ear);
     _events.add(NoiseMade(
       noise,
@@ -879,7 +891,7 @@ class NightSim {
     ));
     if (heard == null) return;
     final wasAwake = goose.isAwake;
-    goose.hear(heard.noise, chainLinks: link?.link ?? 0, fromTool: tool != null, sourceX: heard.source.x);
+    goose.hear(heard.noise, chainLinks: link?.link ?? 0, fromTool: tool != null, source: heard.source);
     if (!wasAwake && goose.isAwake && link != null) {
       _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }

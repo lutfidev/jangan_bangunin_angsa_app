@@ -833,7 +833,7 @@ void main() {
       expect(s.outcome, Outcome.caught);
     });
 
-    test('her neck reaches 80 px up', () {
+    test('her neck reaches 80 px up; she flaps onto a top up to 100 px', () {
       NightSim standingAt(double y) {
         final s = NightSim(Level.parse(minimalLevel(
           platforms: [{'id': 'top', 'x': [300, 500], 'y': y, 'surface': 'wood'}],
@@ -845,7 +845,10 @@ void main() {
       }
 
       expect(standingAt(270 - 75).outcome, Outcome.caught);
-      expect(standingAt(270 - 85).outcome, isNull);
+      final flapped = standingAt(270 - 85);
+      expect(flapped.outcome, Outcome.caught);
+      expect(flapped.goose.y, 185);
+      expect(standingAt(270 - 110).outcome, isNull);
     });
 
     test('dropping down next to her gets you caught', () {

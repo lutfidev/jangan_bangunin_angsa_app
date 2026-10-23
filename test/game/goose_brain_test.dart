@@ -1,18 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/doors.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
+import 'package:jangan_bangunin_angsa_app/game/nav.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
 
-GooseBrain _goose() => GooseBrain(bedX: 502, floorY: 270, tuning: const Tuning());
+/// A bare floor 0..844 at 270, her bed at 502.
+Nav _flat() => Nav(Level.parse(minimalLevel(extra: {'bed': [502, 270]})));
 
-/// Ticks in 0.05s steps, like a frame loop would.
-void run(GooseBrain g, double seconds, {double playerX = 236, bool hidden = false}) {
+GooseBrain _goose() => GooseBrain(nav: _flat(), bed: const Vec(502, 270), tuning: const Tuning());
+
+/// Ticks in 0.05s steps, like a frame loop would. She sees Milo at
+/// [playerX] on the floor unless he is [hidden] or [unseen].
+void run(GooseBrain g, double seconds, {double playerX = 236, double playerY = 270, bool hidden = false, bool unseen = false}) {
   for (var t = 0.0; t < seconds - 1e-9; t += 0.05) {
-    g.tick(0.05, playerX: playerX, playerHidden: hidden);
+    g.tick(0.05, player: Vec(playerX, playerY), sees: !hidden && !unseen, hidden: hidden);
   }
 }
 
@@ -114,7 +120,7 @@ void main() {
     expect(g.state, GooseState.chase);
     run(g, 0.2, hidden: true);
     expect(g.state, GooseState.lostYou);
-    run(g, 6);
+    run(g, 6, hidden: true);
     expect(g.state, GooseState.drowsy);
     expect(g.inBed, isTrue);
     expect(g.meter.value, 0);
@@ -122,10 +128,15 @@ void main() {
 
   test('chase gives up after 12s', () {
     // The burglar keeps 100px ahead; she never gets close enough to catch them.
-    final g = _goose()..wake(WakeCause.noise);
+    final wide = Level.parse(minimalLevel(extra: {
+      'width': 2000,
+      'solids': [{'box': [0, 270, 2000, 120], 'surface': 'wood'}],
+      'bed': [1900, 270],
+    }));
+    final g = GooseBrain(nav: Nav(wide), bed: wide.bed, tuning: const Tuning())..wake(WakeCause.noise);
     void outrun(double seconds) {
       for (var t = 0.0; t < seconds - 1e-9; t += 0.05) {
-        g.tick(0.05, playerX: g.x - 100, playerHidden: false);
+        g.tick(0.05, player: Vec(g.x - 100, 270), sees: true);
       }
     }
 
@@ -193,7 +204,7 @@ void main() {
     late GooseBrain g;
     setUp(() {
       doors = Doors(Level.parse(twoRooms(extra: {'bed': [800, 270]})));
-      g = GooseBrain(bedX: 800, floorY: 270, tuning: const Tuning(), doors: doors);
+      g = GooseBrain(nav: Nav(doors.level), bed: const Vec(800, 270), tuning: const Tuning(), doors: doors);
     });
 
     void chase(double playerX) {
@@ -203,7 +214,7 @@ void main() {
     }
 
     test('she walks to where the sound really was, and pushes the door open on the way', () {
-      g.hear(const Noise(x: 400, loudness: 2), sourceX: 100);
+      g.hear(const Noise(x: 400, loudness: 2), source: const Vec(100, 270));
       expect(g.state, GooseState.sleepwalk);
       run(g, (800 - 424) / 50 + 0.1);
       expect(g.x, 424);
@@ -238,11 +249,12 @@ void main() {
     });
 
     test('a long frame never carries her through a closed door', () {
-      final small = GooseBrain(bedX: 800, floorY: 270, tuning: const Tuning(), doors: Doors(doors.level));
+      final other = Doors(doors.level);
+      final small = GooseBrain(nav: Nav(doors.level), bed: const Vec(800, 270), tuning: const Tuning(), doors: other);
       for (final (brain, dt) in [(g, 0.1), (small, 0.01)]) {
         brain.wake(WakeCause.noise);
         for (var t = 0.0; t < 4.5; t += dt) {
-          brain.tick(dt, playerX: 100, playerHidden: false);
+          brain.tick(dt, player: const Vec(100, 270), sees: true);
           expect(brain.x, greaterThanOrEqualTo(424), reason: 'dt $dt at $t');
         }
         expect(brain.x, 424, reason: 'dt $dt');
@@ -268,6 +280,69 @@ void main() {
       expect(doors.isOpen('d'), isFalse);
       run(g, 0.8, playerX: 100);
       expect(doors.isOpen('d'), isTrue);
+    });
+  });
+
+  group('by sight', () {
+    test('out of sight, she goes where she last saw him and gives up 3s after', () {
+      final g = _goose()..wake(WakeCause.noise);
+      run(g, 0.35);
+      expect(g.state, GooseState.chase);
+      // He slips out of her room; she last saw him at 236.
+      run(g, (g.x - 236) / 110 + 0.1, playerX: 800, unseen: true);
+      expect(g.x, 236);
+      run(g, 2.8, playerX: 800, unseen: true);
+      expect(g.state, GooseState.chase);
+      run(g, 0.3, playerX: 800, unseen: true);
+      expect(g.state, GooseState.lostYou);
+    });
+
+    test('in sight again, the chase is on again', () {
+      final g = _goose()..wake(WakeCause.noise);
+      run(g, 0.35);
+      run(g, 1, playerX: 800, unseen: true);
+      run(g, 3, playerX: 100);
+      expect(g.state, GooseState.chase);
+      expect(g.x, lessThan(236));
+    });
+
+    test('seen up where she cannot reach, she gives up after 3s', () {
+      final g = GooseBrain(nav: Nav(night3()), bed: const Vec(502, 270), tuning: const Tuning())..wake(WakeCause.noise);
+      run(g, 0.35, playerX: 353, playerY: 106);
+      run(g, 2.6, playerX: 353, playerY: 106);
+      expect(g.state, GooseState.chase);
+      run(g, 0.5, playerX: 353, playerY: 106);
+      expect(g.state, GooseState.lostYou);
+    });
+
+    test('she flaps up onto the counter under the crawl plank', () {
+      final g = GooseBrain(nav: Nav(night3()), bed: const Vec(502, 270), tuning: const Tuning())..wake(WakeCause.noise);
+      run(g, 0.35, playerX: 353, playerY: 106);
+      expect(g.flapping, isFalse);
+      run(g, (502 - 270) / 110, playerX: 353, playerY: 106);
+      run(g, 0.2, playerX: 353, playerY: 106);
+      expect(g.flapping, isTrue);
+      expect(g.y, lessThan(270));
+      run(g, 0.5, playerX: 353, playerY: 106);
+      expect(g.at, const Vec(280, 200));
+      expect(g.route!.catches, isFalse);
+    });
+
+    test('Milo on the counter she reaches from the floor', () {
+      final g = GooseBrain(nav: Nav(night3()), bed: const Vec(502, 270), tuning: const Tuning())..wake(WakeCause.noise);
+      run(g, 0.35 + 3, playerX: 200, playerY: 200);
+      expect(g.at, const Vec(200, 270));
+      expect(g.route!.catches, isTrue);
+    });
+
+    test('she takes the stair to a noise upstairs', () {
+      final level = Level.parse(twoStoreys());
+      final g = GooseBrain(nav: Nav(level), bed: level.bed, tuning: const Tuning())
+        ..hear(const Noise(x: 300, y: 270, loudness: 2), source: const Vec(300, 270));
+      expect(g.state, GooseState.sleepwalk);
+      run(g, (500 + 200) / 50 + 0.2);
+      expect(g.at, const Vec(300, 270));
+      expect(g.sniffing, isTrue);
     });
   });
 }
