@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/body.dart';
+import 'package:jangan_bangunin_angsa_app/game/doors.dart';
 import 'package:jangan_bangunin_angsa_app/game/geom.dart';
+import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
 
 import 'fixtures.dart';
@@ -349,5 +351,31 @@ void main() {
       final l = Landing(fall: fall, surface: surface, at: const Vec(0, 270));
       expect(landingLoudness(l, sneak: sneak, t: t), loudness, reason: '$fall px on $surface, sneak $sneak');
     }
+  });
+
+  group('doors', () {
+    ({Body body, Doors doors}) inTwoRooms(double x) {
+      final level = Level.parse(twoRooms());
+      final doors = Doors(level);
+      return (body: Body(level.geometry, Vec(x, 270), t, doors: doors), doors: doors);
+    }
+
+    test('a closed door stops him; an open one lets him through', () {
+      final (:body, :doors) = inTwoRooms(300);
+      run(body, 2, move: 1);
+      expect(body.feet.x, 400 - 6 - 14);
+      doors.open('d');
+      run(body, 1, move: 1);
+      expect(body.feet.x, greaterThan(420));
+    });
+
+    test('jumping in an open doorway bumps his head on the lintel', () {
+      final (:body, :doors) = inTwoRooms(400);
+      doors.open('d');
+      body.pressJump();
+      final top = run(body, 1).top;
+      expect(top, closeTo(140 + 64, 0.01));
+      expect(body.feet.y, 270);
+    });
   });
 }

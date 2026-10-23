@@ -8,6 +8,9 @@ import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 /// Night 3, read straight from the bundled asset.
 Level night3() => Level.parse(File('assets/levels/night3.json').readAsStringSync());
 
+/// The greybox house, read straight from the bundled asset.
+Level house() => Level.parse(File('assets/levels/house.json').readAsStringSync());
+
 /// A valid one-spot level as JSON (format v2), with any top-level key
 /// overridden. One wood floor at y 270, no furniture unless [platforms].
 /// Spots, loot, hide spots and remix loot may give a bare `x`: they are put
@@ -64,6 +67,22 @@ Map<String, Object?>? _remixOnFloor(Map<String, Object?>? remix) {
       },
   };
 }
+
+/// [minimalLevel] split into two rooms at x 400, `a` and `b`, with door `d`
+/// between them, closed unless [open]. Any key can still be overridden.
+String twoRooms({bool open = false, Map<String, Object?> extra = const {}, List<Object?>? platforms}) => minimalLevel(
+  platforms: platforms,
+  extra: {
+    'rooms': [
+      {'id': 'a', 'name': 'A', 'box': [0, 0, 400, 270]},
+      {'id': 'b', 'name': 'B', 'box': [400, 0, 444, 270]},
+    ],
+    'doors': [
+      {'id': 'd', 'x': 400, 'open': open},
+    ],
+    ...extra,
+  },
+);
 
 const frame = 1 / 60;
 

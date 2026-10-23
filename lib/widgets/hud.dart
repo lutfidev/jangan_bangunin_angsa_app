@@ -224,20 +224,7 @@ class AlertMeter extends StatelessWidget {
       child: Row(
         spacing: 8,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Palette.gooseWhite,
-              shape: BoxShape.circle,
-              border: Border.all(color: Palette.ink, width: 3),
-            ),
-            child: CustomPaint(
-              size: const Size(18, 18),
-              painter: _SleepyFacePainter(),
-            ),
-          ),
+          const GooseFace(),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -270,6 +257,26 @@ class AlertMeter extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Gertrude's sleepy face in a white disc, as on the alert meter.
+class GooseFace extends StatelessWidget {
+  const GooseFace({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Palette.gooseWhite,
+        shape: BoxShape.circle,
+        border: Border.all(color: Palette.ink, width: 3),
+      ),
+      child: CustomPaint(size: const Size(18, 18), painter: _SleepyFacePainter()),
     );
   }
 }

@@ -128,11 +128,11 @@ List<Widget> kitchenCounter({bool details = true}) => [
 ];
 
 /// Floor line plus the dark 104dp control band under it.
-List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false}) => [
+List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false, double width = 844}) => [
   Positioned(
     left: 0,
     top: 270,
-    width: 844,
+    width: width,
     height: 16,
     child: DecoratedBox(
       decoration: BoxDecoration(
@@ -146,19 +146,26 @@ List<Widget> floorAndControlBand({bool trimBottom = true, bool rules = false}) =
       ),
     ),
   ),
-  box(0, 286, 844, 104, Palette.night),
+  box(0, 286, width, 104, Palette.night),
   if (rules) ...[
-    box(0, 318, 844, 2, const Color(0xFF201E38)),
-    box(0, 352, 844, 2, const Color(0xFF201E38)),
+    box(0, 318, width, 2, const Color(0xFF201E38)),
+    box(0, 352, width, 2, const Color(0xFF201E38)),
   ],
 ];
 
-/// Exit door at the right edge of the hall, ajar onto moonlight.
-List<Widget> exitDoor({bool open = true, bool knob = false}) => [
-  if (open) box(762, 142, 66, 128, Palette.moonlight, border: 4),
-  box(open ? 772 : 762, 142, open ? 56 : 66, 128, Palette.floorTrim, border: 4),
-  if (knob) box(782, 204, 13, 13, Palette.lamp, border: 2, oval: true),
+/// Exit door at the right edge of the hall, ajar onto moonlight; [left] is
+/// its frame's left edge.
+List<Widget> exitDoor({bool open = true, bool knob = false, double left = 762}) => [
+  if (open) box(left, 142, 66, 128, Palette.moonlight, border: 4),
+  box(open ? left + 10 : left, 142, open ? 56 : 66, 128, Palette.floorTrim, border: 4),
+  if (knob) box(left + 20, 204, 13, 13, Palette.lamp, border: 2, oval: true),
 ];
+
+/// Gertrude's rug, under her bed at [bedX].
+Widget rug(double bedX) => box(bedX - 92, 258, 190, 22, Palette.rug, border: 3, oval: true);
+
+/// Her nest at [bedX], drawn in front of her and the egg.
+Widget nest(double bedX) => at(bedX - 78, 234, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
 
 class ExitSign extends StatelessWidget {
   const ExitSign({super.key});

@@ -18,7 +18,9 @@ import 'package:jangan_bangunin_angsa_app/state/game_settings.dart';
 import 'package:jangan_bangunin_angsa_app/state/heist_log.dart';
 import 'package:jangan_bangunin_angsa_app/state/levels.dart';
 import 'package:jangan_bangunin_angsa_app/main.dart';
+import 'package:jangan_bangunin_angsa_app/theme/palette.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/chunky_button.dart';
+import 'package:jangan_bangunin_angsa_app/widgets/goose_arrow.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/hud.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/joystick.dart';
 import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
@@ -731,6 +733,106 @@ void main() {
       expect(find.byKey(Joystick.hintUpKey), findsOneWidget);
       await pushStickUp(tester);
       expect(sim.playerY, 200);
+    });
+  });
+
+  group('house', () {
+    NightSim inHouse() => NightSim(Levels.house, setup: const NightSetup(night: 'house'))..setSneak(true);
+
+    double scroll(WidgetTester tester) =>
+        tester.widget<Transform>(find.byKey(GameplayScreen.sceneKey)).transform.getTranslation().x;
+
+    testWidgets('the room scrolls to follow Milo', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 1000);
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.2);
+      expect(scroll(tester), closeTo(-(1000 + 120 - 422), 1));
+    });
+
+    testWidgets('night 3 never scrolls', (tester) async {
+      final sim = NightSim(Levels.night3)..setSneak(true);
+      walkTo(sim, 700);
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.2);
+      expect(scroll(tester), 0);
+    });
+
+    testWidgets('rooms out of view are not built', (tester) async {
+      await pumpGameplay(tester, inHouse());
+      expect(find.text('KITCHEN'), findsOneWidget);
+      expect(find.text('HALL'), findsNothing);
+    });
+
+    testWidgets('walking into the hall builds it', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 1600);
+      await pumpGameplay(tester, sim);
+      expect(find.text('HALL'), findsOneWidget);
+      expect(find.text('KITCHEN'), findsNothing);
+    });
+
+    testWidgets('OPEN opens the door, then it offers CLOSE', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      await pumpGameplay(tester, sim);
+      expect(_interact(tester).label, 'OPEN');
+      await tester.tap(find.text('OPEN'));
+      await tester.pump();
+      expect(sim.doors.isOpen('kitchenDoor'), isTrue);
+      expect(_interact(tester).label, 'CLOSE');
+    });
+  });
+
+  group('goose arrow', () {
+    NightSim inHouse({bool mirror = false}) =>
+        NightSim(Levels.house, setup: NightSetup(night: 'house', mirror: mirror))..setSneak(true);
+    final arrow = find.byKey(GameplayScreen.gooseArrowKey);
+    Color colorOf(WidgetTester tester) => GooseArrow.colorFor(tester.widget<GooseArrow>(arrow).state);
+
+    testWidgets('she sleeps off screen to the right', (tester) async {
+      await pumpGameplay(tester, inHouse());
+      expect(tester.getTopLeft(arrow).dx, 772);
+      expect(tester.getTopLeft(arrow).dy, 160);
+      expect(colorOf(tester), Palette.moonlight);
+      expect(find.bySemanticsLabel('Gertrude is off screen to the right'), findsOneWidget);
+    });
+
+    testWidgets('it goes once she is on screen', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 900);
+      await pumpGameplay(tester, sim);
+      expect(arrow, findsNothing);
+    });
+
+    testWidgets('Mirror Night puts it on the other edge', (tester) async {
+      await pumpGameplay(tester, inHouse(mirror: true));
+      expect(tester.getTopLeft(arrow).dx, 8);
+      expect(find.bySemanticsLabel('Gertrude is off screen to the left'), findsOneWidget);
+    });
+
+    testWidgets('night 3 never shows it', (tester) async {
+      await pumpGameplay(tester);
+      expect(arrow, findsNothing);
+    });
+
+    testWidgets('chasing from off screen, it turns red', (tester) async {
+      final sim = inHouse();
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, 1700);
+      sim.poke('sideTable');
+      tickUntil(sim, () => sim.goose.state == GooseState.chase);
+      sim.takeEvents();
+      await pumpGameplay(tester, sim);
+      expect(tester.getTopLeft(arrow).dx, 8);
+      expect(colorOf(tester), Palette.alarmTomato);
     });
   });
 }

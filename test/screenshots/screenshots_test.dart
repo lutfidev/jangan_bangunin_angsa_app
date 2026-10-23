@@ -316,4 +316,51 @@ void main() {
     await pumpGameplay(tester, sim);
     await snap(tester, 'gameplay_combo_asleep');
   });
+
+  group('house', () {
+    NightSim inHouse({Tool tool = Tool.socks}) =>
+        NightSim(Levels.house, setup: NightSetup(tool: tool, night: 'house'))..setSneak(true);
+
+    /// Through the kitchen door, then on to [x].
+    void walkThrough(NightSim sim, double x) {
+      walkTo(sim, 620);
+      sim.useDoor('kitchenDoor');
+      walkTo(sim, x);
+      sim.takeEvents();
+    }
+
+    testWidgets('house_start', (tester) async {
+      await pumpGameplay(tester, inHouse());
+      await snap(tester, 'house_start');
+    });
+
+    testWidgets('house_muffled', (tester) async {
+      // A toot by the closed door: heard next door, muffled to 2.
+      final sim = inHouse(tool: Tool.kazoo);
+      walkTo(sim, 560);
+      await pumpGameplay(tester, sim);
+      sim.useTool();
+      await play(tester, 0.3);
+      await snap(tester, 'house_muffled');
+    });
+
+    testWidgets('house_living', (tester) async {
+      final sim = inHouse();
+      walkThrough(sim, 820);
+      await pumpGameplay(tester, sim);
+      await snap(tester, 'house_living');
+    });
+
+    testWidgets('house_chase', (tester) async {
+      // Down the hall when the robot rings the clock: she comes from off screen.
+      final sim = inHouse();
+      walkThrough(sim, 1700);
+      sim.poke('sideTable');
+      tickUntil(sim, () => sim.goose.state == GooseState.chase);
+      sim.takeEvents();
+      await pumpGameplay(tester, sim);
+      await play(tester, 0.2);
+      await snap(tester, 'house_chase');
+    });
+  });
 }

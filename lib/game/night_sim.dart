@@ -1,7 +1,11 @@
+import 'dart:math' as math;
+
 import 'body.dart';
 import 'chain.dart';
+import 'doors.dart';
 import 'geom.dart';
 import 'goose_brain.dart';
+import 'hearing.dart';
 import 'heist.dart';
 import 'level.dart';
 import 'modifiers.dart';
@@ -15,14 +19,28 @@ sealed class SimEvent {
 }
 
 /// A noise went off. [link] is set when a chain made it, [tool] when a
-/// tool made it directly (a sock that missed, the kazoo).
+/// tool made it directly (a sock that missed, the kazoo), [door] when it
+/// is a door creaking.
 class NoiseMade extends SimEvent {
-  const NoiseMade(this.noise, {required this.touchedEar, this.link, this.tool});
+  const NoiseMade(this.noise, {required this.touchedEar, this.heard, this.link, this.tool, this.door});
 
   final Noise noise;
   final bool touchedEar;
+
+  /// How it reached her, maybe muffled through a door; null if it didn't.
+  final Heard? heard;
   final LinkFired? link;
   final Tool? tool;
+  final String? door;
+}
+
+/// A door opened or shut, by Milo or by her pushing it.
+class DoorMoved extends SimEvent {
+  const DoorMoved(this.doorId, {required this.open, required this.byGoose});
+
+  final String doorId;
+  final bool open;
+  final bool byGoose;
 }
 
 class GooseChanged extends SimEvent {
@@ -104,6 +122,14 @@ class Unhide extends Interaction {
   const Unhide();
 }
 
+/// Open or shut [door]; [open] is what pressing it does.
+class UseDoor extends Interaction {
+  const UseDoor(this.door, {required this.open});
+
+  final Door door;
+  final bool open;
+}
+
 /// How a night ended, for the Caught and Victory screens.
 class NightResult {
   const NightResult({
@@ -160,16 +186,21 @@ class NightResult {
 /// One night in the house: the burglar, the chain kit and Gertrude, advanced
 /// only by [tick].
 class NightSim {
-  NightSim(this.level, {this.setup = const NightSetup(), this.tuning = const Tuning()})
+  NightSim(Level level, {NightSetup setup = const NightSetup(), Tuning tuning = const Tuning()})
+    : this._(level, Doors(level), setup, tuning);
+
+  NightSim._(this.level, this.doors, this.setup, this.tuning)
     : chain = ChainRunner(level, tuning),
       goose = GooseBrain(
         bedX: level.bedX,
         floorY: level.floorY,
         tuning: tuning,
         meterGain: setup.lightSleeper ? tuning.lightSleeperGain : 1,
+        doors: doors,
       ),
+      _hearing = Hearing(level, doors, tuning),
       _combo = Combo(tuning),
-      _body = Body(level.geometry, level.playerStart, tuning),
+      _body = Body(level.geometry, level.playerStart, tuning, doors: doors),
       _toolLeft = setup.tool == Tool.socks ? tuning.sockCount : 1 {
     _gooseSeen = goose.state;
   }
@@ -183,6 +214,10 @@ class NightSim {
   Tool get tool => setup.tool;
   final ChainRunner chain;
   final GooseBrain goose;
+
+  /// Which doors stand open; Milo and she both change them.
+  final Doors doors;
+  final Hearing _hearing;
 
   final Combo _combo;
 
@@ -390,21 +425,27 @@ class NightSim {
   }
 
   /// Where a sock aimed at [aimX] comes down: within [Tuning.throwRange]
-  /// of the burglar, inside the room.
-  double throwLanding(double aimX) => aimX
-      .clamp(playerX - tuning.throwRange, playerX + tuning.throwRange)
-      .clamp(0, level.width)
-      .toDouble();
+  /// of the burglar, inside the room (or rooms, in a doorway) he is in, and
+  /// short of a closed door.
+  double throwLanding(double aimX) {
+    final rooms = level.roomsAt(Vec(playerX, playerY));
+    final free = doors.freeSpan(playerX);
+    final left = math.max(free.min, rooms.isEmpty ? 0.0 : rooms.map((r) => r.box.left).reduce(math.min));
+    final right = math.min(free.max, rooms.isEmpty ? level.width : rooms.map((r) => r.box.right).reduce(math.max));
+    return aimX.clamp(playerX - tuning.throwRange, playerX + tuning.throwRange).clamp(left, right).toDouble();
+  }
 
   /// The spot a sock landing at [landingX] would hit: the nearest one in
-  /// [Tuning.throwHitRadius] holding something that can still go off.
-  /// Squeakers are stepped on, not hit.
+  /// [Tuning.throwHitRadius] holding something that can still go off, on
+  /// this side of any closed door. Squeakers are stepped on, not hit.
   String? throwTarget(double landingX) {
     String? best;
     var bestD = double.infinity;
+    final free = doors.freeSpan(landingX);
     for (final spot in level.spots.values) {
       final d = (spot.x - landingX).abs();
       if (d > tuning.throwHitRadius || d >= bestD || !_live(spot.id, squeakers: false)) continue;
+      if (spot.x < free.min || spot.x > free.max) continue;
       best = spot.id;
       bestD = d;
     }
@@ -435,7 +476,7 @@ class NightSim {
 
   /// What Interact does here. Hidden, it only comes out; carrying, it only
   /// puts down. Otherwise the nearest loot in reach, else a walker to wind,
-  /// else a portable object to pick up, else a hide spot.
+  /// else a portable object to pick up, else a door, else a hide spot.
   Interaction? get interaction {
     if (_frozen) return null;
     if (_hidden) return const Unhide();
@@ -460,6 +501,9 @@ class NightSim {
     });
     if (portable != null) return MoveObject(portable.id, chain.objectAt(portable.id)!);
 
+    final door = _doorInReach();
+    if (door != null) return UseDoor(door, open: !doors.isOpen(door.id));
+
     final hide = _hideInReach();
     return hide == null ? null : Hide(hide);
   }
@@ -478,6 +522,24 @@ class NightSim {
       best = spot;
     }
     return best;
+  }
+
+  /// The nearest door in reach that he could open or shut right now.
+  Door? _doorInReach() {
+    if (!_body.grounded) return null;
+    Door? best;
+    for (final d in doors.all) {
+      if (!_reaches(d.handle) || !_canToggle(d)) continue;
+      if (best == null || (d.x - playerX).abs() < (best.x - playerX).abs()) best = d;
+    }
+    return best;
+  }
+
+  /// Opening always works; shutting doesn't with him or her in the doorway.
+  bool _canToggle(Door d) {
+    if (!doors.isOpen(d.id)) return true;
+    final inDoorway = (playerX - d.x).abs() < tuning.bodyWidth / 2 + Door.thickness / 2;
+    return !inDoorway && (goose.x - d.x).abs() >= tuning.doorStandOff;
   }
 
   double? _hideInReach() {
@@ -505,6 +567,8 @@ class NightSim {
         place(spotId);
       case Hide() || Unhide():
         toggleHide();
+      case UseDoor(:final door):
+        useDoor(door.id);
       case null:
     }
     return i;
@@ -545,6 +609,25 @@ class NightSim {
     _carried.add(lootId);
     _events.add(LootGrabbed(lootId));
     return true;
+  }
+
+  /// Opens or shuts the door [doorId] if its handle is in reach. It creaks
+  /// unless he sneaks.
+  bool useDoor(String doorId) {
+    final door = doors.all.where((d) => d.id == doorId).firstOrNull;
+    if (_frozen || _hidden || door == null || !_body.grounded || !_reaches(door.handle) || !_canToggle(door)) {
+      return false;
+    }
+    doors.isOpen(doorId) ? doors.close(doorId) : doors.open(doorId);
+    _noteDoors();
+    if (!_sneak) _hear(Noise(x: door.x, loudness: tuning.doorCreak), door: doorId);
+    return true;
+  }
+
+  void _noteDoors() {
+    for (final m in doors.takeMoves()) {
+      _events.add(DoorMoved(m.doorId, open: m.open, byGoose: m.byGoose));
+    }
   }
 
   /// Ducks into (or out of) a hide spot within reach.
@@ -601,6 +684,7 @@ class NightSim {
 
     // Up out of her reach he is as safe as in a hide spot.
     goose.tick(h, playerX: playerX, playerHidden: _hidden || _outOfReach);
+    _noteDoors();
     _noteGoose();
 
     final spill = _spillX;
@@ -677,7 +761,8 @@ class NightSim {
   void _walkMouse(double h) {
     final m = _mouse;
     if (m == null || m.stopped) return;
-    final (from, to) = m.advance(h, tuning.mouseSpeed, min: 0, max: level.width);
+    final span = doors.freeSpan(m.x);
+    final (from, to) = m.advance(h, tuning.mouseSpeed, min: span.min, max: span.max);
     Spot? hit;
     for (final spot in level.spots.values) {
       final ahead = m.dir > 0 ? from < spot.x && spot.x <= to : to <= spot.x && spot.x < from;
@@ -690,10 +775,19 @@ class NightSim {
     }
   }
 
-  void _hear(Noise noise, {LinkFired? link, Tool? tool}) {
-    _events.add(NoiseMade(noise, touchedEar: noise.touchesEar(goose.x, level.floorY, tuning), link: link, tool: tool));
+  void _hear(Noise noise, {LinkFired? link, Tool? tool, String? door}) {
+    final heard = _hearing.reach(noise, goose.x);
+    _events.add(NoiseMade(
+      noise,
+      touchedEar: heard != null && heard.noise.touchesEar(goose.x, level.floorY, tuning),
+      heard: heard,
+      link: link,
+      tool: tool,
+      door: door,
+    ));
+    if (heard == null) return;
     final wasAwake = goose.isAwake;
-    goose.hear(noise, chainLinks: link?.link ?? 0, fromTool: tool != null);
+    goose.hear(heard.noise, chainLinks: link?.link ?? 0, fromTool: tool != null, sourceX: heard.sourceX);
     if (!wasAwake && goose.isAwake && link != null) {
       _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }

@@ -68,6 +68,12 @@ class Tuning {
     this.handHeight = 58,
     this.earHalfHeight = 38,
     this.verticalThreshold = 0.5,
+    this.cameraLookAhead = 120,
+    this.cameraFollow = 5,
+    this.doorPushTime = 2,
+    this.doorStandOff = 24,
+    this.doorCreak = 1,
+    this.closedDoorMuffle = 1,
   });
 
   /// Radius per ring; a noise draws one ring per loudness step.
@@ -235,4 +241,24 @@ class Tuning {
 
   /// The stick counts up or down past this fraction of its travel.
   final double verticalThreshold;
+
+  /// The camera keeps this far ahead of Milo, the way he faces.
+  final double cameraLookAhead;
+
+  /// How fast the camera catches up, per second: it closes 1 − e^(−rate·t)
+  /// of the gap in t seconds.
+  final double cameraFollow;
+
+  /// Seconds she pushes at a closed door before it gives.
+  final double doorPushTime;
+
+  /// She stops this far short of a closed door, and Milo can't shut a door
+  /// on her while she is this close to it.
+  final double doorStandOff;
+
+  /// How loud a door creaks when he opens or closes it at a walk.
+  final int doorCreak;
+
+  /// What a closed door takes off a noise passing through it.
+  final int closedDoorMuffle;
 }

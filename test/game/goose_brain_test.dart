@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/doors.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/level.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
 import 'package:jangan_bangunin_angsa_app/game/tuning.dart';
+
+import 'fixtures.dart';
 
 GooseBrain _goose() => GooseBrain(bedX: 502, floorY: 270, tuning: const Tuning());
 
@@ -180,6 +184,90 @@ void main() {
       run(g, 0.2, playerX: 236);
       expect(g.slipping, isFalse);
       expect(g.x, lessThan(x));
+    });
+  });
+
+  group('doors', () {
+    // Rooms a | b with the door at 400 closed; her bed at 800 in b.
+    late Doors doors;
+    late GooseBrain g;
+    setUp(() {
+      doors = Doors(Level.parse(twoRooms(extra: {'bed': [800, 270]})));
+      g = GooseBrain(bedX: 800, floorY: 270, tuning: const Tuning(), doors: doors);
+    });
+
+    void chase(double playerX) {
+      g.wake(WakeCause.noise);
+      run(g, 0.35, playerX: playerX);
+      expect(g.state, GooseState.chase);
+    }
+
+    test('she walks to where the sound really was, and pushes the door open on the way', () {
+      g.hear(const Noise(x: 400, loudness: 2), sourceX: 100);
+      expect(g.state, GooseState.sleepwalk);
+      run(g, (800 - 424) / 50 + 0.1);
+      expect(g.x, 424);
+      expect(g.pushingDoor, isTrue);
+      expect(doors.isOpen('d'), isFalse);
+      run(g, 2);
+      expect(doors.isOpen('d'), isTrue);
+      expect(doors.takeMoves().map((m) => (m.doorId, m.open, m.byGoose)), [('d', true, true)]);
+      expect(g.pushingDoor, isFalse);
+      run(g, 324 / 50 + 0.1);
+      expect(g.x, 100);
+      expect(g.sniffing, isTrue);
+    });
+
+    test('a sound on her side of a closed door leaves the door shut', () {
+      g.hear(const Noise(x: 410, loudness: 2));
+      run(g, (800 - 424) / 50 + 3);
+      expect(doors.isOpen('d'), isFalse);
+      expect(g.pushingDoor, isFalse);
+      expect(g.x, 424);
+      expect(g.sniffing, isTrue);
+    });
+
+    test('a slip mid-push starts the push over', () {
+      chase(100);
+      run(g, 376 / 110 + 0.1, playerX: 100);
+      run(g, 1.5, playerX: 100);
+      g.slip();
+      run(g, 2.05, playerX: 100);
+      run(g, 1, playerX: 100);
+      expect(doors.isOpen('d'), isFalse);
+    });
+
+    test('a long frame never carries her through a closed door', () {
+      final small = GooseBrain(bedX: 800, floorY: 270, tuning: const Tuning(), doors: Doors(doors.level));
+      for (final (brain, dt) in [(g, 0.1), (small, 0.01)]) {
+        brain.wake(WakeCause.noise);
+        for (var t = 0.0; t < 4.5; t += dt) {
+          brain.tick(dt, playerX: 100, playerHidden: false);
+          expect(brain.x, greaterThanOrEqualTo(424), reason: 'dt $dt at $t');
+        }
+        expect(brain.x, 424, reason: 'dt $dt');
+      }
+    });
+
+    test('chasing, she pushes through and follows', () {
+      chase(100);
+      run(g, 8, playerX: 100);
+      expect(doors.isOpen('d'), isTrue);
+      expect(g.x, lessThan(400));
+    });
+
+    test('turning away from a door starts the push over', () {
+      chase(100);
+      run(g, 376 / 110 + 0.1, playerX: 100);
+      expect(g.pushingDoor, isTrue);
+      run(g, 1.5, playerX: 100);
+      run(g, 0.5, playerX: 900);
+      expect(g.pushingDoor, isFalse);
+      run(g, 0.2, playerX: 100);
+      run(g, 1.7, playerX: 100);
+      expect(doors.isOpen('d'), isFalse);
+      run(g, 0.8, playerX: 100);
+      expect(doors.isOpen('d'), isTrue);
     });
   });
 }

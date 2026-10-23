@@ -14,6 +14,10 @@ import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
 import 'scene.dart';
 
+/// `flutter run --dart-define=GREYBOX=true` adds a button into the greybox
+/// house, until it replaces Night 3 (langkah 11).
+const greyboxEntry = bool.fromEnvironment('GREYBOX');
+
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
@@ -140,6 +144,22 @@ class MainMenuScreen extends StatelessWidget {
             ),
           ),
         ),
+
+        if (greyboxEntry)
+          at(
+            620,
+            20,
+            ChunkyButton.secondary(
+              onPressed: () =>
+                  Navigator.pushNamed(context, Routes.gameplay, arguments: BriefingPrefs.instance.tonight().withNight('house')),
+              label: 'House',
+              icon: GameIcon.moon,
+              iconStroke: 2.5,
+              height: 52,
+              fontSize: 15,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+            ),
+          ),
 
         // Actions.
         at(

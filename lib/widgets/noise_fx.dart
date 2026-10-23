@@ -4,6 +4,7 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/material.dart';
 
 import '../game/goose_brain.dart';
+import '../game/hearing.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
 import '../game/tools.dart';
@@ -47,13 +48,15 @@ abstract class _Fx {
 }
 
 /// Concentric rings: ring count = loudness, outer radius = how far it carries.
+/// [dashed] rings are a noise heard muffled through a door, drawn at it.
 class RingFx extends _Fx {
-  RingFx(this.center, this.radius, this.circles, this.color) : super(_ringLife);
+  RingFx(this.center, this.radius, this.circles, this.color, {this.dashed = false}) : super(_ringLife);
 
   final Offset center;
   final double radius;
   final int circles;
   final Color color;
+  final bool dashed;
 
   /// Rings grow from 40% to full size over their first half second.
   double get scale => 0.4 + 0.6 * (age / _ringGrow).clamp(0, 1);
@@ -101,11 +104,21 @@ class NoiseFx {
 
   void take(SimEvent e, {required double gooseX}) {
     switch (e) {
-      case NoiseMade(:final noise, :final link, :final tool):
+      case NoiseMade(:final noise, :final link, :final tool, :final heard, :final door):
         final at = link == null
             ? Offset(noise.x, (noise.y ?? level.floorY) - (noise.loudness == 0 ? _feetUp : _handsUp))
             : anchors[link.spotId]!;
         rings.add(RingFx(at, noise.radius(tuning), math.max(noise.loudness, 1), threatColor(noise.loudness)));
+        if (heard case Heard(:final through?, noise: final muffled)) {
+          rings.add(RingFx(
+            Offset(through.x, level.floorY - _handsUp),
+            muffled.radius(tuning),
+            math.max(muffled.loudness, 1),
+            threatColor(muffled.loudness),
+            dashed: true,
+          ));
+        }
+        if (door != null) words.add(WordFx('creak!', threatColor(noise.loudness), at));
         switch (tool) {
           case Tool.socks:
             words.add(WordFx('flop!', Palette.calmMint, at));
@@ -195,18 +208,30 @@ class _FxPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (final r in fx.rings) {
       for (var i = 0; i < r.circles; i++) {
-        canvas.drawCircle(
-          r.center,
-          r.radius * r.scale * (i + 1) / r.circles,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = _strokes[i]
-            ..color = r.color.withValues(alpha: _alphas[i] * r.opacity),
-        );
+        final radius = r.radius * r.scale * (i + 1) / r.circles;
+        final paint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r.dashed ? 2.5 : _strokes[i]
+          ..color = r.color.withValues(alpha: _alphas[i] * r.opacity * (r.dashed ? 0.8 : 1));
+        if (r.dashed) {
+          _dashedCircle(canvas, r.center, radius, paint);
+        } else {
+          canvas.drawCircle(r.center, radius, paint);
+        }
       }
     }
     for (final b in fx.badges) {
       if (b.from != null) _arc(canvas, b.from!, b.at, linkColor(b.link), b.opacity);
+    }
+  }
+
+  /// A circle dashed 6 on, 5 off, like the board's muffled ring.
+  void _dashedCircle(Canvas canvas, Offset center, double radius, Paint paint) {
+    final path = Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+    for (final PathMetric m in path.computeMetrics()) {
+      for (var d = 0.0; d < m.length; d += 11) {
+        canvas.drawPath(m.extractPath(d, math.min(d + 6, m.length)), paint);
+      }
     }
   }
 

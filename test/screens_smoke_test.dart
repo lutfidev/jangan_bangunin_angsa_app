@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:jangan_bangunin_angsa_app/game/modifiers.dart';
 import 'package:jangan_bangunin_angsa_app/screens/briefing_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/caught_screen.dart';
 import 'package:jangan_bangunin_angsa_app/screens/chaos_escape_screen.dart';
@@ -19,6 +20,7 @@ void main() {
     'MainMenu': const MainMenuScreen(),
     'Briefing': const BriefingScreen(),
     'Gameplay': const GameplayScreen(),
+    'GameplayHouse': const GameplayScreen(setup: NightSetup(night: 'house')),
     'PlanView': const PlanViewScreen(),
     'ChaosEscape': const ChaosEscapeScreen(),
     'Pause': const PauseScreen(),

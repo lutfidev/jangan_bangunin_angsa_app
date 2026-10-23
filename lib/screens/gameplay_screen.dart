@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../game/camera.dart';
+import '../game/geom.dart';
 import '../game/goose_brain.dart';
 import '../game/heist.dart';
 import '../game/level.dart';
@@ -21,6 +23,7 @@ import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
 import '../widgets/dashed_outline.dart';
+import '../widgets/goose_arrow.dart';
 import '../widgets/hud.dart';
 import '../widgets/joystick.dart';
 import '../widgets/noise_fx.dart';
@@ -30,6 +33,7 @@ import '../widgets/tool_button.dart';
 import 'heist_copy.dart';
 import 'night3_set.dart';
 import 'night_art.dart';
+import 'night_set.dart';
 import 'scene.dart';
 import 'tool_art.dart';
 
@@ -47,7 +51,7 @@ class GameplayScreen extends StatefulWidget {
   /// A night already under way, for tests.
   final NightSim? sim;
 
-  /// The room layer that takes HONK's 4px nudge.
+  /// The room layer: the camera scrolls it, HONK nudges it 4px.
   static const sceneKey = Key('gameplay-scene');
 
   /// The red edge drawn while she chases.
@@ -55,6 +59,9 @@ class GameplayScreen extends StatefulWidget {
 
   /// The speed lines behind her while she runs.
   static const speedLinesKey = Key('gameplay-speed-lines');
+
+  /// The chip pointing to Gertrude while she is off screen.
+  static const gooseArrowKey = Key('gameplay-goose-arrow');
 
   /// The CHAIN ×N! banner of a live chaos combo.
   static const comboKey = Key('gameplay-combo');
@@ -73,13 +80,22 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   /// Mirror Night: the room is drawn flipped, and so are the controls.
   bool get _mirror => _sim.setup.mirror;
 
+  /// The night [setup] names, remixed when it has a seed (a level with no
+  /// remix presets stays as it is).
   static Level _house(NightSetup setup) => switch (setup.remixSeed) {
-    final seed? => remixed(Levels.night3, seed),
-    null => Levels.night3,
+    final seed? => remixed(Levels.byId(setup.night), seed),
+    null => Levels.byId(setup.night),
   };
   late final Ticker _ticker = createTicker(_onTick);
   late final AppLifecycleListener _lifecycle = AppLifecycleListener(onInactive: _pause);
-  late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: spotAnchors, tuning: _sim.tuning);
+
+  /// How this house is drawn: Night 3's art, or greybox.
+  late final NightSet _set = NightSet.of(_sim.level);
+  late final NoiseFx _fx = NoiseFx(level: _sim.level, anchors: _set.spotAnchors, tuning: _sim.tuning);
+
+  /// Follows Milo along a house wider than the screen; Night 3 never moves it.
+  late final Camera _camera = Camera(worldWidth: _sim.level.width, tuning: _sim.tuning)
+    ..snap(_sim.playerX, _sim.facing);
 
   Duration? _last;
   bool _sneak = true;
@@ -121,6 +137,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       return;
     }
     _sim.tick(dt);
+    _camera.tick(dt, _sim.playerX, _sim.facing);
     _fx.advance(dt);
     for (final e in _sim.takeEvents()) {
       _fx.take(e, gooseX: _sim.goose.x);
@@ -143,7 +160,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     if (result != null) {
       _done = true;
       _ticker.stop();
-      if (result.outcome == Outcome.escaped) HeistLog.instance.record(result);
+      // The greybox house earns nothing until langkah 11 moves Night 3's
+      // socks and loot into it.
+      if (result.outcome == Outcome.escaped && result.level.id != Levels.house.id) HeistLog.instance.record(result);
       Navigator.pushReplacementNamed(
         context,
         result.outcome == Outcome.caught ? Routes.caught : Routes.victory,
@@ -214,299 +233,325 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               child: Transform.flip(
                 flipX: _mirror,
                 child: Transform.translate(
-              key: GameplayScreen.sceneKey,
-              offset: Offset(nudge, 0),
-              child: Stack(
-                children: [
-                  ...night3Backdrop(),
+                  key: GameplayScreen.sceneKey,
+                  offset: Offset(nudge - _camera.x, 0),
+                  child: OverflowBox(
+                    alignment: Alignment.topLeft,
+                    minWidth: level.width,
+                    maxWidth: level.width,
+                    child: Stack(
+                      children: [
+                        ..._set.backdrop(_sim, _camera.x, _camera.x + Stage.width),
 
-                  // Gertrude's ear zone: only rings that touch it raise the meter.
-                  if (!goose.isAwake)
-                    at(
-                      goose.x - 172,
-                      232,
-                      band == MeterBand.suspicious || band == MeterBand.danger
-                          ? const Opacity(
-                              opacity: 0.7,
-                              child: DashedOutline(
-                                color: Palette.beakOrange,
-                                strokeWidth: 2,
-                                oval: true,
-                                dash: 7,
-                                gap: 5,
+                        // Gertrude's ear zone: only rings that touch it raise the meter.
+                        if (!goose.isAwake)
+                          at(
+                            goose.x - 172,
+                            level.floorY - 38,
+                            band == MeterBand.suspicious || band == MeterBand.danger
+                                ? const Opacity(
+                                    opacity: 0.7,
+                                    child: DashedOutline(
+                                      color: Palette.beakOrange,
+                                      strokeWidth: 2,
+                                      oval: true,
+                                      dash: 7,
+                                      gap: 5,
+                                    ),
+                                  )
+                                : const Opacity(
+                                    opacity: 0.4,
+                                    child: DashedOutline(
+                                      color: Palette.moonlight,
+                                      strokeWidth: 2,
+                                      oval: true,
+                                      dash: 7,
+                                      gap: 5,
+                                    ),
+                                  ),
+                            width: 344,
+                            height: 76,
+                          ),
+                        rug(level.bedX),
+
+                        // Free snap spots glow, brighter while he carries something.
+                        for (final spot in level.spots.values)
+                          if (spot.snap && _sim.chain.objectAt(spot.id) == null)
+                            at(
+                              _set.snapAnchor(spot.id).dx - 15,
+                              _set.snapAnchor(spot.id).dy - 15,
+                              Opacity(
+                                opacity: _sim.held != null ? 0.85 : 0.35,
+                                child: const DashedOutline(color: Palette.lamp, strokeWidth: 3, oval: true),
                               ),
-                            )
-                          : const Opacity(
-                              opacity: 0.4,
-                              child: DashedOutline(
-                                color: Palette.moonlight,
-                                strokeWidth: 2,
-                                oval: true,
-                                dash: 7,
-                                gap: 5,
+                              width: 30,
+                              height: 30,
+                            ),
+
+                        // The chain kit; spent tippers and walkers lie where they fell,
+                        // the pot wherever it was put down.
+                        for (final o in level.objects)
+                          if ((_set.objectKind(o.id), _sim.chain.spotOf(o.id)) case (final kind?, final spotId?))
+                            at(
+                              _set.objectBox(o.id, spotId).left,
+                              _set.objectBox(o.id, spotId).top,
+                              Transform.rotate(
+                                angle: switch (o.type) {
+                                  ObjectType.tipper when _sim.chain.isSpent(o.id) => deg(-70),
+                                  ObjectType.walker when _sim.chain.isSpent(o.id) => deg(-80),
+                                  _ => 0,
+                                },
+                                child: Prop(kind, size: _set.objectBox(o.id, spotId).size),
                               ),
                             ),
-                      width: 344,
-                      height: 76,
-                    ),
-                  night3Rug(),
 
-                  // Free snap spots glow, brighter while he carries something.
-                  for (final MapEntry(key: spotId, value: c) in snapAnchors.entries)
-                    if (_sim.chain.objectAt(spotId) == null)
-                      at(
-                        c.dx - 15,
-                        c.dy - 15,
-                        Opacity(
-                          opacity: _sim.held != null ? 0.85 : 0.35,
-                          child: const DashedOutline(color: Palette.lamp, strokeWidth: 3, oval: true),
-                        ),
-                        width: 30,
-                        height: 30,
-                      ),
-
-                  // The chain kit; spent tippers and walkers lie where they fell,
-                  // the pot wherever it was put down.
-                  for (final MapEntry(key: id, value: art) in objectArt.entries)
-                    if (_sim.chain.spotOf(id) case final spotId?)
-                      at(
-                        id == 'pot' ? potBoxAt(spotId).left : art.box.left,
-                        id == 'pot' ? potBoxAt(spotId).top : art.box.top,
-                        Transform.rotate(
-                          angle: switch (id) {
-                            'glass' when _sim.chain.isSpent(id) => deg(-70),
-                            'robot' when _sim.chain.isSpent(id) => deg(-80),
-                            _ => 0,
-                          },
-                          child: Prop(art.kind, size: art.box.size),
-                        ),
-                      ),
-
-                  // Loot still in the house, and what Interact would do.
-                  if (interaction case GrabLoot(:final loot))
-                    at(
-                      lootBox(loot).left - 14,
-                      lootBox(loot).top - 14,
-                      const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
-                      width: lootBox(loot).size + 28,
-                      height: lootBox(loot).size + 16,
-                    ),
-                  for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && !loot.guarded && !(_sim.crawling && _onCrawlTop(level, loot))) _loot(loot),
-                  for (final loot in level.loot)
-                    if (_onCrawlTop(level, loot) && !carried.contains(loot.id)) chickenSparkle(loot.x),
-
-                  // Tools on the floor.
-                  if (_sim.spillX case final x?) ...marbleSpill(x),
-                  if (_sim.mouse case final mouse?) toyMouse(mouse),
-
-                  // Speed lines trail her while she runs.
-                  if (chasing && !_caught)
-                    at(
-                      _gooseRight ? goose.x - 120 : goose.x + 60,
-                      196,
-                      const InlineSvg(
-                        key: GameplayScreen.speedLinesKey,
-                        '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
-                        width: 60,
-                        height: 50,
-                      ),
-                    ),
-
-                  // Gertrude in her nest, the egg under her.
-                  if (!_caught)
-                    at(
-                      goose.x - 70,
-                      160,
-                      Transform.rotate(
-                        angle: goose.slipping ? deg(-20) : 0,
-                        child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
-                      ),
-                    ),
-                  for (final loot in level.loot)
-                    if (!carried.contains(loot.id) && loot.guarded) _loot(loot),
-                  night3Nest(),
-                  ...switch (goose.state) {
-                    GooseState.asleep || GooseState.drowsy => [
-                      at(goose.x - 56, 160, const Unmirror(child: Snores(reversed: true))),
-                    ],
-                    GooseState.stirring => [
-                      at(goose.x - 56, 166, Unmirror(child: Text('z…?', style: display(18, color: Palette.moonlight)))),
-                    ],
-                    GooseState.suspicious || GooseState.lostYou => [
-                      at(
-                        goose.x - 72,
-                        120,
-                        Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Palette.beakOrange,
-                            shape: BoxShape.circle,
-                            border: inkBorder(),
+                        // Loot still in the house, and what Interact would do.
+                        if (interaction case GrabLoot(:final loot))
+                          at(
+                            _set.lootBox(loot).left - 14,
+                            _set.lootBox(loot).top - 14,
+                            const Opacity(opacity: 0.85, child: DashedOutline(color: Palette.lamp, oval: true)),
+                            width: _set.lootBox(loot).size + 28,
+                            height: _set.lootBox(loot).size + 16,
                           ),
-                          child: Unmirror(child: Text('?', style: display(20, height: 1))),
+                        for (final loot in level.loot)
+                          if (!carried.contains(loot.id) &&
+                              !loot.guarded &&
+                              !(_sim.crawling && _onCrawlTop(level, loot)))
+                            _loot(loot),
+                        for (final loot in level.loot)
+                          if (_onCrawlTop(level, loot) && !carried.contains(loot.id))
+                            chickenSparkle(_set.lootBox(loot)),
+
+                        // Tools on the floor.
+                        if (_sim.spillX case final x?) ...marbleSpill(x),
+                        if (_sim.mouse case final mouse?) toyMouse(mouse),
+
+                        // Speed lines trail her while she runs.
+                        if (chasing && !_caught)
+                          at(
+                            _gooseRight ? goose.x - 120 : goose.x + 60,
+                            196,
+                            const InlineSvg(
+                              key: GameplayScreen.speedLinesKey,
+                              '<path d="M4 10 H44 M14 26 H56 M4 42 H40" stroke="#FBF8F1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>',
+                              width: 60,
+                              height: 50,
+                            ),
+                          ),
+
+                        // Gertrude in her nest, the egg under her.
+                        if (!_caught)
+                          at(
+                            goose.x - 70,
+                            level.floorY - 110,
+                            Transform.rotate(
+                              angle: goose.slipping ? deg(-20) : 0,
+                              child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
+                            ),
+                          ),
+                        for (final loot in level.loot)
+                          if (!carried.contains(loot.id) && loot.guarded) _loot(loot),
+                        nest(level.bedX),
+                        ...switch (goose.state) {
+                          GooseState.asleep ||
+                          GooseState.drowsy => [at(goose.x - 56, 160, const Unmirror(child: Snores(reversed: true)))],
+                          GooseState.stirring => [
+                            at(
+                              goose.x - 56,
+                              166,
+                              Unmirror(
+                                child: Text('z…?', style: display(18, color: Palette.moonlight)),
+                              ),
+                            ),
+                          ],
+                          GooseState.suspicious || GooseState.lostYou => [
+                            at(
+                              goose.x - 72,
+                              120,
+                              Container(
+                                width: 34,
+                                height: 34,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Palette.beakOrange,
+                                  shape: BoxShape.circle,
+                                  border: inkBorder(),
+                                ),
+                                child: Unmirror(child: Text('?', style: display(20, height: 1))),
+                              ),
+                            ),
+                          ],
+                          _ => const <Widget>[],
+                        },
+
+                        // Milo, or Milo under a goose.
+                        if (_caught) ...[
+                          at(px - 50, 160, const Burglar(pose: BurglarPose.caught, width: 100)),
+                          at(px - 50, 182, const Goose(mood: GooseMood.awake, width: 100)),
+                          at(
+                            px - 90,
+                            150,
+                            const SizedBox(
+                              width: 180,
+                              height: 100,
+                              child: FittedBox(child: InlineSvg(featherPuffSvg, width: 330, height: 200)),
+                            ),
+                          ),
+                        ] else if (_sim.hidden)
+                          ..._set.hiding(_nearestHide(level, px))
+                        else ...[
+                          at(px - 30, py - 74, Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0)),
+                          if (_sim.held case final held?) at(px - 20, py - 102, Prop(_set.objectKind(held)!, size: 40)),
+                          // Up there he'd hide the loot he crawls to; it goes in front.
+                          for (final loot in level.loot)
+                            if (_sim.crawling && _onCrawlTop(level, loot) && !carried.contains(loot.id)) _loot(loot),
+                        ],
+                        if (_sneak && !goose.isAwake && !_sim.hidden && _sim.grounded && !_sim.crawling)
+                          at(
+                            px - 26,
+                            py - 14,
+                            const InlineSvg(
+                              '<path d="M8 14 Q4 8 8 2 M52 14 Q56 8 52 2" fill="none" stroke="#5CC9A7" stroke-width="2.5" stroke-linecap="round"/>',
+                              width: 60,
+                              height: 18,
+                            ),
+                          ),
+
+                        switch (interaction) {
+                          GrabLoot(:final loot) => at(
+                            _set.lootBox(loot).left - 4,
+                            _set.lootBox(loot).top - 46,
+                            const Unmirror(child: PromptBubble('Grab')),
+                          ),
+                          Wind(:final spotId) => at(
+                            _set.spotAnchors[spotId]!.dx - 32,
+                            _set.spotAnchors[spotId]!.dy - 64,
+                            const Unmirror(child: PromptBubble('Wind')),
+                          ),
+                          // The other verbs show on the button only, like Plan View's MOVE POT.
+                          _ => const SizedBox.shrink(),
+                        },
+                        // HIDE tags: the one in reach, or all of them once she is up,
+                        // while he could hide at all.
+                        for (final h in level.hideSpots)
+                          if (!_sim.hidden &&
+                              _sim.onFloor &&
+                              _sim.held == null &&
+                              ((interaction is Hide && interaction.x == h.x) || goose.isAwake))
+                            hideTag(_set.hideTag(h)),
+                        at(
+                          level.exitX - 12,
+                          level.floorY - 162,
+                          // The EXIT sign pulses while she chases.
+                          Transform.scale(
+                            scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
+                            child: const ExitSign(),
+                          ),
                         ),
-                      ),
-                    ],
-                    _ => const <Widget>[],
-                  },
 
-                  // Milo, or Milo under a goose.
-                  if (_caught) ...[
-                    at(px - 50, 160, const Burglar(pose: BurglarPose.caught, width: 100)),
-                    at(px - 50, 182, const Goose(mood: GooseMood.awake, width: 100)),
-                    at(
-                      px - 90,
-                      150,
-                      const SizedBox(
-                        width: 180,
-                        height: 100,
-                        child: FittedBox(child: InlineSvg(featherPuffSvg, width: 330, height: 200)),
-                      ),
-                    ),
-                  ] else if (_sim.hidden)
-                    ...hidingMilo(_nearestHide(level, px))
-                  else ...[
-                    at(
-                      px - 30,
-                      py - 74,
-                      Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0),
-                    ),
-                    if (_sim.held case final held?)
-                      at(px - 20, py - 102, Prop(objectArt[held]!.kind, size: 40)),
-                    // Up there he'd hide the loot he crawls to; it goes in front.
-                    for (final loot in level.loot)
-                      if (_sim.crawling && _onCrawlTop(level, loot) && !carried.contains(loot.id)) _loot(loot),
-                  ],
-                  if (_sneak && !goose.isAwake && !_sim.hidden && _sim.grounded && !_sim.crawling)
-                    at(
-                      px - 26,
-                      py - 14,
-                      const InlineSvg(
-                        '<path d="M8 14 Q4 8 8 2 M52 14 Q56 8 52 2" fill="none" stroke="#5CC9A7" stroke-width="2.5" stroke-linecap="round"/>',
-                        width: 60,
-                        height: 18,
-                      ),
-                    ),
+                        // Socks in the air, and the one being aimed.
+                        for (final f in _sim.flights)
+                          flyingSock(
+                            f,
+                            throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX, _set.spotAnchors), handY: f.fromY),
+                          ),
+                        if (_aimDx case final dx?)
+                          Positioned.fill(
+                            child: AimLayer(
+                              arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx), _set.spotAnchors), handY: handY),
+                            ),
+                          ),
 
-                  switch (interaction) {
-                    GrabLoot(:final loot) => at(
-                      lootBox(loot).left - 4,
-                      lootBox(loot).top - 46,
-                      const Unmirror(child: PromptBubble('Grab')),
-                    ),
-                    Wind(:final spotId) => at(
-                      spotAnchors[spotId]!.dx - 32,
-                      spotAnchors[spotId]!.dy - 64,
-                      const Unmirror(child: PromptBubble('Wind')),
-                    ),
-                    // The other verbs show on the button only, like Plan View's MOVE POT.
-                    _ => const SizedBox.shrink(),
-                  },
-                  // HIDE tags: the one in reach, or all of them once she is up,
-                  // while he could hide at all.
-                  for (final h in level.hideSpots)
-                    if (!_sim.hidden && _sim.onFloor && _sim.held == null &&
-                        ((interaction is Hide && interaction.x == h.x) || goose.isAwake))
-                      hideTag(hideArt[h.x]!.tag),
-                  at(
-                    758,
-                    108,
-                    // The EXIT sign pulses while she chases.
-                    Transform.scale(
-                      scale: chasing ? 1 + 0.08 * math.sin(2 * math.pi * 1.5 * _sim.elapsed) : 1,
-                      child: const ExitSign(),
+                        FxLayer(fx: _fx),
+                        if (honk != null) ...[
+                          at(
+                            honk.at.dx - 80,
+                            honk.at.dy - 80,
+                            Opacity(
+                              opacity: 0.5 * honk.opacity,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Palette.gooseWhite, width: 6),
+                                ),
+                              ),
+                            ),
+                            width: 160,
+                            height: 160,
+                          ),
+                          at(
+                            honk.at.dx - 160,
+                            honk.at.dy - 90,
+                            Opacity(
+                              opacity: honk.opacity,
+                              child: Unmirror(
+                                child: Transform.rotate(
+                                  angle: deg(-8),
+                                  child: OutlinedText(
+                                    'HONK!',
+                                    style: display(38, color: Palette.alarmTomato, height: 1),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (goose.state == GooseState.distracted)
+                          at(
+                            goose.x - 60,
+                            102,
+                            Unmirror(
+                              child: Pill(
+                                'DISTRACTED · ${goose.distractLeft.ceil()}s',
+                                color: Palette.lamp,
+                                borderWidth: 3,
+                                padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+                                textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
+                                leading: const InlineSvg(
+                                  '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
+                                  '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
+                                  width: 24,
+                                  height: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        ..._set.foreground(_sim),
+                      ],
                     ),
                   ),
-
-                  // Socks in the air, and the one being aimed.
-                  for (final f in _sim.flights)
-                    flyingSock(f, throwArc(fromX: f.fromX, end: throwEnd(_sim, f.toX), handY: f.fromY)),
-                  if (_aimDx case final dx?)
-                    Positioned.fill(
-                      child: AimLayer(arc: throwArc(fromX: px, end: throwEnd(_sim, _aimX(dx)), handY: handY)),
-                    ),
-
-                  FxLayer(fx: _fx),
-                  if (honk != null) ...[
-                    at(
-                      honk.at.dx - 80,
-                      honk.at.dy - 80,
-                      Opacity(
-                        opacity: 0.5 * honk.opacity,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Palette.gooseWhite, width: 6),
-                          ),
-                        ),
-                      ),
-                      width: 160,
-                      height: 160,
-                    ),
-                    at(
-                      honk.at.dx - 160,
-                      honk.at.dy - 90,
-                      Opacity(
-                        opacity: honk.opacity,
-                        child: Unmirror(
-                          child: Transform.rotate(
-                            angle: deg(-8),
-                            child: OutlinedText('HONK!', style: display(38, color: Palette.alarmTomato, height: 1)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (goose.state == GooseState.distracted)
-                    at(
-                      goose.x - 60,
-                      102,
-                      Unmirror(
-                        child: Pill(
-                          'DISTRACTED · ${goose.distractLeft.ceil()}s',
-                          color: Palette.lamp,
-                          borderWidth: 3,
-                          padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
-                          textStyle: ui(12, weight: FontWeight.w800, letterSpacing: 1),
-                          leading: const InlineSvg(
-                            '<circle cx="12" cy="12" r="9" fill="#FBF8F1" stroke="#1C1A2B" stroke-width="2.5"/>'
-                            '<path d="M12 3 A9 9 0 0 1 20.5 15 L12 12 Z" fill="#F0533B"/>',
-                            width: 24,
-                            height: 24,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  ...floorAndControlBand(rules: true),
-                  loosePlank(),
-
-                  // Red chase frame.
-                  if (chasing)
-                    at(
-                      0,
-                      0,
-                      IgnorePointer(
-                        key: GameplayScreen.chaseFrameKey,
-                        child: Opacity(
-                          opacity: 0.55,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(border: Border.all(color: Palette.alarmTomato, width: 6)),
-                          ),
-                        ),
-                      ),
-                      width: 844,
-                      height: 286,
-                    ),
-                ],
-              ),
                 ),
               ),
             ),
           ),
+
+          // Red chase frame, on the screen's edge: it doesn't scroll.
+          if (chasing)
+            at(
+              0,
+              0,
+              IgnorePointer(
+                key: GameplayScreen.chaseFrameKey,
+                child: Opacity(
+                  opacity: 0.55,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(border: Border.all(color: Palette.alarmTomato, width: 6)),
+                  ),
+                ),
+              ),
+              width: 844,
+              height: 286,
+            ),
+
+          if (!_caught)
+            if (_gooseArrowLeft(goose.x) case final left?)
+              at(
+                left ? 8 : 772,
+                160,
+                GooseArrow(key: GameplayScreen.gooseArrowKey, left: left, state: goose.state, pulse: _sim.elapsed),
+              ),
 
           // HUD.
           at(
@@ -607,9 +652,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           at(
             752,
             302,
-            JumpButton(
-              onPressed: _sim.jumpReady && _freezeLeft <= 0 && !_paused ? () => setState(_sim.jump) : null,
-            ),
+            JumpButton(onPressed: _sim.jumpReady && _freezeLeft <= 0 && !_paused ? () => setState(_sim.jump) : null),
           ),
         ],
       ),
@@ -626,6 +669,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       return goalPill(g, _sim);
     }
     return 'Make it to the exit';
+  }
+
+  /// Which screen edge Gertrude at [x] is off past (true: left), or null
+  /// while any of her shows. Mirror Night swaps the edges.
+  bool? _gooseArrowLeft(double x) {
+    final left = x + 70 < _camera.x;
+    final right = x - 70 > _camera.x + Stage.width;
+    if (!left && !right) return null;
+    return _mirror ? right : left;
   }
 
   bool _comboLive(int links) => _sim.combo.count >= links && _sim.comboLeft > 0;
@@ -655,7 +707,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   }
 
   Widget _loot(Loot loot) {
-    final box = lootBox(loot);
+    final box = _set.lootBox(loot);
     return at(box.left, box.top, Prop(lootArt[loot.id]!.kind, size: box.size));
   }
 
@@ -673,8 +725,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       ? BurglarPose.carry
       : BurglarPose.sneak;
 
-  static double _nearestHide(Level level, double x) =>
-      level.hideSpots.map((h) => h.x).reduce((a, b) => (a - x).abs() <= (b - x).abs() ? a : b);
+  static Vec _nearestHide(Level level, double x) =>
+      level.hideSpots.reduce((a, b) => (a.x - x).abs() <= (b.x - x).abs() ? a : b);
 
   Widget _interactButton(Interaction? interaction) {
     void interact() {
@@ -706,11 +758,13 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       PlaceObject() => ActionButton(label: 'PLACE', semanticLabel: 'Put the ${_sim.held} down', onPressed: interact),
       Hide() => ActionButton(label: 'HIDE', semanticLabel: 'Hide', onPressed: interact),
       Unhide() => ActionButton(label: 'OUT', semanticLabel: 'Come out of hiding', onPressed: interact),
-      // Hands full: the only thing he could do is put it down.
-      null when _sim.held != null => const Opacity(
-        opacity: 0.6,
-        child: ActionButton(label: 'PLACE', onPressed: null),
+      UseDoor(:final open) => ActionButton(
+        label: open ? 'OPEN' : 'CLOSE',
+        semanticLabel: open ? 'Open the door' : 'Close the door',
+        onPressed: interact,
       ),
+      // Hands full: the only thing he could do is put it down.
+      null when _sim.held != null => const Opacity(opacity: 0.6, child: ActionButton(label: 'PLACE', onPressed: null)),
       null => const Opacity(
         opacity: 0.6,
         child: ActionButton(label: 'GRAB', icon: hand, onPressed: null),

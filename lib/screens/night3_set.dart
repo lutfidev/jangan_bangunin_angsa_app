@@ -1,13 +1,50 @@
 import 'package:flutter/material.dart';
 
 import '../art/art.dart';
+import '../game/geom.dart';
+import '../game/level.dart';
+import '../game/night_sim.dart';
 import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/hud.dart';
 import 'night_art.dart';
+import 'night_art.dart' as art;
+import 'night_set.dart';
 import 'scene.dart';
 
 /// Night 3's room, The Midnight Kitchen: everything that never moves.
+
+/// Night 3 as a [NightSet]: its own art, at the artboard's positions.
+class Night3Set implements NightSet {
+  const Night3Set();
+
+  @override
+  List<Widget> backdrop(NightSim sim, double viewLeft, double viewRight) => night3Backdrop();
+
+  @override
+  List<Widget> foreground(NightSim sim) => [...floorAndControlBand(rules: true), loosePlank()];
+
+  @override
+  Map<String, Offset> get spotAnchors => art.spotAnchors;
+
+  @override
+  Offset snapAnchor(String spotId) => snapAnchors[spotId]!;
+
+  @override
+  PropKind? objectKind(String objectId) => objectArt[objectId]?.kind;
+
+  @override
+  ArtBox objectBox(String objectId, String spotId) => objectId == 'pot' ? potBoxAt(spotId) : objectArt[objectId]!.box;
+
+  @override
+  ArtBox lootBox(Loot loot) => art.lootBox(loot);
+
+  @override
+  Offset hideTag(Vec hide) => hideArt[hide.x]!.tag;
+
+  @override
+  List<Widget> hiding(Vec hide) => hidingMilo(hide.x);
+}
 
 /// Walls, window, lamp, counter, bookshelf, crawlway, side tables, coat
 /// rack and the exit door.
@@ -23,10 +60,7 @@ List<Widget> night3Backdrop() => [
     40,
     62,
     Container(
-      decoration: BoxDecoration(
-        border: inkBorder(4),
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(border: inkBorder(4), borderRadius: BorderRadius.circular(6)),
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF16193A),
@@ -51,11 +85,11 @@ List<Widget> night3Backdrop() => [
   box(319, 160, 70, 3, Palette.ink),
   box(319, 212, 70, 3, Palette.ink),
   at(324, 126, const Books([...bookIcon, (Palette.lamp, 26.0, 14.0)])),
-  at(324, 178, const Books([
-    (Palette.lamp, 30.0, 0.0),
-    (Color(0xFF4C5BA8), 30.0, 0.0),
-    (Palette.alarmTomato, 26.0, 0.0),
-  ])),
+  at(
+    324,
+    178,
+    const Books([(Palette.lamp, 30.0, 0.0), (Color(0xFF4C5BA8), 30.0, 0.0), (Palette.alarmTomato, 26.0, 0.0)]),
+  ),
   ...crawlway(),
 
   // Side tables, and the gnome in the hall.
@@ -68,16 +102,10 @@ List<Widget> night3Backdrop() => [
   ...exitDoor(knob: true),
 ];
 
-/// Gertrude's rug, under her bed.
-Widget night3Rug() => box(410, 258, 190, 22, Palette.rug, border: 3, oval: true);
-
-/// Her nest, drawn in front of her and the egg.
-Widget night3Nest() => at(424, 234, const InlineSvg(nestSvg + nestStrawSvg, width: 160, height: 40));
-
-/// The sparkle that marks the rubber chicken, standing at [x] up high.
-Widget chickenSparkle(double x) => at(
-  x + 15,
-  62,
+/// The sparkle that marks the rubber chicken drawn at [box], up high.
+Widget chickenSparkle(ArtBox box) => at(
+  box.centerX + 15,
+  box.top - 8,
   const InlineSvg(
     '<path d="M10 1 L12 8 L19 10 L12 12 L10 19 L8 12 L1 10 L8 8 Z" fill="#FFC14D" stroke="#1C1A2B" stroke-width="2" stroke-linejoin="round"/>',
     width: 20,
@@ -130,32 +158,34 @@ List<Widget> coatRack() => [
 Widget hideTag(Offset at_) => at(
   at_.dx,
   at_.dy,
-  Unmirror(child: Pill(
-    'HIDE',
-    radius: 6,
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-    textStyle: ui(10, weight: FontWeight.w800),
-  )),
+  Unmirror(
+    child: Pill(
+      'HIDE',
+      radius: 6,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      textStyle: ui(10, weight: FontWeight.w800),
+    ),
+  ),
 );
 
 /// Milo tucked into the hide spot at [x]: only his masked eyes show. The
 /// kitchen cabinet door stands open a crack around them.
 List<Widget> hidingMilo(double x) {
   final (:peek, :crack, tag: _) = hideArt[x]!;
-  return [
-    if (crack != null) box(crack.left, crack.top, crack.width, crack.height, Palette.ink),
-    at(
-      peek.dx,
-      peek.dy,
-      const InlineSvg(
-        '<rect x="1.5" y="2" width="27" height="10" rx="4" fill="#F0533B" stroke="#1C1A2B" stroke-width="2.5"/>'
-        '<circle cx="10" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
-        '<circle cx="20" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
-        '<circle cx="10.5" cy="7" r="1.6" fill="#1C1A2B"/>'
-        '<circle cx="20.5" cy="7" r="1.6" fill="#1C1A2B"/>',
-        width: 30,
-        height: 14,
-      ),
-    ),
-  ];
+  return [if (crack != null) box(crack.left, crack.top, crack.width, crack.height, Palette.ink), miloPeek(peek)];
 }
+
+/// Milo's masked eyes peeking out of a hiding place, at [peek].
+Widget miloPeek(Offset peek) => at(
+  peek.dx,
+  peek.dy,
+  const InlineSvg(
+    '<rect x="1.5" y="2" width="27" height="10" rx="4" fill="#F0533B" stroke="#1C1A2B" stroke-width="2.5"/>'
+    '<circle cx="10" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+    '<circle cx="20" cy="7" r="3.5" fill="#FFFFFF" stroke="#1C1A2B" stroke-width="2"/>'
+    '<circle cx="10.5" cy="7" r="1.6" fill="#1C1A2B"/>'
+    '<circle cx="20.5" cy="7" r="1.6" fill="#1C1A2B"/>',
+    width: 30,
+    height: 14,
+  ),
+);

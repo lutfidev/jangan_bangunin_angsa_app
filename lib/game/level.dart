@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'geom.dart';
 import 'heist.dart';
@@ -53,6 +54,47 @@ class Loot {
   final bool squeaks;
 }
 
+/// A room of the house: a box on the floor line. Rooms touch edge to edge,
+/// and a point on a shared edge (a doorway) is in both.
+class Room {
+  const Room({required this.id, required this.name, required this.box});
+
+  final String id;
+  final String name;
+  final Box box;
+
+  bool contains(Vec p) => box.contains(p);
+}
+
+/// The door between rooms [left] and [right], standing on the floor at
+/// [x]. Its size is part of the level format, like the world's walls.
+class Door {
+  const Door({
+    required this.id,
+    required this.x,
+    required this.floorY,
+    required this.left,
+    required this.right,
+    this.startsOpen = false,
+  });
+
+  static const thickness = 12.0;
+  static const height = 130.0;
+
+  final String id;
+  final double x;
+  final double floorY;
+  final String left;
+  final String right;
+  final bool startsOpen;
+
+  /// The closed door: a wall for Milo, a barrier for her.
+  Box get leaf => Box(x - thickness / 2, floorY - height, x + thickness / 2, floorY);
+
+  /// Where Milo reaches for it.
+  Vec get handle => Vec(x, floorY);
+}
+
 /// One night's house: spots, objects, the chain graph and the loot.
 class Level {
   Level._({
@@ -61,6 +103,8 @@ class Level {
     required this.width,
     required this.floorY,
     required this.geometry,
+    required this.rooms,
+    required this.doors,
     required this.playerStart,
     required this.exit,
     required this.bed,
@@ -89,6 +133,43 @@ class Level {
       Solid(Box.ltwh(width, -400, 100, 790), Surface.wood),
       Solid(Box.ltwh(0, -100, width, 100), Surface.wood),
     ];
+    final rooms = <Room>[];
+    for (final r in _list(json, 'rooms')) {
+      final room = Room(id: _str(r, 'id'), name: _str(r, 'name'), box: _box(r, id));
+      if (rooms.any((x) => x.id == room.id)) throw FormatException('duplicate room: ${room.id}');
+      if (rooms.any((x) => x.box.overlaps(room.box))) throw FormatException('rooms overlap: ${room.id}');
+      if (room.box.left < 0 || room.box.right > width) throw FormatException('room outside the world: ${room.id}');
+      rooms.add(room);
+    }
+    if (rooms.isEmpty) rooms.add(Room(id: 'room', name: _str(json, 'name'), box: Box(0, 0, width, floorY)));
+
+    final floor = Geometry(solids: solids, platforms: const [], floorY: floorY);
+    final doors = <Door>[];
+    for (final d in _list(json, 'doors')) {
+      final did = _str(d, 'id');
+      final x = _num(d, 'x');
+      final left = rooms.where((r) => r.box.right == x).firstOrNull;
+      final right = rooms.where((r) => r.box.left == x).firstOrNull;
+      if (left == null || right == null) throw FormatException('door not between two rooms: $did');
+      if (floor.floorSurfaceAt(x) == null) throw FormatException('door not on the floor: $did');
+      if (doors.any((x) => x.id == did)) throw FormatException('duplicate door: $did');
+      if (doors.any((other) => other.x == x)) throw FormatException('two doors in one doorway: $did');
+      final door = Door(id: did, x: x, floorY: floorY, left: left.id, right: right.id, startsOpen: _flag(d, 'open'));
+      doors.add(door);
+      // The wall above the doorway, from the rooms' top down to the lintel.
+      solids.add(Solid(
+        Box(door.leaf.left, math.min(left.box.top, right.box.top), door.leaf.right, door.leaf.top),
+        Surface.wood,
+      ));
+    }
+
+    for (final a in rooms) {
+      for (final b in rooms) {
+        final meet = a.box.right == b.box.left && a.box.top < b.box.bottom && b.box.top < a.box.bottom;
+        if (meet && !doors.any((d) => d.x == a.box.right)) throw FormatException('rooms meet without a door: ${b.id}');
+      }
+    }
+
     final platforms = <Platform>[];
     for (final p in _list(json, 'platforms')) {
       final pid = _str(p, 'id');
@@ -110,6 +191,7 @@ class Level {
       final [x, y] = _numbers(raw, 2, what);
       final p = Vec(x, y);
       if (!geometry.restsOnSurface(p)) throw FormatException('not on a surface: $what');
+      if (!rooms.any((r) => r.contains(p))) throw FormatException('not in a room: $what');
       return p;
     }
 
@@ -215,6 +297,8 @@ class Level {
       width: width,
       floorY: floorY,
       geometry: geometry,
+      rooms: rooms,
+      doors: doors,
       playerStart: placed(json['playerStart'], 'playerStart $id'),
       exit: placed(json['exit'], 'exit $id'),
       bed: placed(json['bed'], 'bed $id'),
@@ -246,6 +330,13 @@ class Level {
 
   /// Floor, walls and furniture tops.
   final Geometry geometry;
+
+  /// Never empty: a level without rooms is one room the size of the world.
+  final List<Room> rooms;
+  final List<Door> doors;
+
+  /// The rooms [p] is in: two in a doorway, none outside the house.
+  List<Room> roomsAt(Vec p) => [for (final r in rooms) if (r.contains(p)) r];
   final Vec playerStart;
   final Vec exit;
   final Vec bed;
@@ -275,6 +366,8 @@ class Level {
     width: width,
     floorY: floorY,
     geometry: geometry,
+    rooms: rooms,
+    doors: doors,
     playerStart: playerStart,
     exit: exit,
     bed: bed,
