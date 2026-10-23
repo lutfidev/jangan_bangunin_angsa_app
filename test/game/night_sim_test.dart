@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/level.dart';
@@ -1260,6 +1261,83 @@ void main() {
       s.useTool();
       tickUntil(s, () => s.mouse!.stopped);
       expect(s.mouse!.x, 634);
+    });
+  });
+
+  group('stairs and vents', () {
+    NightSim storeys({Map<String, Object?> extra = const {}, List<Object?>? spots, List<Object?>? objects}) {
+      final level = Level.parse(twoStoreys(extra: {'objects': ?objects, ...extra}, spots: spots));
+      return NightSim(level)..setSneak(false);
+    }
+
+    test('he climbs the stair with the stick, stepping as he walks', () {
+      final s = storeys();
+      expect(s.canMantle, isTrue, reason: 'the up hint lights at the foot');
+      expect(s.viewFloorY, 660);
+      s
+        ..setVertical(-1)
+        ..tick(frame)
+        ..setVertical(0);
+      expect(s.onStairs, isTrue);
+      expect(s.jumpReady, isFalse);
+      expect(s.interaction, isNull);
+      s.takeEvents();
+      s.setMove(1);
+      tickUntil(s, () => s.playerX >= 200, limit: 2);
+      expect(s.viewFloorY, closeTo(s.playerY, 0.01));
+      expect(s.takeEvents().whereType<NoiseMade>().where((e) => e.noise.loudness == 0), isNotEmpty);
+      tickUntil(s, () => !s.onStairs, limit: 2);
+      expect(s.playerY, 270);
+      expect(s.onFloor, isTrue);
+      expect(s.viewFloorY, 270);
+      s.setMove(0);
+      expect(s.canDrop, isTrue, reason: 'the down hint lights at the head');
+    });
+
+    test('sneaking up the stair is silent', () {
+      final s = storeys()..setSneak(true);
+      s
+        ..setVertical(-1)
+        ..tick(frame)
+        ..setVertical(0)
+        ..takeEvents()
+        ..setMove(1);
+      tickUntil(s, () => !s.onStairs, limit: 4);
+      expect(s.takeEvents().whereType<NoiseMade>(), isEmpty);
+    });
+
+    test('he crawls through a vent, silent and out of the world', () {
+      final s = storeys(extra: {'playerStart': [690, 270]});
+      final i = s.interaction;
+      expect(i, isA<UseVent>().having((u) => u.vent.id, 'vent', 'v').having((u) => u.forward, 'forward', isTrue));
+      s.takeEvents();
+      expect(s.interact(), isA<UseVent>());
+      expect(s.inVent, isTrue);
+      expect(s.onFloor, isFalse);
+      expect(s.interaction, isNull);
+      expect(s.toolReady, isFalse);
+      expect(s.jumpReady, isFalse);
+      s.tick(390 / 120 / 2);
+      expect(s.playerX, 700);
+      expect(s.playerY, closeTo(465, 1));
+      expect(s.viewFloorY, closeTo(465, 1));
+      s.tick(390 / 120 / 2 + frame);
+      expect(s.inVent, isFalse);
+      expect(Vec(s.playerX, s.playerY), const Vec(700, 660));
+      expect(s.onFloor, isTrue);
+      expect(s.takeEvents().whereType<NoiseMade>(), isEmpty);
+      expect(s.interaction, isA<UseVent>().having((u) => u.forward, 'forward', isFalse));
+    });
+
+    test('no vent with his hands full', () {
+      final s = storeys(
+        extra: {'playerStart': [690, 270]},
+        spots: [{'id': 'a', 'at': [690, 270], 'snap': true}],
+        objects: [{'id': 'pot', 'type': 'amplifier', 'spot': 'a', 'portable': true}],
+      );
+      expect(s.lift('pot'), isTrue);
+      expect(s.enterVent('v'), isFalse);
+      expect(s.inVent, isFalse);
     });
   });
 }

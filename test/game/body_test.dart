@@ -378,4 +378,77 @@ void main() {
       expect(body.feet.y, 270);
     });
   });
+
+  group('stairs', () {
+    // Stair s from (100, 660) up to (300, 270) in the two-storey fixture.
+    late Level level;
+    setUp(() => level = Level.parse(twoStoreys()));
+    Body on(double x, double y) => Body(level.geometry, Vec(x, y), t, stairs: level.stairs);
+
+    test('a push up at the foot steps him on, and the stick walks him up', () {
+      final b = on(110, 660);
+      expect(b.canClimbStairs, isTrue);
+      expect(b.canDescendStairs, isFalse);
+      run(b, frame, vertical: -1);
+      expect(b.onStairs, isTrue);
+      expect(b.feet, const Vec(100, 660));
+      expect(b.grounded, isFalse);
+      run(b, 0.5, move: 1);
+      expect(b.feet.x, closeTo(160, 0.01));
+      expect(b.feet.y, closeTo(level.stairs.single.yAt(b.feet.x), 0.01));
+      while (b.onStairs) {
+        run(b, frame, move: 1);
+      }
+      expect(b.feet, const Vec(300, 270));
+      expect(b.onFloor, isTrue);
+    });
+
+    test('holding up climbs, holding down comes back down', () {
+      final b = on(100, 660);
+      run(b, frame, vertical: -1);
+      run(b, 0.5, vertical: -1);
+      expect(b.feet.x, closeTo(160, 2.1));
+      while (b.onStairs) {
+        run(b, frame, vertical: 1);
+      }
+      expect(b.feet, const Vec(100, 660));
+    });
+
+    test('a push down at the head steps him on going down', () {
+      final b = on(290, 270);
+      expect(b.canDescendStairs, isTrue);
+      run(b, frame, vertical: 1);
+      expect(b.onStairs, isTrue);
+      expect(b.feet, const Vec(300, 270));
+      run(b, 3, vertical: 1);
+      expect(b.feet, const Vec(100, 660));
+      expect(b.onFloor, isTrue);
+    });
+
+    test('out of reach of the foot, up does nothing', () {
+      final b = on(131, 660);
+      expect(b.canClimbStairs, isFalse);
+      run(b, 0.2, vertical: -1);
+      expect(b.onStairs, isFalse);
+    });
+
+    test('sneaking is slower, and he never jumps off a stair', () {
+      final b = on(100, 660);
+      run(b, frame, vertical: -1);
+      run(b, 0.5, move: 1, sneak: true);
+      expect(b.feet.x, closeTo(130, 0.01));
+      b.pressJump();
+      run(b, 0.3);
+      expect(b.onStairs, isTrue);
+      expect(b.feet.y, closeTo(level.stairs.single.yAt(130), 0.01));
+    });
+
+    test('placeAt stands him on a surface somewhere else', () {
+      final b = on(100, 660)..placeAt(const Vec(700, 270));
+      expect(b.feet, const Vec(700, 270));
+      expect(b.onFloor, isTrue);
+      run(b, 0.2);
+      expect(b.feet, const Vec(700, 270));
+    });
+  });
 }

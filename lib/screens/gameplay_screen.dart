@@ -763,6 +763,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
         semanticLabel: open ? 'Open the door' : 'Close the door',
         onPressed: interact,
       ),
+      UseVent() => ActionButton(label: 'VENT', semanticLabel: 'Crawl into the vent', onPressed: interact),
       // Hands full: the only thing he could do is put it down.
       null when _sim.held != null => const Opacity(opacity: 0.6, child: ActionButton(label: 'PLACE', onPressed: null)),
       null => const Opacity(

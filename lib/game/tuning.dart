@@ -74,6 +74,7 @@ class Tuning {
     this.doorStandOff = 24,
     this.doorCreak = 1,
     this.closedDoorMuffle = 1,
+    this.ventSpeed = 120,
   });
 
   /// Radius per ring; a noise draws one ring per loudness step.
@@ -261,4 +262,7 @@ class Tuning {
 
   /// What a closed door takes off a noise passing through it.
   final int closedDoorMuffle;
+
+  /// How fast he crawls through a vent, mouth to mouth.
+  final double ventSpeed;
 }
