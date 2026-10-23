@@ -23,6 +23,7 @@ import '../theme/palette.dart';
 import '../theme/type.dart';
 import '../widgets/chunky_button.dart';
 import '../widgets/dashed_outline.dart';
+import '../widgets/goose_arrow.dart';
 import '../widgets/hud.dart';
 import '../widgets/joystick.dart';
 import '../widgets/noise_fx.dart';
@@ -58,6 +59,9 @@ class GameplayScreen extends StatefulWidget {
 
   /// The speed lines behind her while she runs.
   static const speedLinesKey = Key('gameplay-speed-lines');
+
+  /// The chip pointing to Gertrude while she is off screen.
+  static const gooseArrowKey = Key('gameplay-goose-arrow');
 
   /// The CHAIN ×N! banner of a live chaos combo.
   static const comboKey = Key('gameplay-combo');
@@ -541,6 +545,14 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
               height: 286,
             ),
 
+          if (!_caught)
+            if (_gooseArrowLeft(goose.x) case final left?)
+              at(
+                left ? 8 : 772,
+                160,
+                GooseArrow(key: GameplayScreen.gooseArrowKey, left: left, state: goose.state, pulse: _sim.elapsed),
+              ),
+
           // HUD.
           at(
             14,
@@ -657,6 +669,15 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       return goalPill(g, _sim);
     }
     return 'Make it to the exit';
+  }
+
+  /// Which screen edge Gertrude at [x] is off past (true: left), or null
+  /// while any of her shows. Mirror Night swaps the edges.
+  bool? _gooseArrowLeft(double x) {
+    final left = x + 70 < _camera.x;
+    final right = x - 70 > _camera.x + Stage.width;
+    if (!left && !right) return null;
+    return _mirror ? right : left;
   }
 
   bool _comboLive(int links) => _sim.combo.count >= links && _sim.comboLeft > 0;
