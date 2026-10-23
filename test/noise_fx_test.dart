@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/chain.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
+import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/game/hearing.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
 import 'package:jangan_bangunin_angsa_app/game/noise.dart';
@@ -116,13 +117,17 @@ void main() {
       take(NoiseMade(
         const Noise(x: 300, loudness: 3),
         touchedEar: false,
-        heard: Heard(const Noise(x: 640, loudness: 2), through: door, sourceX: 300),
+        heard: Heard(
+          Noise(x: door.x, y: door.floorY, loudness: 2),
+          through: Portal(kind: PortalKind.door, id: door.id, a: door.left, b: door.right),
+          source: Vec(300, door.floorY),
+        ),
         tool: Tool.kazoo,
       ));
       expect(fx.rings, hasLength(2));
       final muffled = fx.rings.last;
       expect(muffled.dashed, isTrue);
-      expect(muffled.center, const Offset(640, 220));
+      expect(muffled.center, Offset(640, door.floorY - 50));
       expect(muffled.radius, 72);
       expect(muffled.circles, 2);
       expect(muffled.color, Palette.beakOrange);

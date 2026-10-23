@@ -48,7 +48,8 @@ abstract class _Fx {
 }
 
 /// Concentric rings: ring count = loudness, outer radius = how far it carries.
-/// [dashed] rings are a noise heard muffled through a door, drawn at it.
+/// [dashed] rings are a noise heard muffled through a door, a stair, a
+/// vent or a floor, drawn where she hears it.
 class RingFx extends _Fx {
   RingFx(this.center, this.radius, this.circles, this.color, {this.dashed = false}) : super(_ringLife);
 
@@ -109,9 +110,9 @@ class NoiseFx {
             ? Offset(noise.x, (noise.y ?? level.floorY) - (noise.loudness == 0 ? _feetUp : _handsUp))
             : anchors[link.spotId]!;
         rings.add(RingFx(at, noise.radius(tuning), math.max(noise.loudness, 1), threatColor(noise.loudness)));
-        if (heard case Heard(:final through?, noise: final muffled)) {
+        if (heard case Heard(muffled: true, noise: final muffled)) {
           rings.add(RingFx(
-            Offset(through.x, level.floorY - _handsUp),
+            Offset(muffled.x, (muffled.y ?? level.floorY) - _handsUp),
             muffled.radius(tuning),
             math.max(muffled.loudness, 1),
             threatColor(muffled.loudness),

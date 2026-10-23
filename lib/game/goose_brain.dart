@@ -1,4 +1,5 @@
 import 'doors.dart';
+import 'geom.dart';
 import 'noise.dart';
 import 'noise_meter.dart';
 import 'tuning.dart';
@@ -93,7 +94,7 @@ class GooseBrain {
   void hear(Noise n, {int chainLinks = 0, bool fromTool = false, double? sourceX}) {
     final at = sourceX ?? n.x;
     _lastNoiseX = at;
-    final touches = n.touchesEar(_x, floorY, tuning);
+    final touches = n.touchesEar(Vec(_x, floorY), tuning);
     if (inBed) {
       if (touches) {
         _raise(n.loudness, fromTool: fromTool);

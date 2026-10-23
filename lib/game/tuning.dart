@@ -75,6 +75,8 @@ class Tuning {
     this.doorCreak = 1,
     this.closedDoorMuffle = 1,
     this.ventSpeed = 120,
+    this.stairMuffle = 1,
+    this.floorMuffle = 2,
   });
 
   /// Radius per ring; a noise draws one ring per loudness step.
@@ -265,4 +267,11 @@ class Tuning {
 
   /// How fast he crawls through a vent, mouth to mouth.
   final double ventSpeed;
+
+  /// What a flight of stairs takes off a noise carried up or down it.
+  final int stairMuffle;
+
+  /// What a floor takes off a noise heard through it, from the room above
+  /// or below.
+  final int floorMuffle;
 }

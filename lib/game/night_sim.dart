@@ -693,7 +693,7 @@ class NightSim {
     }
     doors.isOpen(doorId) ? doors.close(doorId) : doors.open(doorId);
     _noteDoors();
-    if (!_sneak) _hear(Noise(x: door.x, loudness: tuning.doorCreak), door: doorId);
+    if (!_sneak) _hear(Noise(x: door.x, y: door.floorY, loudness: tuning.doorCreak), door: doorId);
     return true;
   }
 
@@ -867,10 +867,11 @@ class NightSim {
   }
 
   void _hear(Noise noise, {LinkFired? link, Tool? tool, String? door}) {
-    final heard = _hearing.reach(noise, goose.x);
+    final ear = Vec(goose.x, level.floorY);
+    final heard = _hearing.reach(noise, ear);
     _events.add(NoiseMade(
       noise,
-      touchedEar: heard != null && heard.noise.touchesEar(goose.x, level.floorY, tuning),
+      touchedEar: heard != null && heard.noise.touchesEar(ear, tuning),
       heard: heard,
       link: link,
       tool: tool,
@@ -878,7 +879,7 @@ class NightSim {
     ));
     if (heard == null) return;
     final wasAwake = goose.isAwake;
-    goose.hear(heard.noise, chainLinks: link?.link ?? 0, fromTool: tool != null, sourceX: heard.sourceX);
+    goose.hear(heard.noise, chainLinks: link?.link ?? 0, fromTool: tool != null, sourceX: heard.source.x);
     if (!wasAwake && goose.isAwake && link != null) {
       _wakingChain = List.unmodifiable(_chains[link.chainId]!);
     }
