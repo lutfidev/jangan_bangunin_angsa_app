@@ -96,13 +96,13 @@ Future<void> play(WidgetTester tester, double seconds) async {
 }
 
 /// The gameplay screen on the app's real routes, driving [sim].
-Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim]) async {
+Future<NightSim> pumpGameplay(WidgetTester tester, [NightSim? sim, bool debugTools = false]) async {
   final s = sim ?? NightSim(Levels.night3);
   useStageSurface(tester);
   await tester.pumpWidget(
     MaterialApp(
       onGenerateRoute: MainApp.route,
-      home: GameplayScreen(setup: s.setup, sim: s),
+      home: GameplayScreen(setup: s.setup, sim: s, debugTools: debugTools),
     ),
   );
   await tester.pump();

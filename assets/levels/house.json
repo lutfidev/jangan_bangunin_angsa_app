@@ -3,45 +3,72 @@
   "id": "house",
   "name": "The Greybox House",
   "width": 2000,
-  "floorY": 270,
+  "height": 1170,
+  "floorY": 660,
   "rooms": [
-    {"id": "kitchen", "name": "Kitchen", "box": [0, 0, 640, 270]},
-    {"id": "living", "name": "Living room", "box": [640, 0, 840, 270]},
-    {"id": "hall", "name": "Hall", "box": [1480, 0, 520, 270]}
+    {"id": "bedroom", "name": "Bedroom", "box": [0, 0, 1000, 270]},
+    {"id": "landing", "name": "Landing", "box": [1000, 0, 1000, 270]},
+    {"id": "kitchen", "name": "Kitchen", "box": [0, 390, 640, 270]},
+    {"id": "living", "name": "Living room", "box": [640, 390, 840, 270]},
+    {"id": "hall", "name": "Hall", "box": [1480, 390, 520, 270]},
+    {"id": "cellar", "name": "Cellar", "box": [0, 780, 1060, 270]},
+    {"id": "boiler", "name": "Boiler room", "box": [1080, 780, 920, 270]}
   ],
   "doors": [
     {"id": "kitchenDoor", "x": 640, "open": false},
-    {"id": "hallDoor", "x": 1480, "open": true}
+    {"id": "hallDoor", "x": 1480, "open": true},
+    {"id": "bedroomDoor", "x": 1000, "y": 270, "open": false}
   ],
   "solids": [
-    {"box": [0, 270, 640, 120], "surface": "tile"},
-    {"box": [640, 270, 200, 120], "surface": "wood"},
-    {"box": [840, 270, 420, 120], "surface": "carpet"},
-    {"box": [1260, 270, 220, 120], "surface": "wood"},
-    {"box": [1480, 270, 520, 120], "surface": "wood"}
+    {"box": [0, 270, 1000, 120], "surface": "carpet"},
+    {"box": [1000, 270, 1000, 120], "surface": "wood"},
+    {"box": [0, 660, 640, 120], "surface": "tile"},
+    {"box": [640, 660, 200, 120], "surface": "wood"},
+    {"box": [840, 660, 420, 120], "surface": "carpet"},
+    {"box": [1260, 660, 220, 120], "surface": "wood"},
+    {"box": [1480, 660, 520, 120], "surface": "wood"},
+    {"box": [0, 1050, 2000, 120], "surface": "tile"},
+    {"box": [1060, 780, 20, 270], "surface": "wood"}
   ],
   "platforms": [
-    {"id": "counter", "x": [18, 280], "y": 200, "surface": "tile"},
-    {"id": "crawlPlank", "x": [244, 426], "y": 106, "surface": "wood", "crawl": true},
-    {"id": "shelfLow", "x": [316, 392], "y": 212, "surface": "wood"},
-    {"id": "shelfHigh", "x": [316, 392], "y": 160, "surface": "wood"},
-    {"id": "kitchenTable", "x": [470, 560], "y": 220, "surface": "wood"},
-    {"id": "sideTable", "x": [1052, 1092], "y": 236, "surface": "wood"},
-    {"id": "hallTable", "x": [1700, 1744], "y": 236, "surface": "wood"}
+    {"id": "bedFrame", "x": [200, 420], "y": 200, "surface": "wood"},
+    {"id": "nightstand", "x": [560, 620], "y": 190, "surface": "wood"},
+    {"id": "wardrobe", "x": [600, 680], "y": 120, "surface": "wood"},
+    {"id": "landingChest", "x": [1140, 1230], "y": 230, "surface": "wood"},
+    {"id": "landingShelf", "x": [1600, 1670], "y": 120, "surface": "wood"},
+    {"id": "counter", "x": [18, 280], "y": 590, "surface": "tile"},
+    {"id": "crawlPlank", "x": [244, 426], "y": 496, "surface": "wood", "crawl": true},
+    {"id": "shelfLow", "x": [316, 392], "y": 602, "surface": "wood"},
+    {"id": "shelfHigh", "x": [316, 392], "y": 550, "surface": "wood"},
+    {"id": "kitchenTable", "x": [470, 560], "y": 610, "surface": "wood"},
+    {"id": "sideTable", "x": [1052, 1092], "y": 626, "surface": "wood"},
+    {"id": "hallTable", "x": [1700, 1744], "y": 626, "surface": "wood"},
+    {"id": "workbench", "x": [500, 640], "y": 980, "surface": "wood"},
+    {"id": "boilerTank", "x": [1440, 1520], "y": 980, "surface": "wood"},
+    {"id": "pipeShelf", "x": [1500, 1600], "y": 900, "surface": "wood"}
   ],
-  "playerStart": [236, 270],
-  "exit": [1926, 270],
-  "bed": [960, 270],
-  "hideSpots": [[148, 270], [1695, 270]],
+  "stairs": [
+    {"id": "livingStairs", "bottom": [1220, 660], "top": [1460, 270]},
+    {"id": "kitchenStairs", "bottom": [180, 1050], "top": [440, 660]},
+    {"id": "hallStairs", "bottom": [1880, 1050], "top": [1620, 660]}
+  ],
+  "vents": [
+    {"id": "bedroomDuct", "from": [80, 270], "to": [300, 660]},
+    {"id": "wallHole", "from": [1040, 1050], "to": [1100, 1050]}
+  ],
+  "playerStart": [236, 660],
+  "exit": [1926, 660],
+  "bed": [960, 660],
+  "hideSpots": [[148, 660], [1695, 660], [820, 270], [300, 1050]],
   "spots": [
-    {"id": "counterLeft", "at": [62, 200]},
-    {"id": "counterPot", "at": [113, 200], "snap": true},
-    {"id": "shelfBooks", "at": [340, 160]},
-    {"id": "underShelf", "at": [372, 270], "snap": true},
-    {"id": "underSideTable", "at": [1054, 270], "snap": true},
-    {"id": "sideTable", "at": [1072, 236]},
-    {"id": "plank", "at": [1098, 270]},
-    {"id": "clockStand", "at": [1125, 270]}
+    {"id": "counterLeft", "at": [62, 590]},
+    {"id": "counterPot", "at": [113, 590], "snap": true},
+    {"id": "shelfBooks", "at": [340, 550]},
+    {"id": "underShelf", "at": [372, 660], "snap": true},
+    {"id": "underSideTable", "at": [1054, 660], "snap": true},
+    {"id": "sideTable", "at": [1072, 626]},
+    {"id": "plank", "at": [1098, 660]},
+    {"id": "clockStand", "at": [1125, 660]}
   ],
   "objects": [
     {"id": "glass", "type": "tipper", "spot": "counterLeft"},
@@ -59,9 +86,9 @@
     {"from": "plank", "to": "clockStand"}
   ],
   "loot": [
-    {"id": "toaster", "at": [218, 200]},
-    {"id": "chicken", "at": [353, 106], "squeaks": true},
-    {"id": "egg", "at": [1019, 270], "guarded": true}
+    {"id": "toaster", "at": [300, 200]},
+    {"id": "chicken", "at": [1550, 900], "squeaks": true},
+    {"id": "egg", "at": [1019, 660], "guarded": true}
   ],
   "goals": [
     {"style": "ghost", "kind": "neverSuspicious"},

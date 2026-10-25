@@ -151,7 +151,7 @@ class ChainRunner {
       link: p.link,
       objectId: object.id,
       spotId: spotId,
-      noise: Noise(x: level.spots[spotId]!.x, loudness: loudness),
+      noise: Noise(x: level.spots[spotId]!.x, y: level.floorOf(level.spots[spotId]!.at), loudness: loudness),
     ));
 
     // It pokes whatever sits in its reach: the first linked spot holding an object.

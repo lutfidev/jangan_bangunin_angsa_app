@@ -3,6 +3,7 @@ import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 
+import '../game/geom.dart';
 import '../game/goose_brain.dart';
 import '../game/hearing.dart';
 import '../game/level.dart';
@@ -31,9 +32,9 @@ const _fade = 0.4;
 const _feetUp = 8.0;
 const _handsUp = 50.0;
 
-/// Gertrude's head, and where she slips.
-const _headY = 210.0;
-const _slipY = 200.0;
+/// Gertrude's head, and where she slips, above her feet.
+const _headUp = 60.0;
+const _slipUp = 70.0;
 
 abstract class _Fx {
   _Fx(this.life);
@@ -48,7 +49,8 @@ abstract class _Fx {
 }
 
 /// Concentric rings: ring count = loudness, outer radius = how far it carries.
-/// [dashed] rings are a noise heard muffled through a door, drawn at it.
+/// [dashed] rings are a noise heard muffled through a door, a stair, a
+/// vent or a floor, drawn where she hears it.
 class RingFx extends _Fx {
   RingFx(this.center, this.radius, this.circles, this.color, {this.dashed = false}) : super(_ringLife);
 
@@ -102,16 +104,16 @@ class NoiseFx {
   /// The last badge of each chain, where the next link's arc starts.
   final Map<int, Offset> _lastLink = {};
 
-  void take(SimEvent e, {required double gooseX}) {
+  void take(SimEvent e, {required Vec goose}) {
     switch (e) {
       case NoiseMade(:final noise, :final link, :final tool, :final heard, :final door):
         final at = link == null
             ? Offset(noise.x, (noise.y ?? level.floorY) - (noise.loudness == 0 ? _feetUp : _handsUp))
             : anchors[link.spotId]!;
         rings.add(RingFx(at, noise.radius(tuning), math.max(noise.loudness, 1), threatColor(noise.loudness)));
-        if (heard case Heard(:final through?, noise: final muffled)) {
+        if (heard case Heard(muffled: true, noise: final muffled)) {
           rings.add(RingFx(
-            Offset(through.x, level.floorY - _handsUp),
+            Offset(muffled.x, (muffled.y ?? level.floorY) - _handsUp),
             muffled.radius(tuning),
             math.max(muffled.loudness, 1),
             threatColor(muffled.loudness),
@@ -132,9 +134,9 @@ class NoiseFx {
         final type = level.objects.firstWhere((o) => o.id == link.objectId).type;
         words.add(WordFx(sfxWord(type), threatColor(noise.loudness), at));
       case GooseChanged(to: GooseState.awake):
-        honk = HonkFx(Offset(gooseX, _headY));
-      case GooseSlipped(:final x):
-        words.add(WordFx('SLIP!', Palette.lamp, Offset(x, _slipY)));
+        honk = HonkFx(Offset(goose.x, goose.y - _headUp));
+      case GooseSlipped(:final at):
+        words.add(WordFx('SLIP!', Palette.lamp, Offset(at.x, at.y - _slipUp)));
       case _:
     }
   }

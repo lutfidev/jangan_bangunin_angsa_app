@@ -88,7 +88,8 @@ void main() {
         expect(g.restsOnSurface(p), isTrue, reason: '${loot.id} at $p');
         // Where he can stand under its x: the floor and every top there.
         final stands = [
-          if (g.floorSurfaceAt(p.x) != null) g.floorY,
+          for (final y in g.floors)
+            if (g.floorSurfaceAt(p.x, y) != null) y,
           for (final pl in g.platforms)
             if (pl.spans(p.x)) pl.y,
         ];
