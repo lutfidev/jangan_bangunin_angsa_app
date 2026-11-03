@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../art/art.dart';
 import '../art/icons.dart';
+import '../art/motion.dart';
 import '../game/camera.dart';
 import '../game/geom.dart';
 import '../game/goose_brain.dart';
@@ -136,6 +137,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   NoiseMade? _lastNoise;
   late double _gooseX = _sim.goose.x;
 
+  /// What the walk cycles, jumps and landings of the two figures need.
+  final _miloMotion = FigureMotion();
+  final _gooseMotion = FigureMotion(stride: 56);
+
   @override
   void initState() {
     super.initState();
@@ -180,6 +185,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
     final x = _sim.goose.x;
     if (x != _gooseX) _gooseRight = x > _gooseX;
     _gooseX = x;
+    _miloMotion.update(dt, _sim.playerX, _sim.playerY, grounded: _sim.grounded || _sim.inVent);
+    _gooseMotion.update(dt, x, _sim.goose.y);
 
     final result = _sim.result;
     if (result != null) {
@@ -374,7 +381,10 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             goose.y - 110,
                             Transform.rotate(
                               angle: goose.slipping ? deg(-20) : 0,
-                              child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
+                              child: GaitBox(
+                                gait: _gooseGait(goose),
+                                child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
+                              ),
                             ),
                           ),
                         for (final loot in level.loot)
@@ -428,7 +438,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                         ] else if (_sim.hidden)
                           ..._set.hiding(_nearestHide(level, Vec(px, py)))
                         else if (!_sim.onStairs && !_sim.inVent) ...[
-                          at(px - 30, py - 74, Burglar(pose: _pose(goose, carried), width: 60, flip: _sim.facing > 0)),
+                          at(px - 30, py - 74, _milo(goose, carried)),
                           if (_sim.held case final held?) at(px - 20, py - 102, Prop(_set.objectKind(held)!, size: 40)),
                           // Up there he'd hide the loot he crawls to; it goes in front.
                           for (final loot in level.loot)
@@ -556,11 +566,7 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                             Opacity(
                               key: GameplayScreen.miloOverKey,
                               opacity: _sim.inVent ? 0.7 : 1,
-                              child: Burglar(
-                                pose: _sim.inVent ? BurglarPose.crawl : _pose(goose, carried),
-                                width: 60,
-                                flip: _sim.facing > 0,
-                              ),
+                              child: _milo(goose, carried),
                             ),
                           ),
                       ],
@@ -785,6 +791,45 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
   /// Loot standing on a crawl top: sparkles, and is drawn in front of Milo
   /// crawling up to it.
   static bool _onCrawlTop(Level level, Loot loot) => level.geometry.platformAt(loot.at)?.crawl ?? false;
+
+  /// Reduce shake keeps the breathing and softens the rest.
+  Gait _soften(Gait gait) => GameSettings.instance.reduceShake ? gait.scaled(0.35) : gait;
+
+  /// Milo in the pose the night calls for, moving the way he is moving.
+  Widget _milo(GooseBrain goose, List<String> carried) {
+    final m = _miloMotion;
+    final pose = _sim.inVent ? BurglarPose.crawl : _pose(goose, carried);
+    return GaitBox(
+      gait: _soften(
+        Gait.milo(
+          phase: m.phase,
+          speed: m.speed,
+          vy: m.vy,
+          grounded: _sim.grounded || _sim.inVent,
+          sinceLanding: m.sinceLanding,
+          landing: m.landing,
+          facing: _sim.facing,
+          time: _sim.elapsed,
+          sneaking: _sim.sneaking,
+          carrying: pose == BurglarPose.carry,
+          panic: pose == BurglarPose.panic,
+          crawling: pose == BurglarPose.crawl,
+          mantling: _sim.mantling,
+        ),
+      ),
+      child: Burglar(pose: pose, width: 60, flip: _sim.facing > 0),
+    );
+  }
+
+  Gait _gooseGait(GooseBrain goose) => _soften(
+    gooseGait(
+      goose.state,
+      phase: _gooseMotion.phase,
+      speed: _gooseMotion.speed,
+      time: _sim.elapsed,
+      dir: _gooseRight ? 1 : -1,
+    ),
+  );
 
   BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.crawling
       ? BurglarPose.crawl

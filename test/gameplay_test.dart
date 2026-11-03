@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jangan_bangunin_angsa_app/game/geom.dart';
 import 'package:jangan_bangunin_angsa_app/art/art.dart';
+import 'package:jangan_bangunin_angsa_app/art/motion.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/game/heist.dart';
 import 'package:jangan_bangunin_angsa_app/game/night_sim.dart';
@@ -28,6 +29,9 @@ import 'package:jangan_bangunin_angsa_app/widgets/tool_button.dart';
 import 'game/fixtures.dart';
 import 'helpers.dart';
 
+/// Where Milo is laid out, before his gait bends him.
+final _miloBox = find.ancestor(of: find.byType(Burglar), matching: find.byType(GaitBox));
+
 Finder _prop(PropKind kind) => find.byWidgetPredicate((w) => w is Prop && w.kind == kind);
 
 ActionButton _interact(WidgetTester tester) => tester.widget<ActionButton>(find.byType(ActionButton));
@@ -40,11 +44,11 @@ void main() {
 
   testWidgets('the joystick walks Milo right', (tester) async {
     await pumpGameplay(tester);
-    final before = tester.getTopLeft(find.byType(Burglar)).dx;
+    final before = tester.getTopLeft(_miloBox).dx;
     final g = await tester.startGesture(tester.getCenter(find.byType(Joystick)));
     await g.moveBy(const Offset(30, 0));
     await play(tester, 0.5);
-    expect(tester.getTopLeft(find.byType(Burglar)).dx, closeTo(before + 30, 2)); // sneaking, 60px/s
+    expect(tester.getTopLeft(_miloBox).dx, closeTo(before + 30, 2)); // sneaking, 60px/s
     await g.up();
   });
 
@@ -389,7 +393,7 @@ void main() {
       expect(sim.held, 'pot');
       final milo = tester.widget<Burglar>(find.byType(Burglar));
       expect(milo.pose, BurglarPose.carry);
-      expect(tester.getTopLeft(_prop(PropKind.pot)).dy, lessThan(tester.getTopLeft(find.byType(Burglar)).dy));
+      expect(tester.getTopLeft(_prop(PropKind.pot)).dy, lessThan(tester.getTopLeft(_miloBox).dy));
     });
 
     testWidgets('PLACE puts the pot down under the shelf', (tester) async {
@@ -557,12 +561,12 @@ void main() {
     testWidgets('mirror: joystick right walks Milo right on screen', (tester) async {
       final sim = await pumpGameplay(tester, NightSim(Levels.night3, setup: const NightSetup(mirror: true)));
       final start = sim.playerX;
-      final before = tester.getTopLeft(find.byType(Burglar)).dx;
+      final before = tester.getTopLeft(_miloBox).dx;
       final g = await tester.startGesture(tester.getCenter(find.byType(Joystick)));
       await g.moveBy(const Offset(30, 0));
       await play(tester, 0.5);
       expect(sim.playerX, lessThan(start));
-      expect(tester.getTopLeft(find.byType(Burglar)).dx, greaterThan(before));
+      expect(tester.getTopLeft(_miloBox).dx, greaterThan(before));
       await g.up();
     });
 
@@ -628,7 +632,7 @@ void main() {
 
   group('jump and climb', () {
     JumpButton jumpButton(WidgetTester tester) => tester.widget<JumpButton>(find.byType(JumpButton));
-    double miloTop(WidgetTester tester) => tester.getTopLeft(find.byType(Burglar)).dy;
+    double miloTop(WidgetTester tester) => tester.getTopLeft(_miloBox).dy;
 
     NightSim sneakTo(double x, {NightSetup setup = const NightSetup()}) {
       final sim = NightSim(Levels.night3, setup: setup)..setSneak(true);
