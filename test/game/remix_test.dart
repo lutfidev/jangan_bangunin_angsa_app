@@ -65,36 +65,40 @@ void main() {
     expect(layout(remixed(level, 20261019)), layout(level));
   });
 
-  test('a remix spot in reach from the floor never shares reach with a hide spot', () {
-    // Mid-chase, Interact by a hide spot must hide, not grab.
-    final level = night3();
-    const t = Tuning();
-    for (final loot in level.loot) {
-      for (final p in level.remixLoot[loot.id] ?? const <Vec>[]) {
-        if (p.y < level.floorY - t.armReach) continue;
-        for (final h in level.hideSpots) {
-          expect((p.x - h.x).abs(), greaterThan(2 * t.reach), reason: '${loot.id} at $p, hide at $h');
+  for (final (name, load) in [('night 3', night3), ('the house', house)]) {
+    test('in $name a remix spot in reach from the floor never shares reach with a hide spot', () {
+      // Mid-chase, Interact by a hide spot must hide, not grab.
+      final level = load();
+      const t = Tuning();
+      for (final loot in level.loot) {
+        for (final p in level.remixLoot[loot.id] ?? const <Vec>[]) {
+          final floor = level.floorOf(p);
+          if (p.y < floor - t.armReach) continue;
+          for (final h in level.hideSpots) {
+            if (h.y != floor) continue;
+            expect((p.x - h.x).abs(), greaterThan(2 * t.reach), reason: '${loot.id} at $p, hide at $h');
+          }
         }
       }
-    }
-  });
+    });
 
-  test('every loot spot, remixed or not, can be reached from something to stand on', () {
-    final level = night3();
-    const t = Tuning();
-    final g = level.geometry;
-    for (final loot in level.loot) {
-      for (final p in [loot.at, ...?level.remixLoot[loot.id]]) {
-        expect(g.restsOnSurface(p), isTrue, reason: '${loot.id} at $p');
-        // Where he can stand under its x: the floor and every top there.
-        final stands = [
-          for (final y in g.floors)
-            if (g.floorSurfaceAt(p.x, y) != null) y,
-          for (final pl in g.platforms)
-            if (pl.spans(p.x)) pl.y,
-        ];
-        expect(stands.any((feet) => p.y >= feet - t.armReach && p.y <= feet + 10), isTrue, reason: '${loot.id} at $p');
+    test('in $name every loot spot, remixed or not, can be reached from something to stand on', () {
+      final level = load();
+      const t = Tuning();
+      final g = level.geometry;
+      for (final loot in level.loot) {
+        for (final p in [loot.at, ...?level.remixLoot[loot.id]]) {
+          expect(g.restsOnSurface(p), isTrue, reason: '${loot.id} at $p');
+          // Where he can stand under its x: the floor and every top there.
+          final stands = [
+            for (final y in g.floors)
+              if (g.floorSurfaceAt(p.x, y) != null) y,
+            for (final pl in g.platforms)
+              if (pl.spans(p.x)) pl.y,
+          ];
+          expect(stands.any((feet) => p.y >= feet - t.armReach && p.y <= feet + 10), isTrue, reason: '${loot.id} at $p');
+        }
       }
-    }
-  });
+    });
+  }
 }

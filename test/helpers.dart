@@ -40,8 +40,9 @@ NightResult sampleCaught({
   List<String> chain = const ['glass', 'pot', 'robot'],
   WakeCause cause = WakeCause.noise,
   Tool tool = Tool.socks,
+  String night = 'night3',
 }) {
-  final level = Levels.night3;
+  final level = Levels.byId(night);
   return NightResult(
     level: level,
     outcome: Outcome.caught,
@@ -58,7 +59,7 @@ NightResult sampleCaught({
     ],
     wakeCause: cause,
     time: 42,
-    setup: NightSetup(tool: tool),
+    setup: NightSetup(tool: tool, night: night),
   );
 }
 

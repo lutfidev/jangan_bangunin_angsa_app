@@ -65,6 +65,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets("in the house the recap draws each link as the house does", (tester) async {
+    await pumpScreen(
+      tester,
+      CaughtScreen(result: sampleCaught(night: 'house', chain: ['landingPlank', 'ball', 'scuttle', 'toilet'])),
+    );
+    expect(recap(tester), [PropKind.board, PropKind.marbles, PropKind.pot, PropKind.toilet]);
+  });
+
   testWidgets('Victory shows what was taken', (tester) async {
     await pumpScreen(tester, VictoryScreen(result: sampleEscape(loot: ['toaster'])));
     expect(find.byType(CheckBadge), findsOneWidget);

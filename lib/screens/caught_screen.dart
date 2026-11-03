@@ -13,6 +13,7 @@ import '../widgets/outlined_text.dart';
 import '../widgets/stage.dart';
 import '../widgets/tool_button.dart';
 import 'night_art.dart';
+import 'night_set.dart';
 import 'scene.dart';
 
 /// Caught: Gertrude sits on Milo, and the chain that woke her is recapped.
@@ -157,9 +158,15 @@ class CaughtScreen extends StatelessWidget {
   /// The chain that woke her, link by link; or, with no chain, what did.
   List<Widget> _causes() {
     if (result.wakeChain.isNotEmpty) {
+      // Each link as the house draws it (a loose board for a squeaker);
+      // Night 3 has icons of its own for its books and plank.
+      final set = NightSet.of(result.level);
+      final night3 = result.level.id == 'night3';
       return [
         for (final link in result.wakeChain) ...[
-          _ChainTile(objectIcon(link.objectId)),
+          _ChainTile(
+            night3 ? objectIcon(link.objectId) : Prop(set.objectKind(link.objectId) ?? PropKind.board, size: 32),
+          ),
           _ChainArrow(linkColor(link.link)),
         ],
       ];
