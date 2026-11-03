@@ -115,7 +115,10 @@ class VictoryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 2,
             children: [
-              Text('NIGHT 3 · THE MIDNIGHT KITCHEN', style: hudLabel(size: 12)),
+              Text(
+                result.level.id == 'night3' ? 'NIGHT 3 · THE MIDNIGHT KITCHEN' : result.level.name.toUpperCase(),
+                style: hudLabel(size: 12),
+              ),
               Semantics(
                 header: true,
                 child: OutlinedText(
@@ -133,13 +136,15 @@ class VictoryScreen extends StatelessWidget {
           28,
           102,
           Row(
-            spacing: 12,
+            // Five cards of the house fit where Night 3's three do.
+            spacing: result.level.loot.length > 3 ? 8 : 12,
             children: [
               for (final loot in result.level.loot)
                 _LootCard(
                   lootArt[loot.id]!.kind,
                   lootArt[loot.id]!.name,
                   stolen: result.loot.contains(loot.id),
+                  small: result.level.loot.length > 3,
                 ),
             ],
           ),
@@ -255,7 +260,7 @@ class VictoryScreen extends StatelessWidget {
 }
 
 class _LootCard extends StatelessWidget {
-  const _LootCard(this.kind, this.name, {required this.stolen});
+  const _LootCard(this.kind, this.name, {required this.stolen, this.small = false});
 
   final PropKind kind;
   final String name;
@@ -263,10 +268,13 @@ class _LootCard extends StatelessWidget {
   /// Loot left behind shows as a silhouette, without the tick.
   final bool stolen;
 
+  /// 80 wide instead of 104, for a night with more than three loot.
+  final bool small;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 104,
+      width: small ? 80 : 104,
       height: 100,
       child: Stack(
         clipBehavior: Clip.none,
@@ -281,8 +289,11 @@ class _LootCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 spacing: 2,
                 children: [
-                  Prop(kind, size: 56, silhouette: !stolen),
-                  Text(name, style: ui(12, weight: FontWeight.w800), softWrap: false),
+                  Prop(kind, size: small ? 48 : 56, silhouette: !stolen),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(name, style: ui(12, weight: FontWeight.w800), softWrap: false),
+                  ),
                 ],
               ),
             ),

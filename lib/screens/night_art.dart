@@ -31,6 +31,8 @@ const lootArt = <String, ({PropKind kind, String name, double size})>{
   'toaster': (kind: PropKind.toaster, name: 'Mega Toaster', size: 64),
   'chicken': (kind: PropKind.chicken, name: 'Rubber Chicken', size: 46),
   'egg': (kind: PropKind.egg, name: 'Golden Egg', size: 34),
+  'duck': (kind: PropKind.duck, name: 'Rubber Duck', size: 40),
+  'gnome': (kind: PropKind.gnome, name: 'Garden Gnome', size: 44),
 };
 
 /// Every x a loot may stand at (its own and its Nightly Remix spots), and
