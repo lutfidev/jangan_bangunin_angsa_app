@@ -61,11 +61,14 @@ class RigSpec {
   final double leanAngle;
   final Offset leanPivot;
 
-  /// The standalone SVG for one layer.
-  String svgOf(RigLayer layer) =>
+  /// The standalone SVG for one layer, built once per layer: a figure
+  /// rebuilds every frame, and flutter_svg caches pictures by this string.
+  String svgOf(RigLayer layer) => _svgs[layer] ??=
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${_n(width)} ${_n(height)}">'
       '<g stroke="#1C1A2B" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">${layer.markup}</g>'
       '</svg>';
+
+  static final _svgs = Expando<String>('rig layer svg');
 
   static String _n(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 }
