@@ -30,11 +30,25 @@ class GreyboxSet implements NightSet {
   /// Pieces this far outside the view are still built, so nothing pops in.
   static const _margin = 100.0;
 
-  static Offset _anchor(Level level, Spot s) => switch (level.objects.where((o) => o.spot == s.id).firstOrNull?.type) {
-    ObjectType.squeaker => Offset(s.x, s.at.y + 4),
-    ObjectType.chimer => Offset(s.x, s.at.y - 47),
-    _ => Offset(s.x, s.at.y - 16),
-  };
+  static Offset _anchor(Level level, Spot s) {
+    final object = level.objects.where((o) => o.spot == s.id).firstOrNull;
+    return switch (object?.type) {
+      ObjectType.squeaker => Offset(s.x, s.at.y + 4),
+      ObjectType.chimer => Offset(s.x, s.at.y - _chimerSize(level, object!.id, s.at) * 0.45),
+      _ => Offset(s.x, s.at.y - 16),
+    };
+  }
+
+  /// Art for the objects that have their own; the rest are drawn by type.
+  static const _propOf = {'toilet': PropKind.toilet, 'ball': PropKind.marbles};
+
+  /// The grandfather clock is tall; a chimer on a furniture top (an alarm
+  /// clock) is small, and so is a toilet.
+  static double _chimerSize(Level level, String objectId, Vec at) => objectId == 'toilet'
+      ? 60
+      : level.geometry.platformAt(at) != null
+      ? 40
+      : 110;
 
   ObjectType _type(String objectId) => level.objects.firstWhere((o) => o.id == objectId).type;
 
@@ -109,7 +123,7 @@ class GreyboxSet implements NightSet {
   }
 
   @override
-  PropKind? objectKind(String objectId) => switch (_type(objectId)) {
+  PropKind? objectKind(String objectId) => _propOf[objectId] ?? switch (_type(objectId)) {
     ObjectType.tipper => PropKind.glass,
     ObjectType.amplifier => PropKind.pot,
     ObjectType.walker => PropKind.robot,
@@ -121,17 +135,14 @@ class GreyboxSet implements NightSet {
   @override
   ArtBox objectBox(String objectId, String spotId) {
     final at = level.spots[spotId]!.at;
-    return switch (_type(objectId)) {
-      ObjectType.chimer => ArtBox(at.x - 55, at.y - 102, 110),
-      final type => () {
-        final size = switch (type) {
-          ObjectType.amplifier => 50.0,
-          ObjectType.walker => 40.0,
-          _ => 36.0,
-        };
-        return ArtBox(at.x - size / 2, at.y - size + 6, size);
-      }(),
+    final size = switch (_type(objectId)) {
+      ObjectType.chimer => _chimerSize(level, objectId, at),
+      ObjectType.amplifier => 50.0,
+      ObjectType.walker => 40.0,
+      _ => 36.0,
     };
+    // The grandfather clock's feet are drawn below the floor line.
+    return size == 110 ? ArtBox(at.x - 55, at.y - 102, 110) : ArtBox(at.x - size / 2, at.y - size + 6, size);
   }
 
   @override

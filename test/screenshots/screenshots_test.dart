@@ -66,6 +66,11 @@ void main() {
       HeistLog.instance.clear();
       return VictoryScreen(result: sampleEscape());
     },
+    'victory_house': () {
+      // Five loot cards of the house, one left behind.
+      HeistLog.instance.clear();
+      return VictoryScreen(result: sampleEscape(night: 'house', loot: ['toaster', 'duck', 'gnome', 'egg']));
+    },
     'caught': () => CaughtScreen(result: sampleCaught()),
     'trophy_room': () {
       // Two of Night 3's loot taken; the egg and the duck still to get.

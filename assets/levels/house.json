@@ -7,7 +7,8 @@
   "floorY": 660,
   "rooms": [
     {"id": "bedroom", "name": "Bedroom", "box": [0, 0, 1000, 270]},
-    {"id": "landing", "name": "Landing", "box": [1000, 0, 1000, 270]},
+    {"id": "landing", "name": "Landing", "box": [1000, 0, 560, 270]},
+    {"id": "bathroom", "name": "Bathroom", "box": [1560, 0, 440, 270]},
     {"id": "kitchen", "name": "Kitchen", "box": [0, 390, 640, 270]},
     {"id": "living", "name": "Living room", "box": [640, 390, 840, 270]},
     {"id": "hall", "name": "Hall", "box": [1480, 390, 520, 270]},
@@ -17,11 +18,13 @@
   "doors": [
     {"id": "kitchenDoor", "x": 640, "open": false},
     {"id": "hallDoor", "x": 1480, "open": true},
-    {"id": "bedroomDoor", "x": 1000, "y": 270, "open": false}
+    {"id": "bedroomDoor", "x": 1000, "y": 270, "open": false},
+    {"id": "bathroomDoor", "x": 1560, "y": 270, "open": false}
   ],
   "solids": [
     {"box": [0, 270, 1000, 120], "surface": "carpet"},
-    {"box": [1000, 270, 1000, 120], "surface": "wood"},
+    {"box": [1000, 270, 560, 120], "surface": "wood"},
+    {"box": [1560, 270, 440, 120], "surface": "tile"},
     {"box": [0, 660, 640, 120], "surface": "tile"},
     {"box": [640, 660, 200, 120], "surface": "wood"},
     {"box": [840, 660, 420, 120], "surface": "carpet"},
@@ -36,6 +39,7 @@
     {"id": "wardrobe", "x": [600, 680], "y": 120, "surface": "wood"},
     {"id": "landingChest", "x": [1140, 1230], "y": 230, "surface": "wood"},
     {"id": "landingShelf", "x": [1600, 1670], "y": 120, "surface": "wood"},
+    {"id": "bathtub", "x": [1760, 1900], "y": 220, "surface": "tile"},
     {"id": "counter", "x": [18, 280], "y": 590, "surface": "tile"},
     {"id": "crawlPlank", "x": [244, 426], "y": 496, "surface": "wood", "crawl": true},
     {"id": "shelfLow", "x": [316, 392], "y": 602, "surface": "wood"},
@@ -59,8 +63,14 @@
   "playerStart": [236, 660],
   "exit": [1926, 660],
   "bed": [960, 660],
-  "hideSpots": [[148, 660], [1695, 660], [820, 270], [300, 1050]],
+  "hideSpots": [[148, 660], [1695, 660], [820, 270], [300, 1050], [1960, 270], [1700, 1050]],
   "spots": [
+    {"id": "wardrobeTop", "at": [640, 120]},
+    {"id": "nightstand", "at": [585, 190]},
+    {"id": "landingPlank", "at": [1340, 270]},
+    {"id": "stairHead", "at": [1430, 270]},
+    {"id": "tubEdge", "at": [1775, 220]},
+    {"id": "toiletSeat", "at": [1690, 270]},
     {"id": "counterLeft", "at": [62, 590]},
     {"id": "counterPot", "at": [113, 590], "snap": true},
     {"id": "shelfBooks", "at": [340, 550]},
@@ -68,31 +78,76 @@
     {"id": "underSideTable", "at": [1054, 660], "snap": true},
     {"id": "sideTable", "at": [1072, 626]},
     {"id": "plank", "at": [1098, 660]},
-    {"id": "clockStand", "at": [1125, 660]}
+    {"id": "clockStand", "at": [1125, 660]},
+    {"id": "stairFoot", "at": [1250, 660]},
+    {"id": "umbrellaStand", "at": [1530, 660]},
+    {"id": "hallBin", "at": [1570, 660], "snap": true},
+    {"id": "hallCorner", "at": [1800, 660], "snap": true},
+    {"id": "workbenchTop", "at": [600, 980]},
+    {"id": "underBench", "at": [665, 1050], "snap": true},
+    {"id": "cellarCorner", "at": [860, 1050], "snap": true},
+    {"id": "grate", "at": [1300, 1050]},
+    {"id": "boilerFront", "at": [1390, 1050]}
   ],
   "objects": [
+    {"id": "perfume", "type": "tipper", "spot": "wardrobeTop"},
+    {"id": "alarm", "type": "chimer", "spot": "nightstand"},
+    {"id": "landingPlank", "type": "squeaker", "spot": "landingPlank"},
+    {"id": "ball", "type": "roller", "spot": "stairHead"},
+    {"id": "shampoo", "type": "tipper", "spot": "tubEdge"},
+    {"id": "toilet", "type": "chimer", "spot": "toiletSeat"},
     {"id": "glass", "type": "tipper", "spot": "counterLeft"},
     {"id": "pot", "type": "amplifier", "spot": "counterPot", "portable": true},
     {"id": "books", "type": "tipper", "spot": "shelfBooks"},
     {"id": "robot", "type": "walker", "spot": "sideTable"},
     {"id": "plank", "type": "squeaker", "spot": "plank"},
-    {"id": "clock", "type": "chimer", "spot": "clockStand"}
+    {"id": "clock", "type": "chimer", "spot": "clockStand"},
+    {"id": "scuttle", "type": "amplifier", "spot": "stairFoot"},
+    {"id": "umbrella", "type": "tipper", "spot": "umbrellaStand"},
+    {"id": "bin", "type": "amplifier", "spot": "hallBin", "portable": true},
+    {"id": "hammer", "type": "tipper", "spot": "workbenchTop"},
+    {"id": "bucket", "type": "amplifier", "spot": "underBench", "portable": true},
+    {"id": "grate", "type": "squeaker", "spot": "grate"},
+    {"id": "boiler", "type": "chimer", "spot": "boilerFront"}
   ],
   "links": [
+    {"from": "wardrobeTop", "to": "nightstand"},
+    {"from": "landingPlank", "to": "stairHead"},
+    {"from": "stairHead", "to": "stairFoot", "delay": 1.0},
+    {"from": "tubEdge", "to": "toiletSeat"},
+    {"from": "toiletSeat", "to": "boilerFront", "delay": 1.5},
     {"from": "counterLeft", "to": "counterPot"},
     {"from": "shelfBooks", "to": "underShelf"},
     {"from": "sideTable", "to": "underSideTable", "delay": 0.8},
     {"from": "sideTable", "to": "clockStand", "delay": 1.2},
-    {"from": "plank", "to": "clockStand"}
+    {"from": "plank", "to": "clockStand"},
+    {"from": "umbrellaStand", "to": "hallBin"},
+    {"from": "workbenchTop", "to": "underBench"},
+    {"from": "grate", "to": "boilerFront"}
   ],
   "loot": [
     {"id": "toaster", "at": [300, 200]},
+    {"id": "duck", "at": [1840, 220]},
+    {"id": "gnome", "at": [1722, 626]},
     {"id": "chicken", "at": [1550, 900], "squeaks": true},
     {"id": "egg", "at": [1019, 660], "guarded": true}
   ],
   "goals": [
     {"style": "ghost", "kind": "neverSuspicious"},
-    {"style": "trickster", "kind": "lure", "count": 2},
-    {"style": "chaos", "kind": "chain", "count": 5}
-  ]
+    {"style": "trickster", "kind": "lure", "count": 3},
+    {"style": "chaos", "kind": "chain", "count": 6}
+  ],
+  "remix": {
+    "loot": {
+      "toaster": [[140, 270]],
+      "duck": [[1620, 270]],
+      "gnome": [[1820, 660]],
+      "chicken": [[1480, 980]]
+    },
+    "objects": {
+      "pot": ["underShelf"],
+      "bin": ["hallCorner"],
+      "bucket": ["cellarCorner"]
+    }
+  }
 }

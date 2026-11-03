@@ -406,23 +406,53 @@ void main() {
   test('the greybox house parses', () {
     final l = house();
     expect((l.width, l.height, l.floorY), (2000, 1170, 660));
-    expect(l.rooms.map((r) => r.id), ['bedroom', 'landing', 'kitchen', 'living', 'hall', 'cellar', 'boiler']);
+    expect(l.rooms.map((r) => r.id), ['bedroom', 'landing', 'bathroom', 'kitchen', 'living', 'hall', 'cellar', 'boiler']);
     expect({for (final r in l.rooms) r.floorY}, {270, 660, 1050});
     expect(
       l.doors.map((d) => (d.id, d.startsOpen, d.floorY)),
-      [('kitchenDoor', false, 660), ('hallDoor', true, 660), ('bedroomDoor', false, 270)],
+      [('kitchenDoor', false, 660), ('hallDoor', true, 660), ('bedroomDoor', false, 270), ('bathroomDoor', false, 270)],
     );
     expect(l.stairs.map((s) => s.id), ['livingStairs', 'kitchenStairs', 'hallStairs']);
     expect(l.vents.map((v) => v.id), ['bedroomDuct', 'wallHole']);
-    expect(l.roomsAt(l.loot.firstWhere((x) => x.id == 'toaster').at).single.id, 'bedroom');
-    expect(l.roomsAt(l.loot.firstWhere((x) => x.id == 'chicken').at).single.id, 'boiler');
+    expect(
+      {for (final loot in l.loot) loot.id: l.roomsAt(loot.at).single.id},
+      {'toaster': 'bedroom', 'duck': 'bathroom', 'gnome': 'hall', 'chicken': 'boiler', 'egg': 'living'},
+    );
     for (final loot in l.loot) {
       expect(l.geometry.restsOnSurface(loot.at), isTrue, reason: loot.id);
-      expect(l.roomsAt(loot.at), isNotEmpty, reason: loot.id);
     }
     expect(l.roomsAt(l.bed).single.id, 'living');
     expect(l.roomsAt(l.exit).single.id, 'hall');
-    expect(l.objects.map((o) => o.id), night3().objects.map((o) => o.id));
+    // Night 3's kitchen and living room are still in it, under the same ids.
+    expect(l.objects.map((o) => o.id), containsAll(night3().objects.map((o) => o.id)));
+  });
+
+  test('every room of the house has a chain kit and somewhere to start it', () {
+    final l = house();
+    for (final room in l.rooms) {
+      final inRoom = [for (final o in l.objects) if (room.contains(l.spots[o.spot]!.at)) o];
+      expect(inRoom, isNotEmpty, reason: room.id);
+      final spots = {for (final o in inRoom) o.spot};
+      expect(l.links.any((k) => spots.contains(k.from)), isTrue, reason: '${room.id} starts no chain');
+    }
+  });
+
+  test('chains of the house run between storeys', () {
+    final l = house();
+    final crossing = [
+      for (final k in l.links)
+        if (l.floorOf(l.spots[k.from]!.at) != l.floorOf(l.spots[k.to]!.at)) (k.from, k.to),
+    ];
+    expect(crossing, [('stairHead', 'stairFoot'), ('toiletSeat', 'boilerFront')]);
+  });
+
+  test("the house's goals are for a long night", () {
+    final l = house();
+    expect(l.goals.map((g) => (g.style, g.kind, g.count)), [
+      (PlayStyle.ghost, GoalKind.neverSuspicious, 1),
+      (PlayStyle.trickster, GoalKind.lure, 3),
+      (PlayStyle.chaos, GoalKind.chain, 6),
+    ]);
   });
 
   test('a night setup names its night', () {

@@ -640,6 +640,8 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                   for (final loot in level.loot)
                     LootSlot(
                       kind: lootArt[loot.id]!.kind,
+                      // More than three would run into the meter.
+                      size: level.loot.length > 3 ? 30 : 40,
                       state: carried.contains(loot.id)
                           ? LootState.stolen
                           : interaction is GrabLoot && interaction.loot.id == loot.id

@@ -62,8 +62,8 @@ NightResult sampleCaught({
   );
 }
 
-/// A Night 3 getaway carrying [loot]; the rest defaults to the Level
-/// Complete board's example.
+/// A getaway from [night] (Night 3 unless named) carrying [loot]; the rest
+/// defaults to the Level Complete board's example.
 NightResult sampleEscape({
   List<String> loot = const ['toaster', 'chicken', 'egg'],
   double time = 167,
@@ -74,12 +74,13 @@ NightResult sampleEscape({
   PlayStyle style = PlayStyle.trickster,
   Set<PlayStyle> goalsMet = const {PlayStyle.trickster, PlayStyle.chaos},
   bool seen = false,
+  String night = 'night3',
 }) => NightResult(
-  level: Levels.night3,
+  level: Levels.byId(night),
   outcome: Outcome.escaped,
   loot: loot,
   time: time,
-  setup: NightSetup(tool: tool),
+  setup: NightSetup(tool: tool, night: night),
   score: score,
   bestChain: bestChain,
   lures: lures,
