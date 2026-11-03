@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../art/art.dart';
 import '../art/motion.dart';
+import '../art/rig.dart';
 import '../game/goose_brain.dart';
 import '../game/level.dart';
 import '../game/night_sim.dart';
@@ -116,16 +117,69 @@ Gait gooseGait(GooseState s, {required double phase, required double speed, requ
     ),
     GooseState.sleepwalk => Gait.lerp(
       Gait.breathe(time, period: 3.2, depth: 0.03),
-      Gait(lift: 2 * hop, tilt: 0.09 * sway),
+      Gait(lift: 1 * hop, tilt: 0.05 * sway),
       moving,
     ),
     GooseState.awake => Gait(tilt: 0.03 * math.sin(time * 40), stretchY: 1.06),
     GooseState.distracted => Gait(tilt: 0.06 * math.sin(time * 8), stretchY: 1.02),
     GooseState.chase => Gait.lerp(
       Gait(tilt: 0.03 * math.sin(time * 40), stretchY: 1.06),
-      Gait(lift: 7 * hop, tilt: dir * 0.08 + 0.14 * sway, stretchY: 1 + 0.05 * hop),
+      Gait(lift: 3.5 * hop, tilt: dir * 0.08 + 0.08 * sway, stretchY: 1 + 0.04 * hop),
       moving,
     ),
+  };
+}
+
+/// Gertrude's parts for one frame. Her art faces left, so forward is -x.
+/// Walking, her legs swing and lift in turn, her body rolls and her head
+/// thrusts forward on each step, as a goose's does. In the chase her wings
+/// beat. Asleep her head rises and falls with her breath; stirring, it
+/// twitches; suspicious, it sweeps from side to side; awake, it shakes with
+/// fury. [phase] and [speed] come from her [FigureMotion].
+Map<String, Bend> gooseBends(GooseState s, {required double phase, required double speed, required double time}) {
+  final move = (speed / 20).clamp(0.0, 1.0);
+  final sn = math.sin(phase);
+  final cs = math.cos(phase);
+
+  Map<String, Bend> legs(double swing, double lift) => {
+    'legA': Bend(angle: swing * sn * move, dy: -math.max(0.0, cs) * lift * move),
+    'legB': Bend(angle: -swing * sn * move, dy: -math.max(0.0, -cs) * lift * move),
+  };
+
+  final breath = math.sin(2 * math.pi * time / 3.2);
+  return switch (s) {
+    GooseState.asleep || GooseState.drowsy => {'head': Bend(angle: 0.015 * breath, dy: 1.6 * breath)},
+    GooseState.stirring => {
+      'head': Bend(
+        angle: 0.09 * math.sin(time * 17) * math.max(0.0, math.sin(time * 2.1)),
+        dy: 1.6 * math.sin(2 * math.pi * time / 2.4),
+      ),
+    },
+    GooseState.suspicious || GooseState.lostYou => {
+      'head': Bend(angle: 0.14 * math.sin(time * 1.7), dx: 2.5 * math.sin(time * 1.7 + 1), dy: -1 + math.sin(time * 5)),
+    },
+    GooseState.sleepwalk => {
+      ...legs(0.35, 3),
+      'body': Bend(angle: 0.03 * sn * move, dy: -1.2 * sn.abs() * move),
+      // Nose down, sniffing the floor as she goes.
+      'head': Bend(angle: 0.06 * sn * move, dx: -2 * sn * move, dy: 2 * math.sin(time * 9)),
+    },
+    GooseState.awake => {
+      'body': Bend(dy: 0.8 * math.sin(time * 40)),
+      'head': Bend(angle: 0.05 * math.sin(time * 38), dx: -2),
+    },
+    GooseState.distracted => {
+      ...legs(0.4, 3),
+      'head': Bend(angle: 0.22 * math.sin(time * 5), dx: -1),
+    },
+    GooseState.chase => {
+      ...legs(0.8, 7),
+      'wingFar': Bend(angle: 0.4 * math.sin(time * 20 + 2)),
+      'wingNear': Bend(angle: 0.45 * math.sin(time * 20)),
+      'body': Bend(angle: 0.04 * sn * move, dy: -1.5 * sn.abs() * move),
+      // The head leads each stride and bobs back.
+      'head': Bend(angle: 0.07 * cs * move, dx: -4 * sn * move + (1 - move) * -2, dy: 1.5 * sn.abs() * move),
+    },
   };
 }
 

@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jangan_bangunin_angsa_app/art/art.dart';
 import 'package:jangan_bangunin_angsa_app/art/motion.dart';
+import 'package:jangan_bangunin_angsa_app/art/rig.dart';
 import 'package:jangan_bangunin_angsa_app/game/goose_brain.dart';
 import 'package:jangan_bangunin_angsa_app/screens/night_art.dart';
 
@@ -183,6 +185,115 @@ void main() {
     test('stuck at a door mid-chase she fumes in place instead of waddling', () {
       final g = goose(GooseState.chase, speed: 0);
       expect(g.lift, 0);
+    });
+  });
+
+  group('miloBends', () {
+    Map<String, Bend> bends(
+      BurglarPose pose, {
+      double phase = math.pi / 2,
+      double speed = 120,
+      double vy = 0,
+      bool grounded = true,
+      bool sneaking = false,
+      bool mantling = false,
+      double time = 0,
+    }) => miloBends(pose, phase: phase, speed: speed, vy: vy, grounded: grounded, time: time, sneaking: sneaking, mantling: mantling);
+
+    test('standing still on the first frame bends nothing: the parts draw the canvas art', () {
+      for (final pose in [BurglarPose.sneak, BurglarPose.carry, BurglarPose.crawl]) {
+        for (final b in bends(pose, speed: 0).values) {
+          expect(b, Bend.none, reason: '$pose');
+        }
+      }
+    });
+
+    test('the legs swing against each other and lift in turn', () {
+      final b = bends(BurglarPose.sneak);
+      expect(b['legA']!.angle, closeTo(-b['legB']!.angle, 1e-9));
+      expect(b['legA']!.angle, isNot(0));
+      final later = bends(BurglarPose.sneak, phase: 3 * math.pi / 2);
+      expect(later['legA']!.angle, closeTo(-b['legA']!.angle, 1e-9));
+      // One foot is off the floor while the other is down.
+      final mid = bends(BurglarPose.sneak, phase: 0);
+      expect(mid['legA']!.dy, lessThan(0));
+      expect(mid['legB']!.dy, 0);
+    });
+
+    test('the arms swing against the legs', () {
+      final b = bends(BurglarPose.sneak);
+      expect(b['armA']!.angle.sign, isNot(b['legA']!.angle.sign));
+    });
+
+    test('tiptoeing takes smaller steps than walking, and a panic the biggest', () {
+      double swing(Map<String, Bend> b) => b['legA']!.angle.abs();
+      final tiptoe = swing(bends(BurglarPose.sneak, sneaking: true));
+      final walk = swing(bends(BurglarPose.sneak));
+      final panic = swing(bends(BurglarPose.panic));
+      expect(tiptoe, lessThan(walk));
+      expect(walk, lessThan(panic));
+    });
+
+    test('carrying keeps the arms up and shaking while the legs walk', () {
+      final b = bends(BurglarPose.carry, time: 0.5);
+      expect(b['armA']!.angle.abs(), lessThan(0.05));
+      expect(b['armA']!.angle, isNot(0));
+      expect(b['legA']!.angle, isNot(0));
+    });
+
+    test('a crawl moves a front limb with the opposite back leg', () {
+      final b = bends(BurglarPose.crawl, speed: 90);
+      expect(b['armA']!.angle.sign, b['legB']!.angle.sign);
+    });
+
+    test('a panicking Milo flails even when he cannot move', () {
+      expect(bends(BurglarPose.panic, speed: 0, time: 0.04)['armA']!.angle, isNot(0));
+    });
+
+    test('in the air the arms fly out and a knee tucks', () {
+      final b = bends(BurglarPose.sneak, grounded: false, vy: -500);
+      expect(b['armA']!.angle, lessThan(0));
+      expect(b['armB']!.angle, greaterThan(0));
+      expect(b['legA']!.angle, lessThan(0));
+      expect(b['legA']!.dy, lessThan(0));
+    });
+
+    test('a mantle scrambles the legs', () {
+      final a = bends(BurglarPose.sneak, mantling: true, time: 0.05);
+      final b = bends(BurglarPose.sneak, mantling: true, time: 0.15);
+      expect(a['legA']!.angle, isNot(b['legA']!.angle));
+    });
+  });
+
+  group('gooseBends', () {
+    Map<String, Bend> bends(GooseState s, {double phase = math.pi / 2, double speed = 0, double time = 0.8}) =>
+        gooseBends(s, phase: phase, speed: speed, time: time);
+
+    test('asleep her head rises and falls with her breath', () {
+      final up = bends(GooseState.asleep, time: 0.8)['head']!;
+      final down = bends(GooseState.asleep, time: 2.4)['head']!;
+      expect(up.dy, greaterThan(0));
+      expect(down.dy, lessThan(0));
+    });
+
+    test('suspicious she sweeps her head from side to side', () {
+      final a = bends(GooseState.suspicious, time: 0.5)['head']!.angle;
+      final b = bends(GooseState.suspicious, time: 2.3)['head']!.angle;
+      expect(a.sign, isNot(b.sign));
+    });
+
+    test('in the chase her legs alternate and her wings beat', () {
+      final b = bends(GooseState.chase, speed: 110);
+      expect(b['legA']!.angle, closeTo(-b['legB']!.angle, 1e-9));
+      expect(b['legA']!.angle, isNot(0));
+      final later = bends(GooseState.chase, speed: 110, time: 1.0);
+      expect(later['wingNear']!.angle, isNot(b['wingNear']!.angle));
+    });
+
+    test('her head thrusts forward (-x) on a stride and back on the next', () {
+      final a = bends(GooseState.chase, speed: 110, phase: math.pi / 2)['head']!.dx;
+      final b = bends(GooseState.chase, speed: 110, phase: 3 * math.pi / 2)['head']!.dx;
+      expect(a, lessThan(b));
     });
   });
 }

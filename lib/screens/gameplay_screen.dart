@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../art/art.dart';
 import '../art/icons.dart';
 import '../art/motion.dart';
+import '../art/rig.dart';
 import '../game/camera.dart';
 import '../game/geom.dart';
 import '../game/goose_brain.dart';
@@ -383,7 +384,12 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
                               angle: goose.slipping ? deg(-20) : 0,
                               child: GaitBox(
                                 gait: _gooseGait(goose),
-                                child: Goose(mood: moodFor(goose.state), width: 140, flip: _gooseRight),
+                                child: Goose(
+                                  mood: moodFor(goose.state),
+                                  width: 140,
+                                  flip: _gooseRight,
+                                  bends: _gooseBends(goose),
+                                ),
                               ),
                             ),
                           ),
@@ -817,9 +823,30 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
           mantling: _sim.mantling,
         ),
       ),
-      child: Burglar(pose: pose, width: 60, flip: _sim.facing > 0),
+      child: Burglar(
+        pose: pose,
+        width: 60,
+        flip: _sim.facing > 0,
+        bends: _softenBends(
+          miloBends(
+            pose,
+            phase: m.phase,
+            speed: m.speed,
+            vy: m.vy,
+            grounded: _sim.grounded || _sim.inVent,
+            time: _sim.elapsed,
+            sneaking: _sim.sneaking,
+            mantling: _sim.mantling,
+          ),
+        ),
+      ),
     );
   }
+
+  /// Reduce shake softens every limb's swing too.
+  Map<String, Bend> _softenBends(Map<String, Bend> bends) => GameSettings.instance.reduceShake
+      ? {for (final e in bends.entries) e.key: Bend(angle: e.value.angle * 0.35, dx: e.value.dx * 0.35, dy: e.value.dy * 0.35)}
+      : bends;
 
   Gait _gooseGait(GooseBrain goose) => _soften(
     gooseGait(
@@ -830,6 +857,9 @@ class _GameplayScreenState extends State<GameplayScreen> with SingleTickerProvid
       dir: _gooseRight ? 1 : -1,
     ),
   );
+
+  Map<String, Bend> _gooseBends(GooseBrain goose) =>
+      _softenBends(gooseBends(goose.state, phase: _gooseMotion.phase, speed: _gooseMotion.speed, time: _sim.elapsed));
 
   BurglarPose _pose(GooseBrain goose, List<String> carried) => _sim.crawling
       ? BurglarPose.crawl

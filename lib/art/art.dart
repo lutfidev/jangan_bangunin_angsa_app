@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'rig.dart';
+import 'rigs.dart';
+
 part 'burglar_svgs.dart';
 part 'goose_svgs.dart';
 part 'prop_svgs.dart';
@@ -28,21 +31,26 @@ enum PropKind {
   locked,
 }
 
-/// Gertrude, the goose. Height is 0.8 × width.
+/// Gertrude, the goose. Height is 0.8 × width. With [bends] she is drawn
+/// from her parts, each moved on its own; without, as the canvas drew her.
 class Goose extends StatelessWidget {
   const Goose({
     super.key,
     this.mood = GooseMood.sleep,
     this.width = 200,
     this.flip = false,
+    this.bends,
   });
 
   final GooseMood mood;
   final double width;
   final bool flip;
+  final Map<String, Bend>? bends;
 
   @override
   Widget build(BuildContext context) {
+    final rig = bends == null ? null : gooseRigs[mood];
+    if (rig != null) return RiggedArt(spec: rig, bends: bends!, width: width, flip: flip);
     final art = _gooseSvgs[mood]!;
     return _Art(
       svg: art.svg,
@@ -54,21 +62,26 @@ class Goose extends StatelessWidget {
   }
 }
 
-/// Milo Muffle, the burglar. Height is 1.25 × width.
+/// Milo Muffle, the burglar. Height is 1.25 × width. With [bends] he is
+/// drawn from his parts, each moved on its own (every pose but caught).
 class Burglar extends StatelessWidget {
   const Burglar({
     super.key,
     this.pose = BurglarPose.sneak,
     this.width = 120,
     this.flip = false,
+    this.bends,
   });
 
   final BurglarPose pose;
   final double width;
   final bool flip;
+  final Map<String, Bend>? bends;
 
   @override
   Widget build(BuildContext context) {
+    final rig = bends == null ? null : miloRigs[pose];
+    if (rig != null) return RiggedArt(spec: rig, bends: bends!, width: width, flip: flip);
     final art = _burglarSvgs[pose]!;
     return _Art(
       svg: art.svg,
